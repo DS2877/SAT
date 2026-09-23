@@ -25,6 +25,12 @@
     "Workspace": {
       "$properties": {
         "StreamingEnabled": false
+      },
+      "Terrain": {
+        "$className": "Terrain",
+        "$properties": {
+          "Decoration": true
+        }
       }
     },
     "Lighting": {

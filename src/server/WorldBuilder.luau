@@ -12,6 +12,9 @@ local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
 local WorldLayout = require(Shared.Config.WorldLayout)
 
+local TerrainGen = require(script.Parent.World.TerrainGen)
+local Props = require(script.Parent.World.Props)
+
 local WorldBuilder = {}
 
 local terrain = workspace.Terrain
@@ -150,77 +153,74 @@ end
 -- ENVIRONMENT -----------------------------------------------------------------
 
 local function buildLighting()
-	Lighting.ClockTime = 14.2
-	Lighting.Brightness = 2.6
+	Lighting.ClockTime = 15.3
+	Lighting.Brightness = 3
 	Lighting.GlobalShadows = true
-	Lighting.OutdoorAmbient = Color3.fromRGB(140, 140, 150)
-	Lighting.Ambient = Color3.fromRGB(70, 70, 80)
+	Lighting.ShadowSoftness = 0.25
+	Lighting.OutdoorAmbient = Color3.fromRGB(150, 145, 160)
+	Lighting.Ambient = Color3.fromRGB(80, 75, 90)
+	Lighting.ColorShift_Top = Color3.fromRGB(255, 236, 200)
 	Lighting.EnvironmentDiffuseScale = 1
 	Lighting.EnvironmentSpecularScale = 0.8
 	Lighting.GeographicLatitude = 20
 
 	local atmosphere = Instance.new("Atmosphere")
-	atmosphere.Density = 0.28
-	atmosphere.Offset = 0.1
-	atmosphere.Color = Color3.fromRGB(200, 225, 240)
-	atmosphere.Decay = Color3.fromRGB(110, 150, 190)
-	atmosphere.Glare = 0.3
-	atmosphere.Haze = 1.2
+	atmosphere.Density = 0.32
+	atmosphere.Offset = 0.25
+	atmosphere.Color = Color3.fromRGB(205, 225, 240)
+	atmosphere.Decay = Color3.fromRGB(120, 160, 200)
+	atmosphere.Glare = 0.4
+	atmosphere.Haze = 1.6
 	atmosphere.Parent = Lighting
 
 	local bloom = Instance.new("BloomEffect")
-	bloom.Intensity = 0.5
-	bloom.Size = 24
-	bloom.Threshold = 1.6
+	bloom.Intensity = 0.6
+	bloom.Size = 28
+	bloom.Threshold = 1.4
 	bloom.Parent = Lighting
 
 	local color = Instance.new("ColorCorrectionEffect")
-	color.Saturation = 0.18
-	color.Contrast = 0.06
+	color.Saturation = 0.22
+	color.Contrast = 0.08
 	color.Brightness = 0.02
+	color.TintColor = Color3.fromRGB(255, 250, 240)
 	color.Parent = Lighting
 
 	local rays = Instance.new("SunRaysEffect")
-	rays.Intensity = 0.06
+	rays.Intensity = 0.08
 	rays.Spread = 0.6
 	rays.Parent = Lighting
 
 	local sky = Instance.new("Sky")
-	sky.SunAngularSize = 14
+	sky.SunAngularSize = 16
 	sky.Parent = Lighting
+
+	local clouds = Instance.new("Clouds")
+	clouds.Cover = 0.55
+	clouds.Density = 0.55
+	clouds.Color = Color3.fromRGB(255, 252, 245)
+	clouds.Parent = terrain
 end
 
 local function buildTerrain()
 	terrain.WaterColor = Color3.fromRGB(20, 170, 190)
-	terrain.WaterTransparency = 0.55
-	terrain.WaterWaveSize = 0.18
-	terrain.WaterWaveSpeed = 8
-	terrain.WaterReflectance = 0.6
-	terrain:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(106, 180, 74))
-	terrain:SetMaterialColor(Enum.Material.Sand, Color3.fromRGB(240, 220, 160))
-	terrain:SetMaterialColor(Enum.Material.Rock, Color3.fromRGB(120, 112, 105))
-	terrain:SetMaterialColor(Enum.Material.Ground, Color3.fromRGB(160, 120, 80))
+	terrain.WaterTransparency = 0.75
+	terrain.WaterWaveSize = 0.15
+	terrain.WaterWaveSpeed = 9
+	terrain.WaterReflectance = 0.5
+	terrain:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(104, 178, 72))
+	terrain:SetMaterialColor(Enum.Material.LeafyGrass, Color3.fromRGB(86, 160, 66))
+	terrain:SetMaterialColor(Enum.Material.Sand, Color3.fromRGB(244, 224, 168))
+	terrain:SetMaterialColor(Enum.Material.Rock, Color3.fromRGB(128, 120, 112))
+	terrain:SetMaterialColor(Enum.Material.Ground, Color3.fromRGB(150, 116, 80))
+	terrain:SetMaterialColor(Enum.Material.Basalt, Color3.fromRGB(70, 62, 60))
 
 	-- Ocean (sea floor + water, top at y = 0)
 	terrain:FillBlock(CFrame.new(0, -32, 0), Vector3.new(1800, 16, 1800), Enum.Material.Sand)
 	terrain:FillBlock(CFrame.new(0, -12, 0), Vector3.new(1800, 24, 1800), Enum.Material.Water)
 
-	-- Island: beach ring, sand shelf, grass plateau (top y = 10)
-	terrain:FillCylinder(CFrame.new(0, -9, 0), 22, 540, Enum.Material.Sand)
-	terrain:FillCylinder(CFrame.new(0, -5, 0), 26, 505, Enum.Material.Sand)
-	terrain:FillCylinder(CFrame.new(0, -5, 0), 30, 480, Enum.Material.Grass)
-
-	-- Rolling hills in the Wilds (break up sightlines, create routes)
-	for _, hill in {
-		{ -200, -8, -100, 40 },
-		{ 175, -14, 45, 40 },
-		{ -70, -18, -225, 34 },
-		{ -250, -12, 150, 45 },
-		{ 250, -10, 150, 42 },
-		{ 120, -20, -120, 30 },
-	} do
-		terrain:FillBall(Vector3.new(hill[1], hill[2], hill[3]), hill[4], Enum.Material.Grass)
-	end
+	-- Island: noise heightmap (hills, coastline, beaches); gameplay areas stay flat at y = 10.
+	TerrainGen.Generate(terrain)
 
 	-- Shipwreck cove (open to the ocean on the west)
 	local cove = WorldLayout.Shipwreck
@@ -256,9 +256,10 @@ local function paintPath(from: Vector3, to: Vector3, width: number)
 		local p = from + delta * (i / steps)
 		local region = Region3.new(
 			Vector3.new(p.X - width / 2, 0, p.Z - width / 2),
-			Vector3.new(p.X + width / 2, 14, p.Z + width / 2)
+			Vector3.new(p.X + width / 2, 72, p.Z + width / 2)
 		):ExpandToGrid(4)
 		terrain:ReplaceMaterial(region, 4, Enum.Material.Grass, Enum.Material.Ground)
+		terrain:ReplaceMaterial(region, 4, Enum.Material.LeafyGrass, Enum.Material.Ground)
 	end
 end
 
@@ -555,52 +556,6 @@ local function tooClose(x: number, z: number, avoid): boolean
 	return false
 end
 
-local function buildTree(parent: Folder, ground: Vector3, palm: boolean)
-	local height = rng:NextNumber(12, 22)
-	local lean = if palm then math.rad(rng:NextNumber(-12, 12)) else 0
-	local trunkCf = CFrame.new(ground + Vector3.new(0, height / 2, 0)) * CFrame.Angles(lean, rng:NextNumber(0, 6.28), 0)
-	part({
-		Name = "Trunk",
-		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(height, if palm then 1.6 else 2.4, if palm then 1.6 else 2.4),
-		CFrame = trunkCf * CFrame.Angles(0, 0, math.rad(90)),
-		Color = if palm then Color3.fromRGB(160, 120, 80) else C.Wood,
-		Material = Enum.Material.Wood,
-		Parent = parent,
-	})
-	local top = (trunkCf * CFrame.new(0, height / 2, 0)).Position
-	if palm then
-		for i = 0, 5 do
-			local a = i / 6 * math.pi * 2
-			part({
-				Name = "Frond",
-				Size = Vector3.new(1.2, 0.4, 9),
-				CFrame = CFrame.new(top) * CFrame.Angles(0, a, 0) * CFrame.new(0, -1, -4) * CFrame.Angles(math.rad(-20), 0, 0),
-				Color = C.Leaf,
-				Material = Enum.Material.Grass,
-				CanCollide = false,
-				CanQuery = false,
-				Parent = parent,
-			})
-		end
-	else
-		for i = 1, rng:NextInteger(2, 3) do
-			local size = rng:NextNumber(9, 14)
-			part({
-				Name = "Canopy",
-				Shape = Enum.PartType.Ball,
-				Size = Vector3.new(size, size * 0.85, size),
-				CFrame = CFrame.new(top + Vector3.new(rng:NextNumber(-3, 3), rng:NextNumber(-1, 3) + i, rng:NextNumber(-3, 3))),
-				Color = if i % 2 == 0 then C.LeafDark else C.Leaf,
-				Material = Enum.Material.Grass,
-				CanCollide = false,
-				CanQuery = false,
-				Parent = parent,
-			})
-		end
-	end
-end
-
 local function buildWilds()
 	local wilds = folder("Wilds")
 	local avoid = {
@@ -618,47 +573,84 @@ local function buildWilds()
 		table.insert(avoid, { Vector2.new(zone.Position.X, zone.Position.Z), zone.Radius + 8 })
 	end
 
-	local placed = 0
-	local attempts = 0
-	while placed < 110 and attempts < 1200 do
-		attempts += 1
-		local r = math.sqrt(rng:NextNumber()) * 450
-		local a = rng:NextNumber(0, math.pi * 2)
-		local x, z = math.cos(a) * r, math.sin(a) * r
-		if not tooClose(x, z, avoid) and not (z < -300 and math.abs(x) < 190) then
-			local ground = groundAt(x, z)
-			if ground.Y > 7 then
-				buildTree(wilds, ground, r > 380 or x < -250)
-				placed += 1
-				table.insert(avoid, { Vector2.new(x, z), 10 })
+	-- Keep the trails clear of vegetation.
+	local gate = WorldLayout.District.Gate
+	local trails = {
+		{ gate, Vector3.new(0, 10, -270) },
+		{ gate + Vector3.new(0, 0, -45), WorldLayout.Temple.Courtyard + Vector3.new(0, 0, 15) },
+		{ gate + Vector3.new(0, 0, -45), WorldLayout.Shipwreck.Center + Vector3.new(60, 0, 0) },
+	}
+	for _, trail in trails do
+		local delta = trail[2] - trail[1]
+		for d = 0, delta.Magnitude, 10 do
+			local p = trail[1] + delta.Unit * d
+			table.insert(avoid, { Vector2.new(p.X, p.Z), 8 })
+		end
+	end
+
+	-- Scatter helper: tries random points on the island, calls place(ground, x, z, coast) when the
+	-- spot is clear. Spacing keeps props from overlapping each other.
+	local function scatter(count: number, spacing: number, accept: (Vector3, number) -> boolean, place)
+		local placed, attempts = 0, 0
+		while placed < count and attempts < count * 12 do
+			attempts += 1
+			local r = math.sqrt(rng:NextNumber()) * 540
+			local a = rng:NextNumber(0, math.pi * 2)
+			local x, z = math.cos(a) * r, math.sin(a) * r
+			if not tooClose(x, z, avoid) then
+				local ground = groundAt(x, z)
+				local _, coast = TerrainGen.Height(x, z)
+				if accept(ground, coast) then
+					place(ground, coast)
+					placed += 1
+					table.insert(avoid, { Vector2.new(x, z), spacing })
+				end
 			end
 		end
 	end
 
-	for _ = 1, 40 do
-		local r = math.sqrt(rng:NextNumber()) * 440
-		local a = rng:NextNumber(0, math.pi * 2)
-		local x, z = math.cos(a) * r, math.sin(a) * r
-		if not tooClose(x, z, avoid) then
-			local ground = groundAt(x, z)
-			local size = rng:NextNumber(4, 11)
-			part({
-				Name = "Boulder",
-				Shape = Enum.PartType.Ball,
-				Size = Vector3.new(size * 1.3, size, size * 1.1),
-				CFrame = CFrame.new(ground + Vector3.new(0, size * 0.25, 0)) * CFrame.Angles(0, rng:NextNumber(0, 6.28), 0),
-				Color = Color3.fromRGB(135, 128, 118),
-				Material = Enum.Material.Slate,
-				Parent = wilds,
-			})
-		end
-	end
+	local trees = folder("Trees", wilds)
+	-- Palms line the beaches, broadleaf trees fill the interior (clustered by noise into groves).
+	scatter(55, 9, function(ground, coast)
+		return ground.Y > 2.5 and ground.Y < 12 and coast > 0.08
+	end, function(ground)
+		Props.Palm(trees, ground, rng)
+	end)
+	scatter(190, 9, function(ground, coast)
+		local grove = math.noise(ground.X / 90, ground.Z / 90, 3.7)
+		return ground.Y > 8 and coast < 0.15 and grove > -0.15
+	end, function(ground)
+		Props.Broadleaf(trees, ground, rng)
+	end)
+	local undergrowth = folder("Undergrowth", wilds)
+	scatter(150, 5, function(ground, coast)
+		return ground.Y > 8 and coast < 0.2
+	end, function(ground)
+		Props.Bush(undergrowth, ground, rng)
+	end)
+	scatter(90, 6, function(ground, coast)
+		return ground.Y > 8.5 and coast < 0.1
+	end, function(ground)
+		Props.Flowers(undergrowth, ground, rng)
+	end)
+	scatter(45, 12, function(ground)
+		return ground.Y > 4
+	end, function(ground)
+		Props.Rocks(undergrowth, ground, rng)
+	end)
 
 	-- Dirt trails from the gate toward each landmark
-	local gate = WorldLayout.District.Gate
-	paintPath(gate, Vector3.new(0, 10, -270), 10)
-	paintPath(gate + Vector3.new(0, 0, -45), WorldLayout.Temple.Courtyard + Vector3.new(0, 0, 15), 9)
-	paintPath(gate + Vector3.new(0, 0, -45), WorldLayout.Shipwreck.Center + Vector3.new(60, 0, 0), 9)
+	for _, trail in trails do
+		paintPath(trail[1], trail[2], 9)
+	end
+	-- Bridge rails
+	local railCf = CFrame.new(Vector3.new(120, 10, 10) + Vector3.new(0, 0.3, 0)) * CFrame.Angles(0, math.rad(20), 0)
+	for _, side in { -4.2, 4.2 } do
+		part({ Name = "Rope", Size = Vector3.new(26, 0.3, 0.3), CFrame = railCf * CFrame.new(0, 3, side), Color = Color3.fromRGB(190, 160, 110), Material = Enum.Material.Fabric, CanCollide = false, Parent = wilds })
+		for i = -2, 2 do
+			part({ Name = "Post", Size = Vector3.new(0.5, 3.5, 0.5), CFrame = railCf * CFrame.new(i * 6, 1.6, side), Color = C.DarkWood, Material = Enum.Material.Wood, Parent = wilds })
+		end
+	end
 
 	-- A rope bridge over a small ravine on the ruins trail
 	local ravine = Vector3.new(120, 10, 10)
@@ -887,10 +879,246 @@ local function buildExtractionZones()
 	end
 end
 
+-- DRESSING ----------------------------------------------------------------------
+-- Pure decoration layered on top of the gameplay layout. Nothing here affects anchors.
+
+local function dressDistrict()
+	local d = WorldLayout.District
+	local center = d.Center
+	local dressing = folder("DistrictDressing")
+	local plazaY = center.Y + 1
+
+	-- Paving rings (stacked discs read as inlaid stone circles)
+	for i, ring in { { 104, Color3.fromRGB(205, 170, 120) }, { 100, Color3.fromRGB(232, 222, 196) }, { 64, Color3.fromRGB(190, 150, 105) }, { 60, Color3.fromRGB(232, 222, 196) } } do
+		cylinder(Vector3.new(center.X, plazaY + 0.01 * i, center.Z), 0.1, ring[1] * 2, {
+			Name = "PavingRing",
+			Color = ring[2],
+			Material = Enum.Material.Pavement,
+			CanCollide = false,
+			CanQuery = false,
+			Parent = dressing,
+		})
+	end
+	-- Cobbled avenue from the fountain to the north gate
+	local avenueStart, avenueEnd = center.Z - 36, d.Gate.Z
+	part({
+		Name = "Avenue",
+		Size = Vector3.new(12, 0.2, avenueStart - avenueEnd),
+		CFrame = CFrame.new(center.X, plazaY + 0.06, (avenueStart + avenueEnd) / 2),
+		Color = Color3.fromRGB(170, 160, 150),
+		Material = Enum.Material.Cobblestone,
+		CanCollide = false,
+		CanQuery = false,
+		Parent = dressing,
+	})
+	-- Bunting over the avenue
+	for _, z in { 125, 160, 195 } do
+		for _, x in { -9, 9 } do
+			cylinder(Vector3.new(x, plazaY + 6, z), 12, 0.5, { Name = "BuntingPole", Color = C.DarkWood, Material = Enum.Material.Wood, Parent = dressing })
+		end
+		Props.Bunting(dressing, Vector3.new(-9, plazaY + 11.5, z), Vector3.new(9, plazaY + 11.5, z), rng)
+	end
+
+	-- Houses around the edge, facing the plaza
+	for _, degrees in { 100, 125, 150, 210, 235, 260 } do
+		local a = math.rad(degrees)
+		local pos = Vector3.new(center.X + math.sin(a) * 135, plazaY - 1, center.Z + math.cos(a) * 135)
+		Props.House(dressing, CFrame.lookAt(pos, Vector3.new(center.X, pos.Y, center.Z)), rng)
+	end
+
+	-- Benches + flower beds around the fountain
+	for i = 0, 5 do
+		local a = math.rad(30 + i * 60)
+		local pos = Vector3.new(center.X + math.sin(a) * 22, plazaY, center.Z + math.cos(a) * 22)
+		local facing = CFrame.lookAt(pos, Vector3.new(center.X, plazaY, center.Z)) * CFrame.Angles(0, math.rad(180), 0)
+		if i % 2 == 0 then
+			Props.Bench(dressing, facing)
+		else
+			part({ Name = "Planter", Size = Vector3.new(7, 1.2, 3), CFrame = facing * CFrame.new(0, 0.6, 0), Color = Color3.fromRGB(160, 90, 70), Material = Enum.Material.Brick, Parent = dressing })
+			Props.Flowers(dressing, (facing * CFrame.new(0, 1.2, 0)).Position, rng, 8)
+		end
+	end
+	-- Palms for a holiday-town feel
+	for _, pos in { Vector3.new(-48, 0, 300), Vector3.new(48, 0, 300), Vector3.new(-96, 0, 250), Vector3.new(96, 0, 250), Vector3.new(-30, 0, 140), Vector3.new(30, 0, 140) } do
+		local ground = Vector3.new(pos.X, plazaY, pos.Z)
+		cylinder(ground + Vector3.new(0, 0.4, 0), 0.8, 6, { Name = "PalmBed", Color = Color3.fromRGB(150, 110, 70), Material = Enum.Material.Ground, Parent = dressing })
+		Props.Palm(dressing, ground + Vector3.new(0, 0.8, 0), rng)
+	end
+	-- Street lamps along the avenue
+	for _, z in { 110, 142, 178, 212 } do
+		Props.Lamp(dressing, Vector3.new(-12, plazaY, z))
+		Props.Lamp(dressing, Vector3.new(12, plazaY, z))
+	end
+
+	-- Fountain jets
+	local pillar = dressing.Parent and dressing.Parent:FindFirstChild("TreasureDistrict")
+	local jetBase = Instance.new("Part")
+	jetBase.Name = "FountainJets"
+	jetBase.Anchored = true
+	jetBase.CanCollide = false
+	jetBase.CanQuery = false
+	jetBase.Transparency = 1
+	jetBase.Size = Vector3.new(1, 1, 1)
+	jetBase.CFrame = CFrame.new(center + Vector3.new(0, 10.5, 0))
+	jetBase.Parent = pillar or dressing
+	local jets = Instance.new("ParticleEmitter")
+	jets.Color = ColorSequence.new(Color3.fromRGB(190, 235, 255))
+	jets.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
+	jets.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(1, 1.4) })
+	jets.Lifetime = NumberRange.new(1.2, 1.6)
+	jets.Rate = 45
+	jets.Speed = NumberRange.new(14, 18)
+	jets.SpreadAngle = Vector2.new(22, 22)
+	jets.Acceleration = Vector3.new(0, -30, 0)
+	jets.EmissionDirection = Enum.NormalId.Top
+	jets.Parent = jetBase
+end
+
+local function dressLandmarks()
+	local dressing = folder("LandmarkDressing")
+
+	-- Temple: vines down each tier, braziers at the stairs, broken pillar pieces
+	local t = WorldLayout.Temple
+	for tier = 0, t.Tiers - 2 do
+		local size = t.BaseSize - tier * 14
+		local topY = t.Center.Y + (tier + 1) * t.TierHeight
+		for _ = 1, 3 do
+			local x = t.Center.X + rng:NextNumber(-size / 2 + 2, size / 2 - 2)
+			if math.abs(x - t.Center.X) > 8 then -- keep the stairs clear
+				Props.Vine(dressing, Vector3.new(x, topY, t.Center.Z + size / 2 + 0.4), rng:NextNumber(4, 7), rng)
+			end
+			local side = if rng:NextNumber() < 0.5 then -1 else 1
+			Props.Vine(dressing, Vector3.new(t.Center.X + side * (size / 2 + 0.4), topY, t.Center.Z + rng:NextNumber(-size / 2, size / 2)), rng:NextNumber(4, 7), rng)
+		end
+	end
+	local stairFoot = t.Center + Vector3.new(0, 0, t.BaseSize / 2 + 34)
+	for _, x in { -9, 9 } do
+		Props.Brazier(dressing, stairFoot + Vector3.new(x, 1, 4))
+		-- Between the shrine pillars (at +-6, +-6) and clear of the stair landing.
+		Props.Brazier(dressing, Vector3.new(t.Center.X + x * 0.72, t.Center.Y + t.Tiers * t.TierHeight, t.Center.Z))
+	end
+	for _ = 1, 8 do
+		local a = rng:NextNumber(0, math.pi * 2)
+		local ground = groundAt(t.Center.X + math.cos(a) * rng:NextNumber(50, 75), t.Center.Z + math.sin(a) * rng:NextNumber(50, 75))
+		part({
+			Name = "FallenPillar",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(rng:NextNumber(4, 9), 3, 3),
+			CFrame = CFrame.new(ground + Vector3.new(0, 1.3, 0)) * CFrame.Angles(0, rng:NextNumber(0, 6.28), math.rad(rng:NextNumber(-10, 10))),
+			Color = Color3.fromRGB(225, 215, 190),
+			Material = Enum.Material.Marble,
+			Parent = dressing,
+		})
+	end
+
+	-- Waterfall: second translucent layer, foam, rocks around the pool
+	local w = WorldLayout.Waterfall
+	local topY = w.CliffCenter.Y + w.CliffSize.Y / 2
+	local faceZ = w.CliffCenter.Z + w.CliffSize.Z / 2
+	local veil = part({
+		Name = "FallingWaterVeil",
+		Size = Vector3.new(w.FallWidth + 6, topY - 6, 1),
+		CFrame = CFrame.new(0, (topY + 6) / 2, faceZ + 3.2),
+		Color = Color3.fromRGB(215, 245, 255),
+		Material = Enum.Material.Glass,
+		Transparency = 0.7,
+		CanCollide = false,
+		CanQuery = false,
+		CastShadow = false,
+		Parent = dressing,
+	})
+	local streaks = Instance.new("ParticleEmitter")
+	streaks.Color = ColorSequence.new(Color3.new(1, 1, 1))
+	streaks.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.4), NumberSequenceKeypoint.new(1, 0.9) })
+	streaks.Size = NumberSequence.new(2.5)
+	streaks.Lifetime = NumberRange.new(1.5, 2)
+	streaks.Rate = 40
+	streaks.Speed = NumberRange.new(40, 50)
+	streaks.EmissionDirection = Enum.NormalId.Bottom
+	streaks.SpreadAngle = Vector2.new(4, 4)
+	local streakAttachment = Instance.new("Attachment")
+	streakAttachment.Position = Vector3.new(0, veil.Size.Y / 2 - 2, 0)
+	streakAttachment.Parent = veil
+	streaks.Parent = streakAttachment
+	local foam = Instance.new("ParticleEmitter")
+	foam.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	foam.Color = ColorSequence.new(Color3.new(1, 1, 1))
+	foam.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1) })
+	foam.Size = NumberSequence.new(5, 12)
+	foam.Lifetime = NumberRange.new(1.2, 2)
+	foam.Rate = 30
+	foam.Speed = NumberRange.new(3, 7)
+	foam.SpreadAngle = Vector2.new(80, 80)
+	foam.EmissionDirection = Enum.NormalId.Top
+	local foamAttachment = Instance.new("Attachment")
+	foamAttachment.Position = Vector3.new(0, -veil.Size.Y / 2 + 1, 2)
+	foamAttachment.Parent = veil
+	foam.Parent = foamAttachment
+	for i = 0, 9 do
+		local a = math.rad(i * 36 + rng:NextNumber(-8, 8))
+		local ground = groundAt(w.PoolCenter.X + math.cos(a) * (w.PoolRadius + 3), w.PoolCenter.Z + math.sin(a) * (w.PoolRadius + 3))
+		if ground.Z > faceZ + 8 and not (math.abs(ground.X) < 14 and ground.Z < faceZ + 30) then
+			Props.Rocks(dressing, ground, rng)
+		end
+	end
+
+	-- Shipwreck beach: cargo spilled from the wreck
+	local ship = WorldLayout.Shipwreck.Center
+	for _ = 1, 10 do
+		local ground = groundAt(ship.X + rng:NextNumber(18, 48), ship.Z + rng:NextNumber(-45, 45))
+		if ground.Y > 1 then
+			local cf = CFrame.new(ground) * CFrame.Angles(0, rng:NextNumber(0, 6.28), 0)
+			if rng:NextNumber() < 0.5 then
+				Props.Barrel(dressing, cf)
+			else
+				Props.Crate(dressing, cf, rng:NextNumber(2.5, 3.5))
+			end
+		end
+	end
+	for _ = 1, 6 do
+		local ground = groundAt(ship.X + rng:NextNumber(15, 50), ship.Z + rng:NextNumber(-50, 50))
+		part({
+			Name = "Driftwood",
+			Size = Vector3.new(rng:NextNumber(4, 8), 0.5, 1.2),
+			CFrame = CFrame.new(ground + Vector3.new(0, 0.2, 0)) * CFrame.Angles(0, rng:NextNumber(0, 6.28), math.rad(rng:NextNumber(-8, 8))),
+			Color = Color3.fromRGB(150, 120, 90),
+			Material = Enum.Material.WoodPlanks,
+			CanCollide = false,
+			Parent = dressing,
+		})
+	end
+
+	-- Expedition camp: logs around the fire, lanterns, a map table
+	local camp = WorldLayout.ExtractionZones[1]
+	local campGround = camp.ResolvedPosition or camp.Position
+	local fire = campGround + Vector3.new(14, 0, 12)
+	for i = 0, 2 do
+		local a = math.rad(i * 120 + 30)
+		part({
+			Name = "LogSeat",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(5, 1.4, 1.4),
+			CFrame = CFrame.new(fire + Vector3.new(math.cos(a) * 4, 0.7, math.sin(a) * 4)) * CFrame.Angles(0, -a + math.rad(90), 0),
+			Color = Color3.fromRGB(110, 75, 45),
+			Material = Enum.Material.Wood,
+			Parent = dressing,
+		})
+	end
+	for _, offset in { Vector3.new(-20, 0, -16), Vector3.new(20, 0, -16), Vector3.new(-22, 0, 18) } do
+		Props.Lamp(dressing, campGround + offset)
+	end
+	part({ Name = "MapTable", Size = Vector3.new(5, 0.4, 3), CFrame = CFrame.new(campGround + Vector3.new(-6, 3, -16)), Color = C.Wood, Material = Enum.Material.WoodPlanks, Parent = dressing })
+	part({ Name = "Map", Size = Vector3.new(3.6, 0.05, 2.2), CFrame = CFrame.new(campGround + Vector3.new(-6, 3.23, -16)) * CFrame.Angles(0, 0.2, 0), Color = Color3.fromRGB(230, 205, 150), Material = Enum.Material.Fabric, CanCollide = false, Parent = dressing })
+	for _, x in { -8, -4 } do
+		part({ Name = "TableLeg", Size = Vector3.new(0.4, 2.8, 2.6), CFrame = CFrame.new(campGround + Vector3.new(x, 1.4, -16)), Color = C.DarkWood, Material = Enum.Material.Wood, Parent = dressing })
+	end
+end
+
 -- PUBLIC ------------------------------------------------------------------------
 
 function WorldBuilder.Build()
 	world = folder("World", workspace)
+	Props.DefaultParent = world
 	buildLighting()
 	buildTerrain()
 	local district = buildDistrict()
@@ -905,6 +1133,8 @@ function WorldBuilder.Build()
 	buildLighthouse()
 	buildWilds()
 	buildExtractionZones()
+	dressDistrict()
+	dressLandmarks()
 
 	-- Resolve treasure spawn heights against the finished world
 	local spawns = {}

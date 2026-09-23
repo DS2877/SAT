@@ -10,6 +10,7 @@ local Stability = require("../src/shared/Logic/Stability")
 local TreasureRoll = require("../src/shared/Logic/TreasureRoll")
 local TrainingTiming = require("../src/shared/Logic/TrainingTiming")
 local DataSchema = require("../src/shared/Logic/DataSchema")
+local TerrainGen = require("../src/server/World/TerrainGen")
 
 local RARITY_ORDER = { "Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Secret" }
 
@@ -240,6 +241,43 @@ test("leaderboard config + unique treasure values", function()
 	for _, def in Treasures.List do
 		check(not values[def.Value], "unique value (Rarest board maps value -> treasure) " .. def.Id)
 		values[def.Value] = true
+	end
+end)
+
+test("terrain: gameplay spots are flat, island has hills and a coast", function()
+	local flat = {
+		{ 0, 250, "district centre" },
+		{ 0, 290, "spawn" },
+		{ -62, 235, "stone lift" },
+		{ 0, 55, "camp extraction" },
+		{ 230, -45, "temple courtyard" },
+		{ 230, -140, "temple" },
+		{ 0, -285, "waterfall pool" },
+		{ 40, -296, "cliff ramp foot" },
+		{ -345, -10, "shipwreck" },
+		{ 120, 10, "ravine bridge" },
+	}
+	for _, p in flat do
+		local h = TerrainGen.Height(p[1], p[2])
+		check(near(h, 10, 0.01), ("%s flat at 10 (got %.2f)"):format(p[3], h))
+	end
+	local highest, lowestInland = -math.huge, math.huge
+	for x = -400, 400, 16 do
+		for z = -400, 400, 16 do
+			local h = TerrainGen.Height(x, z)
+			highest = math.max(highest, h)
+			if x * x + z * z < 300 * 300 then
+				lowestInland = math.min(lowestInland, h)
+			end
+		end
+	end
+	check(highest > 22, ("island has real hills (max %.1f)"):format(highest))
+	check(highest < 72, "hills fit inside the generated voxel range")
+	check(lowestInland > 2, ("inland never dips below sea level (min %.1f)"):format(lowestInland))
+	for angle = 0, 350, 10 do
+		local a = math.rad(angle)
+		local h, coast = TerrainGen.Height(math.cos(a) * 600, math.sin(a) * 600)
+		check(h < 0 and coast > 0.9, ("open sea at r=600, angle %d (h=%.1f)"):format(angle, h))
 	end
 end)
 

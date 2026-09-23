@@ -49,6 +49,16 @@ M0–M7 implemented in code; awaiting first Roblox runtime playtest (M8 multipla
 - CURSED HOUR (2 min): Rare+ spawn weights x2–3, guardians x1.3 range/speed/damage, purple tint.
   Scheduler picks events by weight (Rain 2 : Cursed 1). Chat: `/event cursed`.
 
+## WORLD POLISH PASS 1
+- Noise heightmap island (src/server/World/TerrainGen.luau): rolling hills, noisy coastline,
+  sloped beaches, rock/dirt on slopes, grass variation; gameplay areas kept flat at y=10 (unit-tested).
+- Terrain grass decoration on (project file), animated clouds, warmer lighting, clearer water.
+- Vegetation (src/server/World/Props.luau): curved palms on beaches, broadleaf groves, bushes,
+  flowers, mossy rock clusters; trails kept clear.
+- District: houses, paving rings, cobbled avenue with bunting + lamps, benches, planters, palms,
+  fountain jets. Landmarks: temple vines/braziers/fallen pillars, layered waterfall + foam,
+  shipwreck cargo + driftwood, furnished expedition camp, rope-bridge rails.
+
 ## KNOWN BUGS / RISKS
 - Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp slopes.
 - No server-side speed-hack detection yet (movement is client-authoritative in Roblox).
