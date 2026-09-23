@@ -79,7 +79,7 @@ local function makeBillboard(record: Record)
 	local rarity = Instance.new("TextLabel")
 	rarity.Name = "Rarity"
 	rarity.BackgroundTransparency = 1
-	rarity.Size = UDim2.new(1, 0, 0.4, 0)
+	rarity.Size = UDim2.fromScale(1, 0.4)
 	rarity.Font = Enum.Font.GothamBlack
 	rarity.TextScaled = true
 	rarity.TextColor3 = info.Color
@@ -91,7 +91,7 @@ local function makeBillboard(record: Record)
 	name.Name = "Title"
 	name.BackgroundTransparency = 1
 	name.Position = UDim2.fromScale(0, 0.4)
-	name.Size = UDim2.new(1, 0, 0.6, 0)
+	name.Size = UDim2.fromScale(1, 0.6)
 	name.Font = Enum.Font.GothamBold
 	name.TextScaled = true
 	name.TextColor3 = Color3.new(1, 1, 1)
@@ -336,7 +336,9 @@ function TreasureService.TryPickup(player: Player, uid: number): (boolean, strin
 	applyCarrierMovement(player, record)
 
 	Net.Fire("Feedback", player, { Type = "PickedUp", Uid = uid, TreasureId = record.Def.Id })
-	PlayerData.Milestone(player, "FirstTreasure")
+	if PlayerData.Milestone(player, "FirstTreasure") then
+		Analytics.Funnel(player, "FirstTreasure")
+	end
 	Analytics.Event(player, "TreasurePickedUp", { Treasure = record.Def.Id, Rarity = record.Def.Rarity })
 
 	if stolenFrom then

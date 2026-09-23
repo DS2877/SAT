@@ -84,7 +84,7 @@ function MenuController.Init(gui: ScreenGui)
 		Name = "Window",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.new(0.9, 0, 0.86, 0),
+		Size = UDim2.fromScale(0.9, 0.86),
 		BackgroundTransparency = 0.04,
 		ZIndex = 11,
 		Parent = overlay,

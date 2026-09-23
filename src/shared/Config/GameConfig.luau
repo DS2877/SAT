@@ -101,7 +101,7 @@ GameConfig.SafeZone = {
 }
 
 GameConfig.Training = {
-	Period = 1.6, -- seconds for the marker to sweep 0 -> 1 -> 0
+	Period = 1.6, -- default seconds for the marker to sweep 0 -> 1 -> 0 (stations may override)
 	RepsPerSet = 8,
 	MinTapInterval = 0.3,
 	ClientTimestampTolerance = 0.4,
@@ -120,19 +120,21 @@ GameConfig.Training = {
 		},
 		chain_pull = {
 			Name = "Chain Pull",
-			RequiredStrength = 20,
-			Cap = 70,
-			PerfectGain = 4,
-			GoodGain = 2,
+			RequiredStrength = 25,
+			Cap = 60,
+			Period = 2.0,
+			PerfectGain = 3,
+			GoodGain = 1,
 			PerfectWindow = 0.07,
 			GoodWindow = 0.17,
 		},
 		strength_challenge = {
 			Name = "Strength Challenge",
-			RequiredStrength = 50,
+			RequiredStrength = 55,
 			Cap = 150,
-			PerfectGain = 6,
-			GoodGain = 3,
+			Period = 2.4,
+			PerfectGain = 2,
+			GoodGain = 1,
 			PerfectWindow = 0.06,
 			GoodWindow = 0.14,
 		},
@@ -155,6 +157,9 @@ GameConfig.Vault = {
 
 GameConfig.Ascension = {
 	RequiredStrength = 100,
+	-- Cash price per ascension (index = new level). Ties Ascension to the treasure loop, not just training.
+	CashCost = { 50000, 250000, 1000000, 3000000 },
+	CashCostGrowthAfterTable = 2,
 	Multipliers = { [0] = 1.0, [1] = 1.25, [2] = 1.5, [3] = 1.75, [4] = 2.0 },
 	MultiplierPerLevelAfterTable = 0.25,
 	Titles = { "Ascended", "Twice Ascended", "Treasure Titan", "Island Legend" },
@@ -176,6 +181,14 @@ GameConfig.Remotes = {
 	-- Max requests per second per player per remote (token bucket).
 	DefaultRate = 10,
 }
+
+function GameConfig.GetAscensionCost(newLevel: number): number
+	local costs = GameConfig.Ascension.CashCost
+	if costs[newLevel] then
+		return costs[newLevel]
+	end
+	return costs[#costs] * GameConfig.Ascension.CashCostGrowthAfterTable ^ (newLevel - #costs)
+end
 
 function GameConfig.GetAscensionMultiplier(level: number): number
 	local mult = GameConfig.Ascension.Multipliers[level]

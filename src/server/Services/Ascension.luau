@@ -25,6 +25,11 @@ local function onAscend(player: Player)
 		return
 	end
 	local newLevel = data.Ascension + 1
+	local cost = GameConfig.GetAscensionCost(newLevel)
+	if not PlayerData.TrySpend(player, cost) then
+		Net.Fire("Notify", player, { Kind = "Toast", Text = "Not enough Cash to Ascend", Tone = "Warn" })
+		return
+	end
 	local title = cfg.Titles[math.min(newLevel, #cfg.Titles)]
 	if newLevel > #cfg.Titles then
 		title = ("%s %d"):format(cfg.Titles[#cfg.Titles], newLevel)

@@ -85,7 +85,7 @@ local function billboardSign(parent: BasePart, title: string, subtitle: string?,
 	gui.Name = "Sign"
 	local t = Instance.new("TextLabel")
 	t.BackgroundTransparency = 1
-	t.Size = UDim2.new(1, 0, if subtitle then 0.6 else 1, 0)
+	t.Size = UDim2.fromScale(1, if subtitle then 0.6 else 1)
 	t.Font = Enum.Font.GothamBlack
 	t.TextScaled = true
 	t.TextColor3 = color

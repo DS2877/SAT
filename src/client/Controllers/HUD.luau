@@ -283,7 +283,7 @@ local function buildActions()
 	local attack = Kit.button({
 		Name = "Attack",
 		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.fromScale(1, 1),
 		Size = UDim2.fromOffset(96, 96),
 		BackgroundColor3 = Theme.Color.Danger,
 		TextColor3 = Theme.Color.Text,
@@ -473,7 +473,10 @@ local function refreshObjective()
 		return
 	end
 
-	if data.Strength >= GameConfig.Ascension.RequiredStrength then
+	if
+		data.Strength >= GameConfig.Ascension.RequiredStrength
+		and data.Cash >= GameConfig.GetAscensionCost(data.Ascension + 1)
+	then
 		setObjective("✦ READY", "ASCENSION AVAILABLE", Theme.Color.Secret, ("Permanent x%.2f Cash multiplier"):format(GameConfig.GetAscensionMultiplier(data.Ascension + 1)), nil)
 		navTarget = { Name = "ASCENSION ALTAR", Position = WorldLayout.AscensionAltar }
 		return

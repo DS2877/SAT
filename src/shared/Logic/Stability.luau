@@ -16,10 +16,9 @@ end
 
 -- Applies time-based transitions. Returns true if the state changed.
 function Stability.Update(st: State, now: number, config): boolean
-	if st.State == "Knocked" and now >= st.KnockedUntil then
-		st.State = "Stable"
-		return true
-	elseif st.State == "Shaken" and now - st.ShakenAt >= config.ShakenWindow then
+	local knockOver = st.State == "Knocked" and now >= st.KnockedUntil
+	local shakeOver = st.State == "Shaken" and now - st.ShakenAt >= config.ShakenWindow
+	if knockOver or shakeOver then
 		st.State = "Stable"
 		return true
 	end

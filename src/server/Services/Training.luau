@@ -77,7 +77,7 @@ local function start(player: Player, stationId: string, position: Vector3)
 		Active = true,
 		StationId = stationId,
 		StartedAt = session.StartedAt,
-		Period = cfg.Period,
+		Period = station.Period or cfg.Period,
 		Reps = cfg.RepsPerSet,
 		PerfectWindow = station.PerfectWindow,
 		GoodWindow = station.GoodWindow,
@@ -110,7 +110,7 @@ local function onTap(player: Player, clientTime: any)
 	session.Reps += 1
 
 	local station = cfg.Stations[session.StationId]
-	local position = TrainingTiming.MarkerPosition(tapTime - session.StartedAt, cfg.Period)
+	local position = TrainingTiming.MarkerPosition(tapTime - session.StartedAt, station.Period or cfg.Period)
 	local grade = TrainingTiming.Grade(position, station)
 	local data = PlayerData.Get(player)
 	if not data then

@@ -130,7 +130,7 @@ function TrainingUI.Init(gui: ScreenGui)
 	Kit.button({
 		Name = "Tap",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, 0),
+		Position = UDim2.fromScale(0.5, 1),
 		Size = UDim2.new(0.62, 0, 0, 56),
 		Text = "LIFT!",
 		Font = Theme.Font.Display,
@@ -140,7 +140,7 @@ function TrainingUI.Init(gui: ScreenGui)
 	Kit.button({
 		Name = "Close",
 		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.fromScale(1, 1),
 		Size = UDim2.fromOffset(56, 56),
 		Text = "✕",
 		BackgroundColor3 = Theme.Color.ButtonAlt,

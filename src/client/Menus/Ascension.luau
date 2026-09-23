@@ -26,12 +26,13 @@ function Ascension.Build(root: Frame, controller)
 		Font = Theme.Font.Bold,
 		TextSize = Theme.TextSize.Body,
 		TextColor3 = Theme.Color.TextDim,
-		Text = "Strength resets to 1. You KEEP your Cash, Collection, Vault, gadgets and titles.",
+		Text = "Strength resets to 1. You KEEP your Collection, Vault, gadgets and titles.",
 		Parent = column,
 	})
 	local ascend = Kit.button({ LayoutOrder = 5, Size = UDim2.fromOffset(260, 60), Text = "ASCEND", Font = Theme.Font.Display, TextSize = 30, BackgroundColor3 = Theme.Color.Secret, TextColor3 = Theme.Color.Text }, function()
 		local data = ClientState.Data
-		if data and data.Strength >= GameConfig.Ascension.RequiredStrength then
+		local affordable = data and data.Cash >= GameConfig.GetAscensionCost(data.Ascension + 1)
+		if data and affordable and data.Strength >= GameConfig.Ascension.RequiredStrength then
 			Net.Get("Ascend"):FireServer()
 			controller.Close()
 		end
@@ -40,13 +41,19 @@ function Ascension.Build(root: Frame, controller)
 
 	local function refresh(data)
 		local nextLevel = data.Ascension + 1
-		local ready = data.Strength >= GameConfig.Ascension.RequiredStrength
+		local cost = GameConfig.GetAscensionCost(nextLevel)
+		local strong = data.Strength >= GameConfig.Ascension.RequiredStrength
+		local ready = strong and data.Cash >= cost
 		level.Text = ("ASCENSION %d  →  %d"):format(data.Ascension, nextLevel)
 		multiplier.Text = ("x%.2f  →  x%.2f CASH"):format(GameConfig.GetAscensionMultiplier(data.Ascension), GameConfig.GetAscensionMultiplier(nextLevel))
-		progress.Text = ("STRENGTH %d / %d"):format(math.floor(data.Strength), GameConfig.Ascension.RequiredStrength)
+		progress.Text = ("STRENGTH %d / %d  •  COST %s"):format(
+			math.floor(data.Strength),
+			GameConfig.Ascension.RequiredStrength,
+			Kit.formatCash(cost)
+		)
 		progress.TextColor3 = if ready then Theme.Color.Safe else Theme.Color.Strength
 		ascend.BackgroundColor3 = if ready then Theme.Color.Secret else Theme.Color.Disabled
-		ascend.Text = if ready then "ASCEND" else "KEEP TRAINING"
+		ascend.Text = if ready then "ASCEND" elseif strong then "NEED MORE CASH" else "KEEP TRAINING"
 	end
 
 	return { Refresh = refresh }
