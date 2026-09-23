@@ -24,6 +24,12 @@ TerrainGen.FLAT_ZONES = {
 	{ 0, 100, 40, 30 }, -- District gate
 }
 
+-- Terrain under the Treasure District is sunk to y = 8 (an exact voxel boundary, so it is
+-- perfectly flat) and hidden by the District's plaza slab (top at y = 11). With ground at 10
+-- the half-filled voxels rendered unevenly and poked through the slab and the spawn dais.
+-- The step back up to 10 sits under the District wall (radius 150).
+TerrainGen.SUNKEN = { X = 0, Z = 250, Radius = 150, Height = 8 }
+
 -- { x, z, radius, material name }: grass-free ground under built-up areas, so animated terrain
 -- grass never pokes through floors or hides treasure there.
 TerrainGen.SURFACE_ZONES = {
@@ -82,6 +88,10 @@ function TerrainGen.Height(x: number, z: number): (number, number)
 	local rolling = fbm(x, z) * 10
 	local hills = math.max(0, noise2(x, z, 1 / 150, 29) + 0.02) * 62
 	local inland = (rolling + hills) * (1 - coast) * TerrainGen.FlatMask(x, z)
+	local sunken = TerrainGen.SUNKEN
+	if (x - sunken.X) ^ 2 + (z - sunken.Z) ^ 2 < sunken.Radius ^ 2 then
+		return sunken.Height, coast
+	end
 	return base + inland, coast
 end
 

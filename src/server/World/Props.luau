@@ -2,7 +2,12 @@
 -- Everything is anchored; decorative leaves/flowers are non-colliding and non-queryable so they
 -- never block raycasts (treasure spawns, grapple aim) or snag players.
 
+local CollectionService = game:GetService("CollectionService")
+
 local Props = {}
+
+-- Tags read by the client WorldLife controller: "NightLamp" (lamp glass that lights up at
+-- night) and "Flowerbed" (invisible anchor where butterflies flutter by day).
 
 Props.DefaultParent = workspace :: Instance
 
@@ -189,6 +194,15 @@ local FLOWER_COLORS = {
 
 function Props.Flowers(parent: Instance, ground: Vector3, rng: Random, count: number?)
 	local color = pick(rng, FLOWER_COLORS)
+	local anchor = decor({
+		Name = "FlowerbedAnchor",
+		Size = Vector3.new(0.2, 0.2, 0.2),
+		CFrame = CFrame.new(ground + Vector3.new(0, 2, 0)),
+		Transparency = 1,
+		CastShadow = false,
+		Parent = parent,
+	})
+	CollectionService:AddTag(anchor, "Flowerbed")
 	for _ = 1, count or rng:NextInteger(5, 8) do
 		-- Bloom only (terrain grass decoration provides the stems visually).
 		local p = ground + Vector3.new(rng:NextNumber(-3, 3), 0, rng:NextNumber(-3, 3))
@@ -299,6 +313,7 @@ function Props.Lamp(parent: Instance, ground: Vector3)
 	light.Brightness = 1.2
 	light.Shadows = false
 	light.Parent = bulb
+	CollectionService:AddTag(bulb, "NightLamp")
 end
 
 function Props.Bench(parent: Instance, cf: CFrame)

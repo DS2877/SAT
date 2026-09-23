@@ -46,7 +46,10 @@ Analysis of the current build (to validate in playtests before building):
 | Fast enough early? | First gadget ~2 min, first Vault upgrade ~15–20 min, Commons carried at full speed from the start | Needs real funnel data (phase 3). |
 | Always a clear next goal? | Tutorial steps 1–4, gadget, Ascension, next undiscovered treasure | Missing: "UPGRADE VAULT" when full and affordable, "SELL your weakest" when full, mid-term goals (collection sets). |
 
-## 3. First 10 minutes
+## 3. First 10 minutes  ← BUILT (awaiting funnel data)
+Shipped: intro card for brand-new players (the loop in four beats), just-in-time tips
+(first time in the Wilds, first pickup, first Shaken, first night warning; new players only,
+once each, never stacked), tutorial steps 1-4 + contextual goals, starter loot by day.
 A new player must quickly understand: *I train → find something valuable → have to get it
 home → can be stopped → earn money → get stronger → want something even better.*
 

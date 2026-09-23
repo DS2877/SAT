@@ -12,6 +12,7 @@ local DataSchema = require("../src/shared/Logic/DataSchema")
 local Economy = require("../src/shared/Logic/Economy")
 local DayNight = require("../src/shared/Logic/DayNight")
 local Mutations = require("../src/shared/Config/Mutations")
+local Music = require("../src/shared/Config/Music")
 Economy.Use(GameConfig, Mutations)
 DayNight.Use(GameConfig)
 local TerrainGen = require("../src/server/World/TerrainGen")
@@ -325,6 +326,33 @@ test("money pacing: first gadget quick, upgrades are real goals", function()
 	check(GameConfig.Economy.FindersFeeSeconds < GameConfig.Economy.SellIncomeSeconds, "keeping a treasure beats instant cash")
 end)
 
+test("vault gallery layout fits the plot with an aisle", function()
+	local v = GameConfig.Vault
+	local pedestalHalf = 1.8
+	local outerX = (v.Columns - 1) / 2 * v.ColumnSpacing + v.AisleWidth / 2 + pedestalHalf
+	local innerX = v.ColumnSpacing / 2 + v.AisleWidth / 2 - pedestalHalf
+	local rows = math.ceil(v.PerFloor / v.Columns)
+	local outerZ = (rows - 1) / 2 * v.RowSpacing + pedestalHalf
+	check(outerX < v.PlotSize / 2 - 2, "pedestals clear the side railings")
+	check(innerX >= 2, ("central aisle is walkable (%.1f studs each side)"):format(innerX))
+	check(outerZ < v.PlotSize / 2 - 3, "pedestals clear the front gate and the back lift")
+	local maxSlots = 0
+	for _, tier in v.Tiers do
+		maxSlots = math.max(maxSlots, tier.Slots)
+	end
+	check(math.ceil(maxSlots / v.PerFloor) <= 4, "biggest vault is at most 4 floors")
+end)
+
+test("music config is well-formed", function()
+	check(Music.Volume > 0 and Music.Volume <= 1, "volume in range")
+	check(Music.CrossfadeSeconds > 0, "crossfade")
+	for _, track in Music.Playlist do
+		check(type(track.Name) == "string" and type(track.Id) == "string", "playlist entry has Name + Id")
+		check(track.Id == "" or track.Id:match("^rbxassetid://%d+$") ~= nil, "asset id format " .. tostring(track.Id))
+	end
+	check(type(Music.CarryTheme) == "table" and type(Music.CarryTheme.Id) == "string", "carry theme slot exists")
+end)
+
 -- DATA ----------------------------------------------------------------------------
 test("first join gets defaults", function()
 	local data = DataSchema.Migrate(nil)
@@ -452,10 +480,14 @@ test("leaderboard config + unique treasure values", function()
 end)
 
 test("terrain: gameplay spots are flat, island has hills and a coast", function()
+	-- Under the District slab the terrain is sunk to an exact voxel boundary (no poke-through).
+	for _, p in { { 0, 250, "district centre" }, { 0, 290, "spawn" }, { -62, 235, "gym" }, { 100, 330, "vaults" } } do
+		local h = TerrainGen.Height(p[1], p[2])
+		check(h == TerrainGen.SUNKEN.Height and h % 4 == 0, ("%s terrain sunk under the slab (got %.2f)"):format(p[3], h))
+		check(h < 11 - 2, p[3] .. " terrain well below the slab top")
+	end
+	check(near(TerrainGen.Height(0, 95), 10, 0.01), "outside the gate back at ground level")
 	local flat = {
-		{ 0, 250, "district centre" },
-		{ 0, 290, "spawn" },
-		{ -62, 235, "stone lift" },
 		{ 0, 55, "camp extraction" },
 		{ 230, -45, "temple courtyard" },
 		{ 230, -140, "temple" },

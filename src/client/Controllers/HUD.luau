@@ -22,6 +22,7 @@ local UI = script.Parent.Parent.UI
 local Theme = require(UI.Theme)
 local Kit = require(UI.Kit)
 local Sounds = require(UI.Sounds)
+local MusicController = require(script.Parent.MusicController)
 local ClientState = require(script.Parent.Parent.ClientState)
 
 local HUD = {}
@@ -89,6 +90,26 @@ local function buildStats()
 		return value
 	end
 	refs.Strength = pill("Strength", "💪", Theme.Color.Strength, 1)
+	-- Music mute toggle, tucked next to the Strength pill (outside the list layout's flow).
+	local musicButton = Kit.button({
+		Name = "MusicToggle",
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(1, 8, 0.5, 0),
+		Size = UDim2.fromOffset(34, 34),
+		Text = "🔊",
+		TextSize = 18,
+		BackgroundColor3 = Theme.Color.Panel,
+		BackgroundTransparency = Theme.Transparency.Panel,
+		Radius = Theme.Radius.Round,
+		Parent = refs.Strength.Parent,
+	}, function()
+		MusicController.ToggleMute()
+	end)
+	local function syncMusicIcon()
+		musicButton.Text = if player:GetAttribute("MusicMuted") == true then "🔇" else "🔊"
+	end
+	player:GetAttributeChangedSignal("MusicMuted"):Connect(syncMusicIcon)
+	syncMusicIcon()
 	refs.Cash = pill("Cash", "💰", Theme.Color.Cash, 2)
 	-- Vault income + day/night clock: "your money machine" is always in view.
 	refs.Income = Kit.label({

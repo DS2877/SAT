@@ -189,11 +189,14 @@ GameConfig.Vault = {
 		{ Slots = 60, Price = 60000000, Enabled = true },
 	},
 	PlotSize = 30,
-	PerFloor = 20,
-	FloorHeight = 12,
-	Columns = 5,
+	-- Gallery layout: 4 columns split by a central aisle (walk in, lift at the far end),
+	-- 4 rows, airy spacing and tall floors. 60 slots = 4 floors.
+	PerFloor = 16,
+	FloorHeight = 14,
+	Columns = 4,
 	ColumnSpacing = 5,
-	RowSpacing = 5.5,
+	AisleWidth = 4, -- extra gap between the left and right halves
+	RowSpacing = 6.5,
 	DisplayMaxScale = 2.4, -- treasure size cap on pedestals
 	AutoPlaceNewTreasures = true,
 	TeleportHomeOnExtract = true, -- carrier is brought to their Vault after extracting

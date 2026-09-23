@@ -446,7 +446,9 @@ local function buildDistrict()
 	local district = folder("TreasureDistrict")
 	local center = d.Center
 
-	cylinder(center + Vector3.new(0, 0.5, 0), 1, d.FloorRadius * 2, {
+	-- Thick slab (top at y = 11): the terrain below is sunk to y = 8 (TerrainGen.SUNKEN), so the
+	-- slab must reach down past it or the gate would show a gap under its lip.
+	cylinder(center + Vector3.new(0, -2, 0), 6, d.FloorRadius * 2, {
 		Name = "Plaza",
 		Color = Color3.fromRGB(232, 222, 196),
 		Material = Enum.Material.Pavement,
@@ -625,7 +627,8 @@ local function buildVaultPlots(district: Folder)
 		-- Floor with a gold border
 		part({ Name = "Border", Size = Vector3.new(vcfg.PlotSize + 1, 0.5, vcfg.PlotSize + 1), CFrame = cf * CFrame.new(0, 0.25, 0), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
 		part({ Name = "Floor", Size = Vector3.new(vcfg.PlotSize - 1, 0.6, vcfg.PlotSize - 1), CFrame = cf * CFrame.new(0, 0.3, 0), Color = Color3.fromRGB(62, 52, 88), Material = Enum.Material.Marble, Parent = plotFolder })
-		part({ Name = "Carpet", Size = Vector3.new(5, 0.08, half + 2), CFrame = cf * CFrame.new(0, 0.64, -half / 2 - 1), Color = Color3.fromRGB(180, 30, 50), Material = Enum.Material.Fabric, CanCollide = false, Parent = plotFolder })
+		-- Red runner down the whole central aisle (entrance to the lift at the back).
+		part({ Name = "Carpet", Size = Vector3.new(3.6, 0.08, vcfg.PlotSize - 2), CFrame = cf * CFrame.new(0, 0.64, 0), Color = Color3.fromRGB(180, 30, 50), Material = Enum.Material.Fabric, CanCollide = false, Parent = plotFolder })
 		-- Back wall with emblem
 		part({ Name = "BackWall", Size = Vector3.new(vcfg.PlotSize, 10, 1), CFrame = cf * CFrame.new(0, 5, half), Color = C.Cream, Material = Enum.Material.Marble, Parent = plotFolder })
 		part({ Name = "WallTrim", Size = Vector3.new(vcfg.PlotSize + 0.4, 0.6, 1.4), CFrame = cf * CFrame.new(0, 10.2, half), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
@@ -666,7 +669,7 @@ local function buildVaultPlots(district: Folder)
 		signLabel.Parent = surface
 		-- Welcome mat + carpet running out onto the plaza
 		part({ Name = "CarpetOut", Size = Vector3.new(5, 0.1, 8), CFrame = cf * CFrame.new(0, 0.05, -half - 4), Color = Color3.fromRGB(180, 30, 50), Material = Enum.Material.Fabric, CanCollide = false, Parent = plotFolder })
-		part({ Name = "EntranceGlow", Size = Vector3.new(11, 0.12, 3), CFrame = cf * CFrame.new(0, 0.66, -half + 1.5), Color = C.Gold, Material = Enum.Material.Neon, Transparency = 0.4, CanCollide = false, CanQuery = false, Parent = plotFolder })
+		part({ Name = "EntranceGlow", Size = Vector3.new(11, 0.12, 3), CFrame = cf * CFrame.new(0, 0.8, -half + 1.5), Color = C.Gold, Material = Enum.Material.Neon, Transparency = 0.4, CanCollide = false, CanQuery = false, Parent = plotFolder })
 		plotFolder:SetAttribute("VaultCenter", (cf * CFrame.new(0, 0.6, 0)).Position)
 		local terminal = part({ Name = "Terminal", Size = Vector3.new(2.2, 3.4, 2.2), CFrame = cf * CFrame.new(-8.5, 2.3, -half + 1.5), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
 		part({ Name = "TerminalScreen", Size = Vector3.new(1.8, 1.2, 0.2), CFrame = cf * CFrame.new(-8.5, 3.6, -half + 0.35) * CFrame.Angles(math.rad(-20), 0, 0), Color = Color3.fromRGB(120, 220, 255), Material = Enum.Material.Neon, CanCollide = false, Parent = plotFolder })
@@ -1063,6 +1066,12 @@ local function buildExtractionZones()
 			end
 			local fire = part({ Name = "Campfire", Size = Vector3.new(3, 1, 3), CFrame = CFrame.new(ground + Vector3.new(14, 0.5, 12)), Color = C.DarkWood, Material = Enum.Material.Wood, Parent = zf })
 			Instance.new("Fire").Parent = fire
+			local smoke = Instance.new("Smoke")
+			smoke.Color = Color3.fromRGB(190, 190, 190)
+			smoke.Opacity = 0.12
+			smoke.RiseVelocity = 4
+			smoke.Size = 2.5
+			smoke.Parent = fire
 			for _, off in { Vector3.new(10, 1.5, -14), Vector3.new(12, 1.5, -11), Vector3.new(-18, 1.5, 6) } do
 				part({ Name = "Crate", Size = Vector3.new(3, 3, 3), CFrame = CFrame.new(ground + off), Color = C.Wood, Material = Enum.Material.WoodPlanks, Parent = zf })
 			end

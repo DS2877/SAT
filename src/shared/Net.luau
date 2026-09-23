@@ -35,6 +35,7 @@ Net.ClientToServer = {
 	"TrainingTap",
 	"StopTraining",
 	"TutorialProgress",
+	"SetSetting", -- (name, value) player preferences, e.g. Music on/off
 }
 
 local FOLDER_NAME = "Remotes"

@@ -17,6 +17,9 @@ local BenchAnimator = require(Controllers.BenchAnimator)
 local VaultBeacon = require(Controllers.VaultBeacon)
 local Ambience = require(Controllers.Ambience)
 local GameFeel = require(Controllers.GameFeel)
+local WorldLife = require(Controllers.WorldLife)
+local MusicController = require(Controllers.MusicController)
+local Onboarding = require(Controllers.Onboarding)
 local MenuController = require(script.Parent.Menus.MenuController)
 
 local player = Players.LocalPlayer
@@ -52,6 +55,9 @@ BenchAnimator.Init()
 VaultBeacon.Init()
 Ambience.Init()
 GameFeel.Init()
+WorldLife.Init()
+MusicController.Init()
+Onboarding.Init(gui)
 MenuController.Init(gui)
 HUD.OpenMenu = MenuController.Open
 

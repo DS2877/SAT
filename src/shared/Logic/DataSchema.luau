@@ -33,6 +33,9 @@ function DataSchema.Default()
 			BestTreasureId = "",
 		},
 		Milestones = {}, -- [milestoneName] = unix time (analytics funnel, tutorial)
+		Settings = {
+			Music = true,
+		},
 		TutorialStep = 0,
 	}
 end

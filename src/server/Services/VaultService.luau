@@ -55,6 +55,7 @@ local function slotPlacement(index: number): (number, CFrame)
 	local row = j // cfg.Columns
 	local rows = math.ceil(cfg.PerFloor / cfg.Columns)
 	local x = (col - (cfg.Columns - 1) / 2) * cfg.ColumnSpacing
+	x += (if col < cfg.Columns / 2 then -1 else 1) * (cfg.AisleWidth or 0) / 2 -- central aisle
 	local z = (row - (rows - 1) / 2) * cfg.RowSpacing
 	return floorIndex, CFrame.new(x, (floorIndex - 1) * cfg.FloorHeight, z)
 end
@@ -229,10 +230,10 @@ local function render(player: Player)
 		end
 	end
 
-	-- Lift pads between unlocked floors (front-right corner of every floor).
+	-- Lift pads between unlocked floors: at the far end of the central aisle on every floor.
 	if floorsUnlocked > 1 then
 		for f = 1, floorsUnlocked do
-			local padCf = plot.CFrame * CFrame.new(half - 3.5, (f - 1) * cfg.FloorHeight, -half + 3.5)
+			local padCf = plot.CFrame * CFrame.new(0, (f - 1) * cfg.FloorHeight, half - 3)
 			local pad = newPart(plot.Displays, {
 				Name = "LiftPad" .. f,
 				Shape = Enum.PartType.Cylinder,
@@ -328,7 +329,7 @@ teleportPlayerToFloor = function(player: Player, plot, floorIndex: number)
 		return
 	end
 	local half = cfg.PlotSize / 2
-	local target = plot.CFrame * CFrame.new(half - 3.5, (floorIndex - 1) * cfg.FloorHeight + 3.5, -half + 7)
+	local target = plot.CFrame * CFrame.new(0, (floorIndex - 1) * cfg.FloorHeight + 3.5, half - 7)
 	root.AssemblyLinearVelocity = Vector3.zero
 	character:PivotTo(CFrame.lookAt(target.Position, (plot.CFrame * CFrame.new(0, (floorIndex - 1) * cfg.FloorHeight + 3.5, 0)).Position))
 end

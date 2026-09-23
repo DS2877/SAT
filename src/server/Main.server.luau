@@ -53,6 +53,17 @@ world.ShopPrompt.Triggered:Connect(function(player)
 	Net.Fire("OpenMenu", player, { Menu = "Shop" })
 end)
 
+-- Player preferences. Only known boolean settings are accepted.
+local BOOLEAN_SETTINGS = { Music = true }
+Net.On("SetSetting", function(player, name, value)
+	if type(name) ~= "string" or not BOOLEAN_SETTINGS[name] or type(value) ~= "boolean" then
+		return
+	end
+	PlayerData.Update(player, function(d)
+		d.Settings[name] = value
+	end)
+end, 4)
+
 Net.On("TutorialProgress", function(player, step)
 	if type(step) ~= "number" or step ~= math.floor(step) or step < 0 or step > 20 then
 		return

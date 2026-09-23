@@ -143,6 +143,20 @@ awaiting the phase-1 mobile playtest.
   extraction heartbeat, heavy-carry sway/footsteps (GameFeel), night-wave reveal flashes,
   Epic+ pickup jackpot, vault-upgrade / bench-unlock goals.
 
+## FEEL + WORLD PASS
+- Spawn dais clipping, root cause: terrain at y=10 (half-filled voxels) poked through the
+  District slab. Terrain under the District is now sunk to y=8 (TerrainGen.SUNKEN) and the
+  slab is 6 studs thick.
+- Vault gallery: 4 columns with a central aisle + red runner, 16 per floor, 14-stud floors,
+  lift pad at the far end of the aisle.
+- WorldLife (client): bird flocks + gulls by day, fireflies by night, butterflies at flower
+  beds (tag Flowerbed), falling leaves, jumping fish, street lamps (tag NightLamp) lit at night,
+  campfire smoke.
+- Music (Config/Music + MusicController): shuffled playlist with crossfades; carry theme on
+  pickup (optional per-rarity), playlist resumes where it paused; 🔊 toggle saved in
+  data.Settings.Music. Needs uploaded asset ids.
+- Onboarding (phase 3): intro card + just-in-time tips.
+
 ## KNOWN BUGS / RISKS
 - Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp
   slopes, IK arms on the bench, nightfall teleport, collect board placement on every plot.
