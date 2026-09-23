@@ -1,6 +1,7 @@
 -- Extraction: a carrier standing in an extraction zone for Duration seconds banks the treasure.
 -- Starts automatically on entering the zone (mobile friendly). Hits interrupt, knocks drop.
--- Success: treasure -> EXTRACTED -> Cash -> Collection -> Vault.
+-- Success: treasure -> EXTRACTED -> finder's fee -> Collection -> a free Vault pedestal, where
+-- it earns $/s. With a full Vault the treasure is sold on the spot (Economy.SellPrice).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
 local Rarities = require(Shared.Config.Rarities)
+local Economy = require(Shared.Logic.Economy)
 local Zones = require(Shared.Util.Zones)
 local Net = require(Shared.Net)
 local Signal = require(Shared.Util.Signal)
@@ -19,7 +21,7 @@ local Analytics = require(script.Parent.Analytics)
 
 local Extraction = {}
 
-Extraction.Completed = Signal.new() -- (player, def, reward)
+Extraction.Completed = Signal.new() -- (player, def, mutation, placedSlot: number?, soldFor: number)
 
 local cfg = GameConfig.Extraction
 
@@ -50,7 +52,7 @@ end
 local function complete(player: Player, session: Session)
 	sessions[player] = nil
 	player:SetAttribute("Extracting", false)
-	local def = TreasureService.Consume(player, session.Uid)
+	local def, mutation = TreasureService.Consume(player, session.Uid)
 	if not def then
 		send(player, { Active = false, Reason = "Invalid" })
 		return
@@ -62,16 +64,30 @@ local function complete(player: Player, session: Session)
 	end
 	local category = cfg.Categories[session.Zone.Category] or cfg.Categories.Safe
 	local multiplier = GameConfig.GetAscensionMultiplier(data.Ascension)
-	local reward = math.floor(def.Value * category.Bonus * multiplier)
+	local reward = Economy.FindersFee(def, mutation, category.Bonus, multiplier)
 	local strengthGain = math.ceil(def.Weight * GameConfig.Strength.ExtractionGainPerWeight)
 	local entry = data.Collection[def.Id]
 	local isNew = entry == nil or not entry.Discovered
 	local rank = Rarities.Rank(def.Rarity)
+	local tier = GameConfig.Vault.Tiers[data.Vault.Tier] or GameConfig.Vault.Tiers[1]
+	local placedSlot: number? = nil
+	local soldFor = 0
 
 	-- Single synchronous mutation: no yields between consume and reward, so no duplicates.
 	PlayerData.Update(player, function(d)
-		d.Cash += reward
-		d.Stats.TotalEarned += reward
+		for index = 1, tier.Slots do
+			if d.Vault.Displays[tostring(index)] == nil then
+				placedSlot = index
+				d.Vault.Displays[tostring(index)] = Economy.EncodeSlot(def.Id, mutation)
+				break
+			end
+		end
+		if not placedSlot then
+			soldFor = Economy.SellPrice(def, mutation)
+		end
+		local cash = reward + soldFor
+		d.Cash += cash
+		d.Stats.TotalEarned += cash
 		d.Stats.Extractions += 1
 		d.Strength = math.min(GameConfig.Strength.Max, d.Strength + strengthGain)
 		local e = d.Collection[def.Id]
@@ -81,6 +97,10 @@ local function complete(player: Player, session: Session)
 		end
 		e.Discovered = true
 		e.Count += 1
+		if mutation then
+			e.Mutations = e.Mutations or {}
+			e.Mutations[mutation] = true
+		end
 		if rank > d.Stats.BestRarityRank then
 			d.Stats.BestRarityRank = rank
 			d.Stats.BestTreasureId = def.Id
@@ -91,7 +111,11 @@ local function complete(player: Player, session: Session)
 	Net.Fire("Feedback", player, {
 		Type = "Extracted",
 		TreasureId = def.Id,
+		Mutation = mutation,
 		Reward = reward,
+		Income = Economy.Income(def, mutation),
+		PlacedSlot = placedSlot,
+		SoldFor = soldFor,
 		Bonus = category.Bonus,
 		Multiplier = multiplier,
 		ZoneName = session.Zone.Name,
@@ -102,7 +126,11 @@ local function complete(player: Player, session: Session)
 	if Rarities.AtLeast(def.Rarity, GameConfig.Treasure.BroadcastMinRarity) then
 		Net.FireAll("Notify", {
 			Kind = "Social",
-			Text = ("%s EXTRACTED THE %s"):format(player.DisplayName:upper(), def.Name:upper()),
+			Text = ("%s EXTRACTED THE %s%s"):format(
+				player.DisplayName:upper(),
+				if mutation then mutation:upper() .. " " else "",
+				def.Name:upper()
+			),
 			Rarity = def.Rarity,
 		})
 	end
@@ -110,9 +138,9 @@ local function complete(player: Player, session: Session)
 		Analytics.Funnel(player, "FirstExtraction")
 	end
 	Analytics.Event(player, "Extracted", { Treasure = def.Id, Zone = session.Zone.Id, Reward = reward })
-	Analytics.Economy(player, "Source", reward, data.Cash, "Gameplay", def.Id)
+	Analytics.Economy(player, "Source", reward + soldFor, data.Cash, "Gameplay", def.Id)
 	TreasureService.RefreshCarrier(player)
-	Extraction.Completed:Fire(player, def, reward)
+	Extraction.Completed:Fire(player, def, mutation, placedSlot, soldFor)
 end
 
 local function tick()

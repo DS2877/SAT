@@ -15,6 +15,7 @@ local Effects = require(Controllers.Effects)
 local TrainingUI = require(Controllers.TrainingUI)
 local BenchAnimator = require(Controllers.BenchAnimator)
 local VaultBeacon = require(Controllers.VaultBeacon)
+local Ambience = require(Controllers.Ambience)
 local MenuController = require(script.Parent.Menus.MenuController)
 
 local player = Players.LocalPlayer
@@ -48,6 +49,7 @@ Effects.Init()
 TrainingUI.Init(gui)
 BenchAnimator.Init()
 VaultBeacon.Init()
+Ambience.Init()
 MenuController.Init(gui)
 HUD.OpenMenu = MenuController.Open
 

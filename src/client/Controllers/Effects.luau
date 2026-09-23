@@ -9,6 +9,8 @@ local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
 local Rarities = require(Shared.Config.Rarities)
 local Treasures = require(Shared.Config.Treasures)
+local Economy = require(Shared.Logic.Economy)
+local Zones = require(Shared.Util.Zones)
 local Net = require(Shared.Net)
 
 local UI = script.Parent.Parent.UI
@@ -195,6 +197,23 @@ function handlers.Extracted(payload)
 	Notifications.Reward(payload)
 end
 
+-- Vault earnings collected from the pad: big green count-up, the "cash register" moment.
+function handlers.Collected(payload)
+	local amount = tonumber(payload.Amount) or 0
+	Notifications.Banner("💰 COLLECTED", "+" .. Kit.formatCash(amount), "Reward", 2)
+	Sounds.Play(if amount >= 10000 then "BigReward" else "ExtractSuccess")
+end
+
+function handlers.Sold(payload)
+	local def = Treasures.Get(payload.TreasureId)
+	local name = if def then def.Name:upper() else "TREASURE"
+	if payload.Mutation then
+		name = tostring(payload.Mutation):upper() .. " " .. name
+	end
+	Notifications.Toast(("SOLD %s • +%s"):format(name, Kit.formatCash(tonumber(payload.Amount) or 0)), "Reward")
+	Sounds.Play("ExtractSuccess")
+end
+
 function handlers.Balloon()
 	Sounds.Play("Gadget")
 	local humanoid = myHumanoid()
@@ -372,7 +391,9 @@ local function scanTreasures()
 				local def = Treasures.Get(model:GetAttribute("TreasureId"))
 				if def then
 					Sounds.Play("RareDiscovery")
-					Notifications.Toast(("%s %s TREASURE NEARBY — %s %s"):format(info.Glyph, rarity:upper(), def.Name:upper(), Kit.formatCash(def.Value)), "Reward")
+					local mutation = model:GetAttribute("Mutation")
+					local prefix = if type(mutation) == "string" then mutation:upper() .. " " else ""
+					Notifications.Toast(("%s %s TREASURE NEARBY — %s%s • %s/s"):format(info.Glyph, rarity:upper(), prefix, def.Name:upper(), Kit.shortCash(Economy.Income(def, if type(mutation) == "string" then mutation else nil))), "Reward")
 				end
 			end
 
@@ -398,22 +419,35 @@ local function scanTreasures()
 	end
 end
 
--- Cursed Hour: the world turns purple and gloomy (local post-processing only).
+-- Cursed Hour: the world turns purple and gloomy while YOU are inside the cursed region
+-- (local post-processing only). Checked on a slow poll because the player moves in and out.
 local function watchCurse()
 	local Lighting = game:GetService("Lighting")
 	local tint = Instance.new("ColorCorrectionEffect")
 	tint.Name = "SAT_CurseTint"
 	tint.Parent = Lighting
+	local current = false
 	local function apply()
+		local root = myRoot()
 		local cursed = workspace:GetAttribute("EventId") == "CursedHour"
+			and root ~= nil
+			and Zones.AreaId(root.Position) == workspace:GetAttribute("EventArea")
+		if cursed == current then
+			return
+		end
+		current = cursed
 		Kit.tween(tint, TweenInfo.new(2), {
 			TintColor = if cursed then Color3.fromRGB(200, 170, 255) else Color3.new(1, 1, 1),
 			Brightness = if cursed then -0.08 else 0,
 			Saturation = if cursed then -0.2 else 0,
 		})
 	end
-	workspace:GetAttributeChangedSignal("EventId"):Connect(apply)
-	apply()
+	task.spawn(function()
+		while true do
+			apply()
+			task.wait(0.5)
+		end
+	end)
 end
 
 function Effects.Init()

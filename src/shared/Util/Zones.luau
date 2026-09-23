@@ -29,6 +29,19 @@ function Zones.ExtractionZoneAt(position: Vector3)
 	return nil
 end
 
+-- Region id used by spawns and events: "District" | "Ruins" | "Coast" | "Falls" | "Wilds".
+local AREA_IDS = {
+	["TREASURE DISTRICT"] = "District",
+	["ANCIENT RUINS"] = "Ruins",
+	["SHIPWRECK COAST"] = "Coast",
+	["THE FALLS"] = "Falls",
+	["THE WILDS"] = "Wilds",
+}
+
+function Zones.AreaId(position: Vector3): string
+	return AREA_IDS[Zones.AreaName(position)] or "Wilds"
+end
+
 function Zones.AreaName(position: Vector3): string
 	if Zones.InSafeZone(position) then
 		return "TREASURE DISTRICT"

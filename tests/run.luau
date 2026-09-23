@@ -9,6 +9,11 @@ local Carry = require("../src/shared/Logic/Carry")
 local Stability = require("../src/shared/Logic/Stability")
 local TreasureRoll = require("../src/shared/Logic/TreasureRoll")
 local DataSchema = require("../src/shared/Logic/DataSchema")
+local Economy = require("../src/shared/Logic/Economy")
+local DayNight = require("../src/shared/Logic/DayNight")
+local Mutations = require("../src/shared/Config/Mutations")
+Economy.Use(GameConfig, Mutations)
+DayNight.Use(GameConfig)
 local TerrainGen = require("../src/server/World/TerrainGen")
 
 local RARITY_ORDER = { "Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Secret" }
@@ -177,12 +182,128 @@ test("uncapped strength keeps making carrying easier (within limits)", function(
 	check(Carry.JumpMultiplier(Carry.SpeedMultiplier(1, 10000, cfg), cfg) == 1, "jump never boosted")
 end)
 
+-- ECONOMY -------------------------------------------------------------------------
+test("vault income by rarity follows the genre ranges and mutations multiply it", function()
+	local ranges = { -- $/s, loosely Steal a Brainrot's bands
+		Common = { 1, 14 },
+		Uncommon = { 5, 40 },
+		Rare = { 15, 120 },
+		Epic = { 75, 500 },
+		Legendary = { 200, 2500 },
+		Mythic = { 2500, 20000 },
+		Secret = { 10000, 100000 },
+	}
+	for _, def in Treasures.List do
+		local income = Economy.Income(def)
+		local r = ranges[def.Rarity]
+		check(income >= r[1] and income <= r[2], ("%s earns $%d/s (%s range)"):format(def.Id, income, def.Rarity))
+		check(Economy.Income(def, "Gold") > income, "gold mutation earns more " .. def.Id)
+		check(Economy.SellPrice(def) == income * GameConfig.Economy.SellIncomeSeconds, "sell price = income window " .. def.Id)
+	end
+	local previous = 0
+	for _, name in Mutations.Order do
+		local mult = Mutations.Multiplier(name)
+		check(mult > 1, name .. " multiplies income")
+		if name ~= "Rainbow" and name ~= "Moonlit" then
+			check(mult > previous, name .. " rarer mutation, bigger multiplier")
+			previous = mult
+		end
+	end
+end)
+
+test("vault slots encode treasure + mutation and read old saves", function()
+	check(Economy.EncodeSlot("jade_frog", nil) == "jade_frog", "plain id")
+	local id, mutation = Economy.DecodeSlot(Economy.EncodeSlot("jade_frog", "Gold"))
+	check(id == "jade_frog" and mutation == "Gold", "round trip")
+	id, mutation = Economy.DecodeSlot("golden_crown")
+	check(id == "golden_crown" and mutation == nil, "legacy plain id")
+	id, mutation = Economy.DecodeSlot("golden_crown|Nonsense")
+	check(id == "golden_crown" and mutation == nil, "unknown mutation ignored")
+	check(Economy.DecodeSlot(nil) == nil, "empty slot")
+	local byId = {}
+	for _, def in Treasures.List do
+		byId[def.Id] = def
+	end
+	local function lookup(x)
+		return byId[x]
+	end
+	local displays = { ["1"] = "jade_frog", ["2"] = "jade_frog|Gold" }
+	local base = Economy.VaultIncome(displays, lookup, 1, false)
+	check(base == Economy.Income(byId.jade_frog) + Economy.Income(byId.jade_frog, "Gold"), "vault sums its pedestals")
+	check(Economy.VaultIncome(displays, lookup, 1, true) == base * GameConfig.DayNight.NightIncomeMultiplier, "night multiplies income")
+	check(Economy.VaultIncome(displays, lookup, 2, false) == base * 2, "ascension multiplies income")
+end)
+
+test("mutation rolls: rare, night-only Moonlit, event boost", function()
+	check(Mutations.Roll(function()
+		return 0
+	end, false) == "Rainbow", "lowest roll = rarest mutation")
+	check(Mutations.Roll(function()
+		return 0.99
+	end, false) == nil, "most spawns are not mutated")
+	local total, night = 0, 0
+	for _, name in Mutations.Order do
+		total += Mutations.Info[name].Chance
+		night += Mutations.Info[name].Chance + (Mutations.Info[name].NightChance or 0)
+	end
+	check(total < 0.15, "under 15% of daytime spawns are mutated")
+	check(night > total, "night adds Moonlit")
+	check(Mutations.Info.Moonlit.Chance == 0, "Moonlit never rolls by day")
+	check(Mutations.Roll(function()
+		return total * 2
+	end, false, 6) ~= nil, "a Gold Rush boost makes a normal roll mutate")
+end)
+
+test("day/night clock", function()
+	local cfg = GameConfig.DayNight
+	local day = DayNight.State(0)
+	check(not day.IsNight and near(day.ClockTime, cfg.DayStartClock), "cycle starts at dawn")
+	local night = DayNight.State(cfg.CycleSeconds - cfg.NightSeconds + 1)
+	check(night.IsNight, "night at the end of the cycle")
+	check(night.SecondsLeft <= cfg.NightSeconds and night.SecondsLeft > 0, "night countdown")
+	for t = 0, cfg.CycleSeconds, 7 do
+		local st = DayNight.State(t + 1e6)
+		check(st.ClockTime >= 0 and st.ClockTime < 24, "valid clock time")
+	end
+	check(cfg.NightSeconds < cfg.CycleSeconds / 2, "nights are short")
+end)
+
+test("money pacing: first gadget quick, upgrades are real goals", function()
+	local function average(rarity)
+		local sum, n = 0, 0
+		for _, def in Treasures.List do
+			if def.Rarity == rarity then
+				sum += Economy.Income(def)
+				n += 1
+			end
+		end
+		return sum / n
+	end
+	local common, uncommon, rare = average("Common"), average("Uncommon"), average("Rare")
+	local cheapest = math.huge
+	for _, def in Gadgets.List do
+		cheapest = math.min(cheapest, def.Price)
+	end
+	-- two Commons on pedestals
+	local minutes = cheapest / (2 * common) / 60
+	check(minutes <= 4, ("first gadget in %.1f min with two Commons"):format(minutes))
+	-- five early pedestals (Commons + Uncommons) -> first Vault upgrade
+	local early = 5 * (common + uncommon) / 2
+	local vault2 = GameConfig.Vault.Tiers[2].Price / early / 60
+	check(vault2 >= 5 and vault2 <= 40, ("first vault upgrade takes %.1f min"):format(vault2))
+	-- ten Rares -> third tier should still take a while
+	local vault3 = GameConfig.Vault.Tiers[3].Price / (10 * rare) / 60
+	check(vault3 >= 5 and vault3 <= 60, ("20-slot vault takes %.1f min with ten Rares"):format(vault3))
+	check(GameConfig.Economy.FindersFeeSeconds < GameConfig.Economy.SellIncomeSeconds, "keeping a treasure beats instant cash")
+end)
+
 -- DATA ----------------------------------------------------------------------------
 test("first join gets defaults", function()
 	local data = DataSchema.Migrate(nil)
 	check(data.Version == DataSchema.Version, "version set")
 	check(data.Cash == 0 and data.Strength == GameConfig.Strength.Start and data.Ascension == 0, "starting stats")
 	check(data.Vault.Tier == 1, "vault tier 1")
+	check(data.Vault.Stored == 0, "no uncollected earnings")
 	check(#data.EquippedGadgets == 3, "three gadget slots")
 end)
 

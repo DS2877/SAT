@@ -1,9 +1,16 @@
 -- Procedural treasure models (placeholder art until real meshes exist).
 -- Build(def) returns a Model whose PrimaryPart "Handle" is the pickup/weld root.
 -- All parts are welded to Handle; anchoring Handle anchors the whole treasure.
+--
+-- You read a treasure from its LOOK: size grows with rarity, Rare+ glow and every rarity above
+-- Common has its own aura particles; a mutation re-skins the body (Silver/Gold metal, Diamond
+-- glass, Moonlit neon, Rainbow = tagged so clients cycle hues) and adds sparkles.
+
+local CollectionService = game:GetService("CollectionService")
 
 local Rarities = require(script.Parent.Config.Rarities)
 local Treasures = require(script.Parent.Config.Treasures)
+local Mutations = require(script.Parent.Config.Mutations)
 
 local TreasureVisual = {}
 
@@ -171,13 +178,85 @@ local function accentFor(def)
 	return info and info.Color or Color3.new(1, 1, 1)
 end
 
+-- Aura per rarity: { particle colour alpha, rate, size, speed }. Common has none.
+local AURA = {
+	Uncommon = { Rate = 4, Size = 0.35, Speed = 1 },
+	Rare = { Rate = 8, Size = 0.45, Speed = 1.5 },
+	Epic = { Rate = 14, Size = 0.55, Speed = 2 },
+	Legendary = { Rate = 22, Size = 0.7, Speed = 2.5 },
+	Mythic = { Rate = 30, Size = 0.8, Speed = 3 },
+	Secret = { Rate = 40, Size = 0.9, Speed = 3 },
+}
+
+-- Bigger for rarer treasure so a Legendary looks like a prize from far away.
 function TreasureVisual.Scale(def): number
-	return Treasures.DisplayScale[def.DisplaySize] or 1.5
+	local base = Treasures.DisplayScale[def.DisplaySize] or 1.5
+	return base * (1 + 0.07 * (Rarities.Rank(def.Rarity) - 1))
+end
+
+function TreasureVisual.RarityAura(handle: BasePart, def)
+	local aura = AURA[def.Rarity]
+	local info = Rarities.Info[def.Rarity]
+	if not aura or not info then
+		return
+	end
+	local s = handle.Size.X
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Name = "RarityAura"
+	emitter.Color = ColorSequence.new(info.Color)
+	emitter.LightEmission = 0.8
+	emitter.LightInfluence = 0
+	emitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, aura.Size * s * 0.4), NumberSequenceKeypoint.new(1, 0) })
+	emitter.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(1, 1) })
+	emitter.Lifetime = NumberRange.new(0.8, 1.6)
+	emitter.Rate = aura.Rate
+	emitter.Speed = NumberRange.new(aura.Speed * 0.5, aura.Speed)
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Shape = Enum.ParticleEmitterShape.Sphere
+	emitter.Parent = handle
+end
+
+local function applyMutation(model: Model, handle: BasePart, mutation: string?)
+	local info = Mutations.Get(mutation)
+	if not info then
+		return
+	end
+	local color = Mutations.Color(info.Color)
+	local material = (Enum.Material :: any)[info.Material] or Enum.Material.SmoothPlastic
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and d ~= handle and d.Material ~= Enum.Material.Neon then
+			d.Material = material
+			d.Color = color
+			if info.Material == "Glass" then
+				d.Transparency = math.max(d.Transparency, 0.25)
+				d.Reflectance = 0.3
+			elseif info.Material == "Metal" then
+				d.Reflectance = 0.25
+			end
+		end
+	end
+	local sparkles = Instance.new("ParticleEmitter")
+	sparkles.Name = "MutationSparkles"
+	sparkles.Color = ColorSequence.new(Mutations.Color(info.Sparkle))
+	sparkles.LightEmission = 1
+	sparkles.LightInfluence = 0
+	sparkles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	sparkles.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(1, 0) })
+	sparkles.Lifetime = NumberRange.new(0.6, 1.2)
+	sparkles.Rate = 18
+	sparkles.Speed = NumberRange.new(0.5, 1.5)
+	sparkles.SpreadAngle = Vector2.new(180, 180)
+	sparkles.Parent = handle
+	model:SetAttribute("Mutation", mutation)
+	if info.Rainbow then
+		CollectionService:AddTag(model, "RainbowTreasure")
+	end
 end
 
 -- Returns Model with PrimaryPart "Handle" (invisible root). Handle is left Anchored = true.
--- maxScale caps the size (e.g. Vault pedestals).
-function TreasureVisual.Build(def, cframe: CFrame?, maxScale: number?): Model
+-- maxScale caps the size (e.g. Vault pedestals). mutation: Mutations name or nil.
+function TreasureVisual.Build(def, cframe: CFrame?, maxScale: number?, mutation: string?): Model
 	local model = Instance.new("Model")
 	model.Name = def.Name
 	local s = math.min(TreasureVisual.Scale(def), maxScale or math.huge)
@@ -206,6 +285,8 @@ function TreasureVisual.Build(def, cframe: CFrame?, maxScale: number?): Model
 		light.Shadows = false
 		light.Parent = handle
 	end
+	TreasureVisual.RarityAura(handle, def)
+	applyMutation(model, handle, mutation)
 	return model
 end
 

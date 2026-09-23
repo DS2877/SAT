@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage.Shared
 local Rarities = require(Shared.Config.Rarities)
 local Treasures = require(Shared.Config.Treasures)
+local Economy = require(Shared.Logic.Economy)
 local TreasureVisual = require(Shared.TreasureVisual)
 
 local UI = script.Parent.Parent.UI
@@ -132,7 +133,7 @@ function Collection.Build(root: Frame)
 				Parent = frame,
 			})
 			Kit.label({
-				Text = if discovered then ("%s  •  x%d"):format(Kit.shortCash(def.Value), count) else def.SpawnArea:upper(),
+				Text = if discovered then ("%s/s  •  x%d"):format(Kit.shortCash(Economy.Income(def)), count) else def.SpawnArea:upper(),
 				Position = UDim2.fromOffset(0, 154),
 				Size = UDim2.new(1, 0, 0, 20),
 				Font = Theme.Font.Black,

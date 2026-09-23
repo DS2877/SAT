@@ -29,7 +29,7 @@ Net.ClientToServer = {
 	"UseGadget",
 	"BuyGadget",
 	"EquipGadget",
-	"SetVaultSlot",
+	"SellTreasure",
 	"UpgradeVault",
 	"Ascend",
 	"TrainingTap",

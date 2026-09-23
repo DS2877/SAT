@@ -14,7 +14,8 @@ function DataSchema.Default()
 		Collection = {}, -- [treasureId] = { Discovered = true, Count = n }
 		Vault = {
 			Tier = 1,
-			Displays = {}, -- ["slotIndex"] = treasureId (string keys: DataStore-safe sparse map)
+			Displays = {}, -- ["slotIndex"] = "treasureId" or "treasureId|Mutation" (Logic/Economy)
+			Stored = 0, -- uncollected Vault earnings (cash waiting on the collect pad)
 		},
 		OwnedGadgets = {}, -- [gadgetId] = true
 		OwnedBenches = {}, -- [benchTierId] = true (free tiers need no entry)
@@ -96,6 +97,7 @@ function DataSchema.Migrate(data)
 	data.Cash = math.max(0, math.floor(tonumber(data.Cash) or 0))
 	data.Strength = math.max(1, tonumber(data.Strength) or 1000)
 	data.Ascension = math.max(0, math.floor(tonumber(data.Ascension) or 0))
+	data.Vault.Stored = math.max(0, tonumber(data.Vault.Stored) or 0)
 	for i = 1, 3 do
 		if type(data.EquippedGadgets[i]) ~= "string" then
 			data.EquippedGadgets[i] = ""

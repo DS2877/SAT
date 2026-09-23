@@ -1,5 +1,8 @@
--- Physical trophy Vaults. Each player gets a plot in the Treasure District with pedestals
--- showing treasures from their Collection. Others can walk in and look (social flex).
+-- Physical Vaults = your money makers. Each player gets a plot in the Treasure District; every
+-- extracted treasure sits on a pedestal and EARNS $/s (rarity x mutation x Ascension, x3 at
+-- night). Earnings pile up on the plot's COLLECT pad until the owner steps on it. The owner can
+-- sell a treasure (pedestal prompt or Vault menu) to free the pedestal for a better one.
+-- Others can walk in and look (social flex).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -9,6 +12,9 @@ local GameConfig = require(Shared.Config.GameConfig)
 local Rarities = require(Shared.Config.Rarities)
 local Treasures = require(Shared.Config.Treasures)
 local TreasureVisual = require(Shared.TreasureVisual)
+local TreasureLabel = require(Shared.TreasureLabel)
+local Economy = require(Shared.Logic.Economy)
+local DayNight = require(Shared.Logic.DayNight)
 local Net = require(Shared.Net)
 
 local PlayerData = require(script.Parent.PlayerData)
@@ -26,6 +32,11 @@ local function slotsFor(data): number
 	return tier.Slots
 end
 VaultService.SlotsFor = slotsFor
+
+local function formatCash(n: number): string
+	local s = tostring(math.floor(n)):reverse():gsub("(%d%d%d)", "%1,"):reverse()
+	return "$" .. (s:gsub("^,", ""))
+end
 
 local function formatShort(n: number): string
 	if n >= 1e6 then
@@ -90,48 +101,52 @@ local function label(parent: Instance, text: string, color: Color3, offsetY: num
 end
 
 local teleportPlayerToFloor -- forward declaration (lift pads)
+local sellSlot -- forward declaration (pedestal sell prompts)
 
-local function buildPedestal(parent: Instance, base: CFrame, def, ghost: boolean)
+-- owner/slot are set for filled pedestals (sell prompt); income = the owner's actual $/s.
+local function buildPedestal(parent: Instance, base: CFrame, def, ghost: boolean, mutation: string?, owner: Player?, slot: number?, income: number?)
 	local marble = Color3.fromRGB(235, 228, 210)
 	local t = if ghost then 0.82 else 0
 	newPart(parent, { Name = "Plinth", Size = Vector3.new(3.6, 0.5, 3.6), CFrame = base * CFrame.new(0, 0.25, 0), Color = Color3.fromRGB(70, 60, 95), Material = Enum.Material.Marble, Transparency = t, CanCollide = not ghost })
-	newPart(parent, { Name = "Column", Shape = Enum.PartType.Cylinder, Size = Vector3.new(2.4, 2.2, 2.2), CFrame = base * CFrame.new(0, 1.7, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = marble, Material = Enum.Material.Marble, Transparency = t, CanCollide = not ghost })
+	local column = newPart(parent, { Name = "Column", Shape = Enum.PartType.Cylinder, Size = Vector3.new(2.4, 2.2, 2.2), CFrame = base * CFrame.new(0, 1.7, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = marble, Material = Enum.Material.Marble, Transparency = t, CanCollide = not ghost })
 	newPart(parent, { Name = "Cap", Size = Vector3.new(3.2, 0.4, 3.2), CFrame = base * CFrame.new(0, 3.1, 0), Color = Color3.fromRGB(255, 196, 50), Material = Enum.Material.Metal, Transparency = t, CanCollide = not ghost })
 	if def then
 		local info = Rarities.Info[def.Rarity]
 		newPart(parent, { Name = "Rim", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.15, 3.3, 3.3), CFrame = base * CFrame.new(0, 3.35, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = info.Color, Material = Enum.Material.Neon, CanCollide = false })
 		local s = math.min(TreasureVisual.Scale(def), cfg.DisplayMaxScale)
-		local model = TreasureVisual.Build(def, base * CFrame.new(0, 3.5 + s * 0.9, 0), cfg.DisplayMaxScale)
+		local model = TreasureVisual.Build(def, base * CFrame.new(0, 3.5 + s * 0.9, 0), cfg.DisplayMaxScale, mutation)
 		model:SetAttribute("TreasureId", def.Id)
 		model:SetAttribute("VaultDisplay", true)
 		local handle = model.PrimaryPart :: BasePart
 		handle:SetAttribute("Spin", 0.6)
 		model.Parent = parent
-		-- Name plaque on the front of the pedestal (floating billboards overlapped each other).
-		local plaque = newPart(parent, {
-			Name = "Plaque",
-			Size = Vector3.new(3.2, 0.9, 0.12),
-			CFrame = base * CFrame.new(0, 0.95, -1.4),
-			Color = Color3.fromRGB(40, 32, 60),
-			Material = Enum.Material.SmoothPlastic,
-			CanCollide = false,
+		-- Same name tag as in the world, but only readable up close so rows don't overlap.
+		local tag = TreasureLabel.Build(def, mutation, {
+			MaxDistance = GameConfig.Treasure.VaultLabelDistance,
+			Height = s * 1.1 + 1,
+			Income = income,
 		})
-		local gui = Instance.new("SurfaceGui")
-		gui.Face = Enum.NormalId.Front
-		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-		gui.PixelsPerStud = 60
-		gui.LightInfluence = 0
-		gui.MaxDistance = 60
-		local text = Instance.new("TextLabel")
-		text.BackgroundTransparency = 1
-		text.Size = UDim2.new(1, -12, 1, -6)
-		text.Position = UDim2.fromOffset(6, 3)
-		text.Font = Enum.Font.GothamBlack
-		text.TextScaled = true
-		text.TextColor3 = info.Color
-		text.Text = def.Name:upper()
-		text.Parent = gui
-		gui.Parent = plaque
+		tag.Adornee = handle
+		tag.Parent = handle
+		if owner and slot then
+			local prompt = Instance.new("ProximityPrompt")
+			prompt.Name = "SellPrompt"
+			prompt.ActionText = ("Sell %s"):format(formatShort(Economy.SellPrice(def, mutation)))
+			prompt.ObjectText = if mutation then mutation .. " " .. def.Name else def.Name
+			prompt.HoldDuration = 1.2
+			prompt.KeyboardKeyCode = Enum.KeyCode.F
+			prompt.GamepadKeyCode = Enum.KeyCode.ButtonY
+			prompt.MaxActivationDistance = 6
+			prompt.RequiresLineOfSight = false
+			-- Clients hide sell prompts on other players' Vaults (VaultBeacon).
+			prompt:SetAttribute("OwnerUserId", owner.UserId)
+			prompt.Parent = column
+			prompt.Triggered:Connect(function(player)
+				if player == owner then
+					sellSlot(player, slot)
+				end
+			end)
+		end
 	end
 end
 
@@ -197,8 +212,12 @@ local function render(player: Player)
 		local _, offset = slotPlacement(index)
 		local base = plot.CFrame * offset
 		if index <= slots then
-			local id = data.Vault.Displays[tostring(index)]
-			buildPedestal(plot.Displays, base, id and Treasures.Get(id), false)
+			local id, mutation = Economy.DecodeSlot(data.Vault.Displays[tostring(index)])
+			local def = id and Treasures.Get(id)
+			local income = if def
+				then math.floor(Economy.Income(def, mutation) * GameConfig.GetAscensionMultiplier(data.Ascension) + 0.5)
+				else nil
+			buildPedestal(plot.Displays, base, def, false, mutation, player, index, income)
 		else
 			buildPedestal(plot.Displays, base, nil, true)
 			if not shownNextSign and nextTier and nextTier.Enabled then
@@ -240,6 +259,51 @@ local function render(player: Player)
 			end
 		end
 	end
+	-- COLLECT pad (front-left corner): earnings wait here until the owner steps on it.
+	local padCf = plot.CFrame * CFrame.new(-half + 4, 0, -half + 4)
+	newPart(plot.Displays, {
+		Name = "CollectPad",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.3, 5, 5),
+		CFrame = padCf * CFrame.new(0, 0.15, 0) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = Color3.fromRGB(80, 235, 110),
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+	})
+	local anchor = newPart(plot.Displays, { Name = "CollectSign", Size = Vector3.new(1, 1, 1), CFrame = padCf * CFrame.new(0, 3, 0), Transparency = 1, CanCollide = false, CanQuery = false })
+	local sign = Instance.new("BillboardGui")
+	sign.Size = UDim2.fromOffset(220, 64)
+	sign.MaxDistance = 90
+	sign.LightInfluence = 0
+	sign.StudsOffset = Vector3.new(0, 1.5, 0)
+	local amount = Instance.new("TextLabel")
+	amount.BackgroundTransparency = 1
+	amount.Size = UDim2.fromScale(1, 0.6)
+	amount.Font = Enum.Font.FredokaOne
+	amount.TextScaled = true
+	amount.TextColor3 = Color3.fromRGB(80, 255, 90)
+	amount.Text = "$0"
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 2
+	stroke.Parent = amount
+	amount.Parent = sign
+	local rate = Instance.new("TextLabel")
+	rate.BackgroundTransparency = 1
+	rate.Position = UDim2.fromScale(0, 0.6)
+	rate.Size = UDim2.fromScale(1, 0.4)
+	rate.Font = Enum.Font.FredokaOne
+	rate.TextScaled = true
+	rate.TextColor3 = Color3.new(1, 1, 1)
+	rate.Text = "COLLECT"
+	local stroke2 = Instance.new("UIStroke")
+	stroke2.Thickness = 2
+	stroke2.Parent = rate
+	rate.Parent = sign
+	sign.Parent = anchor
+	plot.CollectPosition = padCf.Position
+	plot.CollectAmount = amount
+	plot.CollectRate = rate
+
 	plot.Sign.Text = ("%s'S VAULT"):format(player.DisplayName:upper())
 end
 
@@ -255,34 +319,25 @@ teleportPlayerToFloor = function(player: Player, plot, floorIndex: number)
 	character:PivotTo(CFrame.lookAt(target.Position, (plot.CFrame * CFrame.new(0, (floorIndex - 1) * cfg.FloorHeight + 3.5, 0)).Position))
 end
 
-local function countDisplayed(data, id: string, exceptSlot: string?): number
-	local n = 0
-	for slot, displayed in data.Vault.Displays do
-		if displayed == id and slot ~= exceptSlot then
-			n += 1
-		end
-	end
-	return n
-end
-
-local function onSetSlot(player: Player, slot: any, id: any)
+sellSlot = function(player: Player, slot: any)
 	local data = PlayerData.Get(player)
-	if not data or type(slot) ~= "number" or slot ~= math.floor(slot) or type(id) ~= "string" then
-		return
-	end
-	if slot < 1 or slot > slotsFor(data) then
+	if not data or type(slot) ~= "number" or slot ~= math.floor(slot) then
 		return
 	end
 	local key = tostring(slot)
-	if id ~= "" then
-		local entry = data.Collection[id]
-		if not Treasures.Get(id) or not entry or entry.Count < countDisplayed(data, id, key) + 1 then
-			return
-		end
+	local id, mutation = Economy.DecodeSlot(data.Vault.Displays[key])
+	local def = id and Treasures.Get(id)
+	if not def then
+		return
 	end
+	local price = Economy.SellPrice(def, mutation)
 	PlayerData.Update(player, function(d)
-		d.Vault.Displays[key] = if id == "" then nil else id
+		d.Vault.Displays[key] = nil
+		d.Cash += price
+		d.Stats.TotalEarned += price
 	end)
+	Net.Fire("Feedback", player, { Type = "Sold", TreasureId = def.Id, Mutation = mutation, Amount = price })
+	Analytics.Economy(player, "Source", price, data.Cash, "Gameplay", "sell_" .. def.Id)
 	render(player)
 end
 
@@ -313,30 +368,9 @@ local function onUpgrade(player: Player)
 	render(player)
 end
 
-local function autoPlace(player: Player, def)
-	local data = PlayerData.Get(player)
-	if not data or not cfg.AutoPlaceNewTreasures then
-		return
-	end
-	for index = 1, slotsFor(data) do
-		local key = tostring(index)
-		if data.Vault.Displays[key] == nil then
-			PlayerData.Update(player, function(d)
-				d.Vault.Displays[key] = def.Id
-			end)
-			render(player)
-			if PlayerData.Milestone(player, "FirstVault") then
-				Analytics.Funnel(player, "FirstVault")
-			end
-			Net.Fire("Notify", player, { Kind = "Toast", Text = "🏆 ON DISPLAY IN YOUR VAULT", Tone = "Reward" })
-			return
-		end
-	end
-end
-
 -- After a successful extraction the player is brought home to their Vault, proudly holding
 -- the treasure overhead for a moment (cosmetic only: the treasure is already banked).
-local function bringHome(player: Player, def)
+local function bringHome(player: Player, def, mutation: string?)
 	local plot = plotOf[player]
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
@@ -349,7 +383,7 @@ local function bringHome(player: Player, def)
 	character:PivotTo(CFrame.lookAt(standAt, lookAt))
 
 	local s = TreasureVisual.Scale(def)
-	local trophy = TreasureVisual.Build(def, root.CFrame * CFrame.new(0, 3.2 + s * 0.8, 0))
+	local trophy = TreasureVisual.Build(def, root.CFrame * CFrame.new(0, 3.2 + s * 0.8, 0), nil, mutation)
 	trophy.Name = "HomeTrophy"
 	local handle = trophy.PrimaryPart :: BasePart
 	for _, d in trophy:GetDescendants() do
@@ -370,10 +404,72 @@ local function bringHome(player: Player, def)
 	end)
 end
 
-local function onExtracted(player: Player, def)
-	autoPlace(player, def)
+local function onExtracted(player: Player, def, mutation: string?, placedSlot: number?, soldFor: number)
+	render(player)
+	if placedSlot then
+		if PlayerData.Milestone(player, "FirstVault") then
+			Analytics.Funnel(player, "FirstVault")
+		end
+	else
+		Net.Fire("Notify", player, {
+			Kind = "Banner",
+			Title = "VAULT FULL",
+			Text = ("Sold for %s • Upgrade or sell to make room"):format(formatShort(soldFor)),
+			Tone = "Warn",
+		})
+	end
 	if cfg.TeleportHomeOnExtract then
-		bringHome(player, def)
+		bringHome(player, def, mutation)
+	end
+end
+
+-- EARNINGS ------------------------------------------------------------------------------
+
+-- Pending cash per player (not yet collected). Mirrored into data.Vault.Stored so it survives
+-- leaving; mutated directly (no DataSync every second) because only the pad sign shows it.
+local function incomeOf(data): number
+	return Economy.VaultIncome(
+		data.Vault.Displays,
+		Treasures.Get,
+		GameConfig.GetAscensionMultiplier(data.Ascension),
+		DayNight.IsNight(workspace:GetServerTimeNow())
+	)
+end
+VaultService.IncomeOf = incomeOf
+
+local function collect(player: Player, data)
+	local amount = math.floor(data.Vault.Stored)
+	if amount < 1 then
+		return
+	end
+	PlayerData.Update(player, function(d)
+		d.Vault.Stored -= amount
+		d.Cash += amount
+		d.Stats.TotalEarned += amount
+	end)
+	Net.Fire("Feedback", player, { Type = "Collected", Amount = amount })
+	Analytics.Economy(player, "Source", amount, data.Cash, "Gameplay", "vault_income")
+end
+
+local function earningsTick(dt: number)
+	for player, plot in plotOf do
+		local data = PlayerData.Get(player)
+		if data then
+			local income = incomeOf(data)
+			data.Vault.Stored += income * dt
+			player:SetAttribute("VaultIncome", income)
+			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+			if root and plot.CollectPosition then
+				local offset = root.Position - plot.CollectPosition
+				if Vector2.new(offset.X, offset.Z).Magnitude <= GameConfig.Economy.CollectRadius and math.abs(offset.Y) < 6 then
+					collect(player, data)
+				end
+			end
+			if plot.CollectAmount then
+				plot.CollectAmount.Text = formatCash(data.Vault.Stored)
+				plot.CollectRate.Text = ("+%s/s  •  STEP HERE"):format(formatCash(income))
+			end
+		end
 	end
 end
 
@@ -396,6 +492,9 @@ local function release(player: Player)
 		plot.Owner = nil
 		plot.Displays:ClearAllChildren()
 		plot.Sign.Text = "EMPTY VAULT"
+		plot.CollectPosition = nil
+		plot.CollectAmount = nil
+		plot.CollectRate = nil
 		plotOf[player] = nil
 	end
 end
@@ -422,8 +521,21 @@ function VaultService.Init(builtPlots)
 	PlayerData.Loaded:Connect(assign)
 	Players.PlayerRemoving:Connect(release)
 	Extraction.Completed:Connect(onExtracted)
-	Net.On("SetVaultSlot", onSetSlot, 8)
+	Net.On("SellTreasure", sellSlot, 4)
 	Net.On("UpgradeVault", onUpgrade, 2)
+
+	task.spawn(function()
+		local last = os.clock()
+		while true do
+			task.wait(1)
+			local now = os.clock()
+			local ok, err = pcall(earningsTick, now - last)
+			last = now
+			if not ok then
+				warn("[Vault] earnings tick error:", err)
+			end
+		end
+	end)
 end
 
 return VaultService

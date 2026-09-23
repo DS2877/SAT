@@ -120,11 +120,12 @@ WorldLayout.TreasureSpawns = {
 }
 
 -- Open areas where events (Treasure Rain, ...) take place.
+-- One site per region: events always hit ONE region (Area matches treasure SpawnArea).
 WorldLayout.EventSites = {
-	{ Name = "THE WILDS", Position = Vector3.new(0, 10, -60) },
-	{ Name = "THE TEMPLE ROAD", Position = Vector3.new(160, 10, -30) },
-	{ Name = "SHIPWRECK COAST", Position = Vector3.new(-250, 10, 10) },
-	{ Name = "THE WATERFALL", Position = Vector3.new(20, 10, -240) },
+	{ Area = "Wilds", Name = "THE WILDS", Position = Vector3.new(0, 10, -60) },
+	{ Area = "Ruins", Name = "THE ANCIENT RUINS", Position = Vector3.new(160, 10, -30) },
+	{ Area = "Coast", Name = "SHIPWRECK COAST", Position = Vector3.new(-250, 10, 10) },
+	{ Area = "Falls", Name = "THE FALLS", Position = Vector3.new(20, 10, -240) },
 }
 
 WorldLayout.GuardianSpawns = {

@@ -160,10 +160,17 @@ local function attractsGuardians(player: Player): boolean
 	return record ~= nil and record.Def.SpecialEffect == "AttractsGuardians"
 end
 
--- Events (Cursed Hour) enrage guardians via a workspace attribute.
-local function rage(): number
+-- Regional events (Cursed Hour) enrage the guardians of ONE region via workspace attributes
+-- GuardianRage (multiplier) + EventArea (region id).
+local function rage(g: Guardian): number
 	local value = workspace:GetAttribute("GuardianRage")
-	return if type(value) == "number" and value > 0 then value else 1
+	if type(value) ~= "number" or value <= 0 then
+		return 1
+	end
+	if Zones.AreaId(g.Home) ~= workspace:GetAttribute("EventArea") then
+		return 1
+	end
+	return value
 end
 
 local function findTarget(g: Guardian): (Player?, BasePart?)
@@ -171,7 +178,7 @@ local function findTarget(g: Guardian): (Player?, BasePart?)
 	for _, player in Players:GetPlayers() do
 		local root = Combat.RootOf(player)
 		if root and not player.Character:FindFirstChildOfClass("ForceField") and not Zones.InSafeZone(root.Position) then
-			local detect = g.Def.DetectRange * rage() * (if attractsGuardians(player) then 2.5 else 1)
+			local detect = g.Def.DetectRange * rage(g) * (if attractsGuardians(player) then 2.5 else 1)
 			if player:GetAttribute("Disguised") then
 				detect *= Gadgets.Get("disguise").GuardianDetectMultiplier
 			end
@@ -233,12 +240,12 @@ local function step(g: Guardian, now: number)
 	local target, targetRoot = findTarget(g)
 	if target and targetRoot then
 		setState(g, "Chase", target)
-		g.Humanoid.WalkSpeed = g.Def.ChaseSpeed * rage()
+		g.Humanoid.WalkSpeed = g.Def.ChaseSpeed * rage(g)
 		g.Humanoid:MoveTo(targetRoot.Position)
 		local reach = g.Def.AttackRange + g.Root.Size.Z / 2
 		if (targetRoot.Position - g.Root.Position).Magnitude <= reach and now - g.LastAttack >= g.Def.AttackCooldown then
 			g.LastAttack = now
-			local result = Combat.ApplyHit(target, { Guardian = g.Type, Damage = g.Def.Damage * rage(), From = g.Root.Position })
+			local result = Combat.ApplyHit(target, { Guardian = g.Type, Damage = g.Def.Damage * rage(g), From = g.Root.Position })
 			Net.FireAll("Feedback", { Type = "GuardianAttack", Position = g.Root.Position })
 			if result == "Knocked" then
 				-- Back off so the victim gets a fair chance to reclaim.

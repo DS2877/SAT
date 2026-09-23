@@ -22,6 +22,29 @@ GameConfig.Strength = {
 	ExtractionGainPerWeight = 0.1,
 }
 
+-- MONEY: treasures in your Vault earn $/s (Economy.Income = Value / IncomeDivisor x mutation),
+-- so income depends on WHAT you own, not how often you run. Extraction only pays a finder's
+-- fee; the real reward is a new earner. Prices below are tuned against these incomes
+-- (see the pacing test in tests/run.luau).
+GameConfig.Economy = {
+	IncomeDivisor = 100, -- Common $1-5/s, Rare $30-95/s, Legendary $650-2.1K/s, Secret $25K/s
+	SellIncomeSeconds = 60, -- sell price = one minute of that treasure's income
+	FindersFeeSeconds = 20, -- extraction pays 20 s of income up front (x zone bonus)
+	CollectRadius = 4, -- studs from the Vault's collect pad to cash out
+}
+
+-- Steal-an-Egg style cycle: long days, short nights where Vaults earn triple and Moonlit
+-- treasure spawns. Clock is derived from server time (Logic/DayNight).
+GameConfig.DayNight = {
+	CycleSeconds = 360,
+	NightSeconds = 90,
+	DayStartClock = 6.5,
+	DayEndClock = 18.5,
+	NightIncomeMultiplier = 3,
+	-- Extra weight for Rare+ spawns at night.
+	NightRarityBoost = { Rare = 1.5, Epic = 1.5, Legendary = 1.5, Mythic = 1.5 },
+}
+
 GameConfig.Carry = {
 	-- Carry Ratio = Treasure Weight / Player Strength. First band whose MaxRatio >= ratio wins.
 	Bands = {
@@ -79,6 +102,11 @@ GameConfig.Treasure = {
 	},
 	-- Rarities announced to the whole server when picked up/stolen/extracted.
 	BroadcastMinRarity = "Epic",
+	-- Overhead name tag (mutation / name / rarity / $ per s) only shows up close: you should
+	-- read rarity and mutation from the treasure's LOOK first; the tag confirms it.
+	LabelDistance = 40,
+	CarriedLabelDistance = 60,
+	VaultLabelDistance = 22,
 }
 
 GameConfig.Extraction = {
@@ -128,10 +156,10 @@ GameConfig.Training = {
 	-- Strength per rep = RepGain x TrainingMultiplier(ascension) x combo x crit x pass.
 	Benches = {
 		{ Id = "wooden", Name = "Wooden Bench", Price = 0, RequiredAscension = 0, RepGain = 5, Color = { 170, 120, 70 }, Count = 4 },
-		{ Id = "iron", Name = "Iron Bench", Price = 5000, RequiredAscension = 0, RepGain = 12, Color = { 150, 155, 170 }, Count = 4 },
-		{ Id = "golden", Name = "Golden Bench", Price = 75000, RequiredAscension = 1, RepGain = 30, Color = { 255, 196, 50 }, Count = 4 },
-		{ Id = "diamond", Name = "Diamond Bench", Price = 500000, RequiredAscension = 2, RepGain = 75, Color = { 120, 220, 255 }, Count = 4 },
-		{ Id = "mythic", Name = "Mythic Bench", Price = 5000000, RequiredAscension = 4, RepGain = 180, Color = { 255, 70, 110 }, Count = 3 },
+		{ Id = "iron", Name = "Iron Bench", Price = 12000, RequiredAscension = 0, RepGain = 12, Color = { 150, 155, 170 }, Count = 4 },
+		{ Id = "golden", Name = "Golden Bench", Price = 200000, RequiredAscension = 1, RepGain = 30, Color = { 255, 196, 50 }, Count = 4 },
+		{ Id = "diamond", Name = "Diamond Bench", Price = 2500000, RequiredAscension = 2, RepGain = 75, Color = { 120, 220, 255 }, Count = 4 },
+		{ Id = "mythic", Name = "Mythic Bench", Price = 40000000, RequiredAscension = 4, RepGain = 180, Color = { 255, 70, 110 }, Count = 3 },
 	},
 }
 
@@ -139,10 +167,10 @@ GameConfig.Vault = {
 	-- Progression tiers. Vaults grow UP: every PerFloor slots add a new floor to the gallery.
 	Tiers = {
 		{ Slots = 5, Price = 0, Enabled = true },
-		{ Slots = 10, Price = 25000, Enabled = true },
-		{ Slots = 20, Price = 250000, Enabled = true },
-		{ Slots = 40, Price = 2500000, Enabled = true },
-		{ Slots = 60, Price = 10000000, Enabled = true },
+		{ Slots = 10, Price = 30000, Enabled = true },
+		{ Slots = 20, Price = 400000, Enabled = true },
+		{ Slots = 40, Price = 6000000, Enabled = true },
+		{ Slots = 60, Price = 60000000, Enabled = true },
 	},
 	PlotSize = 30,
 	PerFloor = 20,
@@ -164,8 +192,8 @@ GameConfig.Ascension = {
 	-- ...but training speeds up every time too (compounding), so each climb stays reachable.
 	TrainingMultiplierPerLevel = 1.6,
 	-- Cash price per ascension (index = new level). Ties Ascension to the treasure loop, not just training.
-	CashCost = { 50000, 250000, 1000000, 3000000 },
-	CashCostGrowthAfterTable = 2,
+	CashCost = { 150000, 1500000, 15000000, 100000000 },
+	CashCostGrowthAfterTable = 3,
 	Multipliers = { [0] = 1.0, [1] = 1.25, [2] = 1.5, [3] = 1.75, [4] = 2.0 },
 	MultiplierPerLevelAfterTable = 0.25,
 	Titles = { "Ascended", "Twice Ascended", "Treasure Titan", "Island Legend" },
@@ -206,16 +234,23 @@ GameConfig.Events = {
 		RarityWeights = { Common = 55, Uncommon = 40, Rare = 22, Epic = 7, Legendary = 1 },
 		-- Landing sites: WorldLayout.EventSites
 	},
+	-- Every event hits ONE region (Wilds / Ruins / Coast / Falls), never the whole island.
 	CursedHour = {
 		Name = "CURSED HOUR",
 		Icon = "☠",
 		Duration = 120,
-		-- Multiplies spawn weights of these rarities while the curse lasts.
+		-- Multiplies spawn weights of these rarities in the cursed region.
 		RarityBoost = { Rare = 2, Epic = 3, Legendary = 3, Mythic = 3 },
-		GuardianRage = 1.3, -- guardian detect range, chase speed and damage multiplier
+		GuardianRage = 1.3, -- guardian detect range, chase speed and damage multiplier (region only)
+	},
+	GoldRush = {
+		Name = "GOLD RUSH",
+		Icon = "✨",
+		Duration = 90,
+		MutationBoost = 6, -- every mutation chance x6 in the region
 	},
 	-- Relative chance the scheduler picks each event.
-	Weights = { TreasureRain = 2, CursedHour = 1 },
+	Weights = { TreasureRain = 2, CursedHour = 1, GoldRush = 1.5 },
 }
 
 GameConfig.Gadgets = {

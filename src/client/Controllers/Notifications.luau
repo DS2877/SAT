@@ -152,10 +152,16 @@ function Notifications.Reward(payload)
 		Parent = gui,
 	}, { Kit.list(Enum.FillDirection.Vertical, 2, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center), Kit.padding(10) })
 	Kit.stroke(info.Color, 3, 0.1).Parent = frame
-	Kit.label({ Text = "EXTRACTION COMPLETE", LayoutOrder = 1, Size = UDim2.new(1, 0, 0, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.TextDim, Parent = frame })
+	Kit.label({ Text = "EXTRACTED • FINDER'S FEE", LayoutOrder = 1, Size = UDim2.new(1, 0, 0, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.TextDim, Parent = frame })
 	local amount = Kit.label({ Text = "+$0", LayoutOrder = 2, Size = UDim2.new(1, 0, 0, if big then 46 else 38), Font = Theme.Font.Display, TextSize = if big then 42 else 34, TextColor3 = Theme.Color.Cash, TextStrokeTransparency = 0.4, Parent = frame })
-	Kit.label({ Text = ("%s %s"):format(info.Glyph, def.Name:upper()), LayoutOrder = 3, Size = UDim2.new(1, 0, 0, 20), Font = Theme.Font.Display, TextSize = 18, TextColor3 = info.Color, Parent = frame })
-	local detail = if payload.NewDiscovery then "NEW! ADDED TO COLLECTION" else "ADDED TO COLLECTION"
+	local title = if payload.Mutation then ("%s %s"):format(tostring(payload.Mutation):upper(), def.Name:upper()) else def.Name:upper()
+	Kit.label({ Text = ("%s %s"):format(info.Glyph, title), LayoutOrder = 3, Size = UDim2.new(1, 0, 0, 20), Font = Theme.Font.Display, TextSize = 18, TextColor3 = info.Color, Parent = frame })
+	local detail = if payload.PlacedSlot
+		then ("NOW EARNING %s/s IN YOUR VAULT"):format(Kit.shortCash(payload.Income or 0))
+		else ("VAULT FULL • SOLD FOR %s"):format(Kit.shortCash(payload.SoldFor or 0))
+	if payload.NewDiscovery then
+		detail = "NEW! " .. detail
+	end
 	if payload.Bonus and payload.Bonus > 1 then
 		detail ..= (" • x%.1f %s BONUS"):format(payload.Bonus, (payload.Category or ""):upper())
 	end

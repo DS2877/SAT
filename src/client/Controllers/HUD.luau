@@ -13,6 +13,8 @@ local Rarities = require(Shared.Config.Rarities)
 local Treasures = require(Shared.Config.Treasures)
 local WorldLayout = require(Shared.Config.WorldLayout)
 local Carry = require(Shared.Logic.Carry)
+local Economy = require(Shared.Logic.Economy)
+local DayNight = require(Shared.Logic.DayNight)
 local Zones = require(Shared.Util.Zones)
 local Net = require(Shared.Net)
 
@@ -88,10 +90,35 @@ local function buildStats()
 	end
 	refs.Strength = pill("Strength", "💪", Theme.Color.Strength, 1)
 	refs.Cash = pill("Cash", "💰", Theme.Color.Cash, 2)
+	-- Vault income + day/night clock: "your money machine" is always in view.
+	refs.Income = Kit.label({
+		Name = "Income",
+		Text = "",
+		LayoutOrder = 3,
+		Size = UDim2.fromOffset(260, 18),
+		Font = Theme.Font.Black,
+		TextSize = Theme.TextSize.Small,
+		TextColor3 = Theme.Color.Cash,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextStrokeTransparency = 0.5,
+		RichText = true,
+		Parent = stack,
+	})
+	refs.Clock = Kit.label({
+		Name = "Clock",
+		Text = "",
+		LayoutOrder = 4,
+		Size = UDim2.fromOffset(260, 18),
+		Font = Theme.Font.Black,
+		TextSize = Theme.TextSize.Small,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextStrokeTransparency = 0.5,
+		Parent = stack,
+	})
 	refs.Area = Kit.label({
 		Name = "Area",
 		Text = "TREASURE DISTRICT • SAFE",
-		LayoutOrder = 3,
+		LayoutOrder = 5,
 		Size = UDim2.fromOffset(260, 20),
 		Font = Theme.Font.Black,
 		TextSize = Theme.TextSize.Small,
@@ -102,7 +129,7 @@ local function buildStats()
 	refs.Ascension = Kit.label({
 		Name = "Ascension",
 		Text = "",
-		LayoutOrder = 4,
+		LayoutOrder = 6,
 		Size = UDim2.fromOffset(260, 18),
 		Font = Theme.Font.Black,
 		TextSize = Theme.TextSize.Small,
@@ -170,7 +197,7 @@ local function buildObjective()
 	-- Expands for a few seconds when the goal changes, then collapses to one line; tap to toggle.
 	local card = Kit.panel({
 		Name = "Objective",
-		LayoutOrder = 5,
+		LayoutOrder = 7,
 		Size = UDim2.fromOffset(220, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 0.4,
@@ -433,6 +460,29 @@ local function nearestTreasure(position: Vector3, maxRank: number?)
 	return best
 end
 
+local function carriedMutation(): string?
+	local mutation = player:GetAttribute("CarryingMutation")
+	return if type(mutation) == "string" and mutation ~= "" then mutation else nil
+end
+
+local function updateClock(serverNow: number)
+	local state = DayNight.State(serverNow)
+	local left = math.ceil(state.SecondsLeft)
+	local clock = ("%d:%02d"):format(left // 60, left % 60)
+	if state.IsNight then
+		refs.Clock.Text = ("🌙 NIGHT • VAULTS x%d • MOONLIT TREASURE • %s"):format(GameConfig.DayNight.NightIncomeMultiplier, clock)
+		refs.Clock.TextColor3 = Color3.fromRGB(170, 185, 255)
+	else
+		refs.Clock.Text = ("☀ DAY • NIGHT IN %s"):format(clock)
+		refs.Clock.TextColor3 = Theme.Color.Gold
+	end
+	local income = player:GetAttribute("VaultIncome")
+	refs.Income.Visible = type(income) == "number" and income > 0
+	if refs.Income.Visible then
+		refs.Income.Text = ("📈 VAULT +%s/s"):format(Kit.shortCash(income :: number))
+	end
+end
+
 local function nextTreasureGoal(data)
 	local best = nil
 	for _, def in Treasures.List do
@@ -514,7 +564,7 @@ local function refreshObjective()
 			("%s %s • CARRYING"):format(info.Glyph, carrying.Rarity:upper()),
 			carrying.Name:upper(),
 			info.Color,
-			("<font color=\"#78eb78\">%s</font>  •  WEIGHT %s"):format(Kit.formatCash(carrying.Value), Kit.bigNumber(carrying.Weight)),
+			("<font color=\"#78eb78\">%s/s</font>  •  WEIGHT %s"):format(Kit.shortCash(Economy.Income(carrying, carriedMutation())), Kit.bigNumber(carrying.Weight)),
 			line2,
 			speed,
 			if speed >= 0.75 then Theme.Color.Safe elseif speed >= 0.45 then Theme.Color.Warn else Theme.Color.Danger
@@ -581,8 +631,8 @@ local function refreshObjective()
 		goal.Name:upper(),
 		rarityColor(goal.Rarity),
 		if needsTraining
-			then ("<font color=\"#78eb78\">%s</font>  •  STRENGTH %s / %s"):format(Kit.formatCash(goal.Value), Kit.bigNumber(strength), Kit.bigNumber(recommended))
-			else ("<font color=\"#78eb78\">%s</font>  •  WEIGHT %s"):format(Kit.formatCash(goal.Value), Kit.bigNumber(goal.Weight)),
+			then ("<font color=\"#78eb78\">%s/s</font>  •  STRENGTH %s / %s"):format(Kit.shortCash(Economy.Income(goal)), Kit.bigNumber(strength), Kit.bigNumber(recommended))
+			else ("<font color=\"#78eb78\">%s/s</font>  •  WEIGHT %s"):format(Kit.shortCash(Economy.Income(goal)), Kit.bigNumber(goal.Weight)),
 		if needsTraining then "▶ TRAIN" else ("▶ FIND IT IN %s"):format(AREA_NAMES[goal.SpawnArea] or goal.SpawnArea:upper()),
 		if needsTraining then strength / recommended else nil,
 		if needsTraining then Theme.Color.Strength else Theme.Color.Safe
@@ -882,6 +932,7 @@ function HUD.Init(screenGui: ScreenGui)
 			updateNav()
 			updateCooldowns(serverNow)
 			updateExtraction(serverNow)
+			updateClock(serverNow)
 			local eventEnds = workspace:GetAttribute("EventEndsAt") or 0
 			local remaining = eventEnds - serverNow
 			refs.Event.Visible = remaining > 0

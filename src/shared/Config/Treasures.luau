@@ -60,10 +60,10 @@ end
 
 -- World size of treasure models. Big on purpose: treasure must read clearly through grass.
 Treasures.DisplayScale = {
-	Small = 2.2,
-	Medium = 3,
-	Large = 3.8,
-	Huge = 5,
+	Small = 3.2,
+	Medium = 4.2,
+	Large = 5.2,
+	Huge = 6.6,
 }
 
 function Treasures.Get(id: string)

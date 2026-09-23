@@ -1,7 +1,8 @@
--- Server events: rare, announced moments that pull players to one place.
--- One event at a time. State is published as workspace attributes so every client
--- (and late joiners) can show it without extra remotes:
---   EventId, EventName, EventSite, EventPosition (Vector3), EventEndsAt (server time)
+-- Server events: rare, announced moments that pull players to ONE REGION of the island
+-- (Wilds / Ruins / Coast / Falls) - never the whole map, so the rest stays calm and players
+-- choose whether to rush over. One event at a time. State is published as workspace attributes
+-- so every client (and late joiners) can show it without extra remotes:
+--   EventId, EventName, EventSite, EventArea, EventPosition (Vector3), EventEndsAt (server time)
 --
 -- Adding an event = add a runner to Runners + config in GameConfig.Events.
 
@@ -27,10 +28,18 @@ local cfg = GameConfig.Events
 local rng = Random.new()
 local active: string? = nil
 
-local function publish(id: string?, name: string?, site: string?, position: Vector3?, endsAt: number?)
+type Site = { Area: string, Name: string, Position: Vector3 }
+
+local function pickSite(): Site
+	return WorldLayout.EventSites[rng:NextInteger(1, #WorldLayout.EventSites)]
+end
+
+local function publish(id: string?, name: string?, site: Site?, endsAt: number?)
+	local position = site and site.Position
 	workspace:SetAttribute("EventId", id or "")
 	workspace:SetAttribute("EventName", name or "")
-	workspace:SetAttribute("EventSite", site or "")
+	workspace:SetAttribute("EventSite", if site then site.Name else "")
+	workspace:SetAttribute("EventArea", if site then site.Area else "")
 	workspace:SetAttribute("EventPosition", position or Vector3.zero)
 	workspace:SetAttribute("EventEndsAt", endsAt or 0)
 end
@@ -59,18 +68,23 @@ local function groundAt(position: Vector3): Vector3?
 	return nil
 end
 
--- Rarity-weighted pick across all treasures (events ignore spawn areas).
-local function rollRain(weights)
+-- Rarity-weighted pick. Rare and above are the region's own treasures (a Coast rain drops
+-- Coast treasure); Common/Uncommon filler can come from anywhere, because some regions (the
+-- Falls) have no low-rarity natives and would otherwise rain only Epics.
+local function rollRain(weights, area: string)
 	local perRarity = {}
+	local function eligible(def): boolean
+		return weights[def.Rarity] ~= nil and (def.SpawnArea == area or Rarities.Rank(def.Rarity) <= 2)
+	end
 	for _, def in Treasures.List do
-		if weights[def.Rarity] then
+		if eligible(def) then
 			perRarity[def.Rarity] = (perRarity[def.Rarity] or 0) + 1
 		end
 	end
 	local candidates = {}
 	for _, def in Treasures.List do
 		local w = weights[def.Rarity]
-		if w then
+		if w and eligible(def) then
 			table.insert(candidates, { Def = def, Weight = w / perRarity[def.Rarity] })
 		end
 	end
@@ -83,9 +97,9 @@ local Runners = {}
 
 function Runners.TreasureRain()
 	local rain = cfg.TreasureRain
-	local site = WorldLayout.EventSites[rng:NextInteger(1, #WorldLayout.EventSites)]
+	local site = pickSite()
 	local endsAt = workspace:GetServerTimeNow() + rain.Duration
-	publish("TreasureRain", rain.Name, site.Name, site.Position, endsAt)
+	publish("TreasureRain", rain.Name, site, endsAt)
 	Net.FireAll("Notify", {
 		Kind = "Banner",
 		Title = ("%s %s!"):format(rain.Icon, rain.Name),
@@ -100,9 +114,9 @@ function Runners.TreasureRain()
 			local angle = rng:NextNumber(0, math.pi * 2)
 			local distance = math.sqrt(rng:NextNumber()) * rain.Radius
 			local ground = groundAt(site.Position + Vector3.new(math.cos(angle) * distance, 0, math.sin(angle) * distance))
-			local def = rollRain(rain.RarityWeights)
+			local def = rollRain(rain.RarityWeights, site.Area)
 			if ground and def then
-				TreasureService.SpawnFalling(def, ground, rain.DropHeight, rain.FallTime, rain.Lifetime)
+				TreasureService.SpawnFalling(def, ground, rain.DropHeight, rain.FallTime, rain.Lifetime, site.Area)
 				if Rarities.AtLeast(def.Rarity, "Epic") then
 					Net.FireAll("Notify", {
 						Kind = "Social",
@@ -118,21 +132,44 @@ end
 
 function Runners.CursedHour()
 	local curse = cfg.CursedHour
+	local site = pickSite()
 	local endsAt = workspace:GetServerTimeNow() + curse.Duration
-	publish("CursedHour", curse.Name, "THE WHOLE ISLAND", nil, endsAt)
+	publish("CursedHour", curse.Name, site, endsAt)
 	workspace:SetAttribute("GuardianRage", curse.GuardianRage)
-	TreasureService.SetRarityBoost(curse.RarityBoost)
+	TreasureService.SetRegionBoost({ Area = site.Area, Rarity = curse.RarityBoost })
 	Net.FireAll("Notify", {
 		Kind = "Banner",
 		Title = ("%s %s!"):format(curse.Icon, curse.Name),
-		Text = "Rare treasure everywhere. Guardians are furious.",
+		Text = ("%s is cursed: rare treasure, furious guardians."):format(site.Name),
 		Tone = "Danger",
 	})
 	Net.FireAll("Feedback", { Type = "EventStarted", EventId = "CursedHour" })
 	local ok, err = pcall(task.wait, curse.Duration)
 	workspace:SetAttribute("GuardianRage", 1)
-	TreasureService.SetRarityBoost(nil)
-	Net.FireAll("Notify", { Kind = "Toast", Text = "The curse has lifted.", Tone = "Info" })
+	TreasureService.SetRegionBoost(nil)
+	Net.FireAll("Notify", { Kind = "Toast", Text = ("The curse on %s has lifted."):format(site.Name), Tone = "Info" })
+	if not ok then
+		error(err)
+	end
+end
+
+-- Gold Rush: mutations (Silver / Gold / Diamond / Rainbow) are far more likely in one region.
+function Runners.GoldRush()
+	local rush = cfg.GoldRush
+	local site = pickSite()
+	local endsAt = workspace:GetServerTimeNow() + rush.Duration
+	publish("GoldRush", rush.Name, site, endsAt)
+	TreasureService.SetRegionBoost({ Area = site.Area, Mutation = rush.MutationBoost })
+	Net.FireAll("Notify", {
+		Kind = "Banner",
+		Title = ("%s %s!"):format(rush.Icon, rush.Name),
+		Text = ("Mutated treasure x%d at %s!"):format(rush.MutationBoost, site.Name),
+		Tone = "Reward",
+	})
+	Net.FireAll("Feedback", { Type = "EventStarted", EventId = "GoldRush" })
+	local ok, err = pcall(task.wait, rush.Duration)
+	TreasureService.SetRegionBoost(nil)
+	Net.FireAll("Notify", { Kind = "Toast", Text = ("The Gold Rush at %s is over."):format(site.Name), Tone = "Info" })
 	if not ok then
 		error(err)
 	end
@@ -183,7 +220,14 @@ end
 
 -- ADMIN COMMANDS --------------------------------------------------------------------
 
-local ALIASES = { rain = "TreasureRain", treasurerain = "TreasureRain", cursed = "CursedHour", curse = "CursedHour" }
+local ALIASES = {
+	rain = "TreasureRain",
+	treasurerain = "TreasureRain",
+	cursed = "CursedHour",
+	curse = "CursedHour",
+	gold = "GoldRush",
+	goldrush = "GoldRush",
+}
 
 local function isAdmin(player: Player): boolean
 	if RunService:IsStudio() or table.find(cfg.AdminUserIds, player.UserId) then
@@ -208,7 +252,7 @@ local function handleCommand(player: Player, message: string)
 	local started = eventId ~= nil and EventService.Start(eventId)
 	Net.Fire("Notify", player, {
 		Kind = "Toast",
-		Text = if started then "Event started: " .. eventId elseif active then "An event is already running" else "Unknown event (try /event rain or /event cursed)",
+		Text = if started then "Event started: " .. eventId elseif active then "An event is already running" else "Unknown event (try /event rain, cursed or gold)",
 		Tone = if started then "Info" else "Warn",
 	})
 end

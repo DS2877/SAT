@@ -100,6 +100,29 @@ M0–M7 implemented in code; awaiting first Roblox runtime playtest (M8 multipla
   and "+N" over other lifters' heads for everyone nearby.
 - Vault pedestal names are plaques on the pedestal front (floating labels overlapped).
 
+## ECONOMY OVERHAUL (vault income)
+- Treasures on Vault pedestals EARN $/s = Value / 100 x mutation x Ascension (x3 at night):
+  Common $1-5/s, Rare $30-95/s, Legendary $650-2.1K/s, Secret $25K/s (Steal a Brainrot bands).
+- Earnings pile up on the green COLLECT pad in your Vault (persisted as Vault.Stored).
+- Extraction pays only a finder's fee (20 s of income x zone bonus); the treasure lands on a
+  free pedestal. Full Vault = auto-sold. Sell = 60 s of income (pedestal prompt or Vault menu).
+- Prices raised to match: gadgets $500 / $20K-$600K, vault $30K/$400K/$6M/$60M, benches
+  $12K/$200K/$2.5M/$40M, Ascension $150K/$1.5M/$15M/$100M (x3 after).
+- Mutations (Silver x1.5, Gold x2, Diamond x3, Moonlit x4 night-only, Rainbow x6) re-skin the
+  treasure; stored in vault slots as "id|Mutation".
+
+## TREASURE LOOK
+- Bigger (and bigger with rarity), no sky beams; rarity aura particles + glow; mutation skins.
+- Steal-a-Brainrot style tag (mutation / name / rarity / $/s), visible within 40 studs only.
+- Rarity palette: Common grey, Uncommon green, Rare blue, Epic purple, Legendary gold,
+  Mythic red, Secret black text with white outline.
+
+## REGIONAL EVENTS + DAY/NIGHT
+- Treasure Rain, Cursed Hour and the new Gold Rush (mutations x6) each hit ONE region; guardian
+  rage and the purple tint only apply inside it.
+- 6-minute cycle: 4.5 min day, 1.5 min night (Vaults x3, Moonlit treasure, more Rare+).
+  Clock comes from server time (Logic/DayNight), lighting is client-side (Ambience).
+
 ## KNOWN BUGS / RISKS
 - Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp slopes.
 - No server-side speed-hack detection yet (movement is client-authoritative in Roblox).

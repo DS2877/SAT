@@ -9,7 +9,10 @@ local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
 local Rarities = require(Shared.Config.Rarities)
 local Treasures = require(Shared.Config.Treasures)
+local Mutations = require(Shared.Config.Mutations)
 local Carry = require(Shared.Logic.Carry)
+local DayNight = require(Shared.Logic.DayNight)
+local TreasureLabel = require(Shared.TreasureLabel)
 local TreasureRoll = require(Shared.Logic.TreasureRoll)
 local TreasureVisual = require(Shared.TreasureVisual)
 local Net = require(Shared.Net)
@@ -28,6 +31,7 @@ TreasureService.Removed = Signal.new() -- (record, reason) reason: "Extracted" |
 export type Record = {
 	Uid: number,
 	Def: any,
+	Mutation: string?, -- Mutations name (changes the look and multiplies income)
 	State: string, -- "World" | "Carried" | "Dropped" | "Extracted"
 	Model: Model,
 	Handle: BasePart,
@@ -40,7 +44,7 @@ export type Record = {
 	ProtectedFor: Player?,
 	ProtectedUntil: number,
 	KnockedFrom: Player?, -- who lost it through a knock (theft detection)
-	Marker: Model?, -- ground ring + light beam while the treasure lies in the world
+	Marker: Model?, -- soft ground ring while the treasure lies in the world
 }
 
 local cfg = GameConfig.Treasure
@@ -69,39 +73,10 @@ local function setState(record: Record, state: string)
 end
 
 local function makeBillboard(record: Record)
-	local def = record.Def
-	local info = Rarities.Info[def.Rarity]
-	local gui = Instance.new("BillboardGui")
-	gui.Name = "TreasureTag"
-	gui.Size = UDim2.fromOffset(150, 38)
-	gui.StudsOffsetWorldSpace = Vector3.new(0, TreasureVisual.Scale(def) * 1.4 + 1.5, 0)
-	gui.MaxDistance = info.BillboardDistance
-	gui.LightInfluence = 0
-	gui.ResetOnSpawn = false
-
-	local rarity = Instance.new("TextLabel")
-	rarity.Name = "Rarity"
-	rarity.BackgroundTransparency = 1
-	rarity.Size = UDim2.fromScale(1, 0.4)
-	rarity.Font = Enum.Font.GothamBlack
-	rarity.TextScaled = true
-	rarity.TextColor3 = info.Color
-	rarity.TextStrokeTransparency = 0.3
-	rarity.Text = ("%s %s"):format(info.Glyph, def.Rarity:upper())
-	rarity.Parent = gui
-
-	local name = Instance.new("TextLabel")
-	name.Name = "Title"
-	name.BackgroundTransparency = 1
-	name.Position = UDim2.fromScale(0, 0.4)
-	name.Size = UDim2.fromScale(1, 0.6)
-	name.Font = Enum.Font.GothamBold
-	name.TextScaled = true
-	name.TextColor3 = Color3.new(1, 1, 1)
-	name.TextStrokeTransparency = 0.2
-	name.Text = ("%s  •  %s"):format(def.Name, formatCash(def.Value))
-	name.Parent = gui
-
+	local gui = TreasureLabel.Build(record.Def, record.Mutation, {
+		MaxDistance = cfg.LabelDistance,
+		Height = TreasureVisual.Scale(record.Def) * 1.1 + 1.5,
+	})
 	gui.Adornee = record.Handle
 	gui.Parent = record.Handle
 	return gui
@@ -111,7 +86,7 @@ local function makePrompt(record: Record)
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "PickupPrompt"
 	prompt.ActionText = "Pick Up"
-	prompt.ObjectText = record.Def.Name
+	prompt.ObjectText = if record.Mutation then record.Mutation .. " " .. record.Def.Name else record.Def.Name
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
 	prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
 	prompt.HoldDuration = Carry.PickupHoldDuration(record.Def.Weight, GameConfig.Carry)
@@ -142,8 +117,9 @@ local function activeCount(): number
 end
 
 -- point: a spawn point (normal spawns) or nil for free spawns (events), which pass `ground`.
--- Ground marker: a glowing ring in the rarity colour (+ a light beam for Rare and above) so
--- treasure reads from far away and through grass. Removed while carried.
+-- Ground marker: a soft glowing ring in the rarity colour so treasure reads through grass.
+-- (No sky beams: size, glow and aura particles on the treasure itself carry the rarity.)
+-- Removed while carried.
 local function clearMarker(record: Record)
 	if record.Marker then
 		record.Marker:Destroy()
@@ -175,23 +151,19 @@ local function placeMarker(record: Record, ground: Vector3)
 	end
 	local upright = CFrame.Angles(0, 0, math.rad(90))
 	local diameter = s * 2.4 + 2
-	glow(Vector3.new(0.15, diameter, diameter), CFrame.new(ground + Vector3.new(0, 0.12, 0)) * upright, 0.35)
-	glow(Vector3.new(0.18, diameter - 1.2, diameter - 1.2), CFrame.new(ground + Vector3.new(0, 0.14, 0)) * upright, 0.8)
-	if info.Rank >= 3 then
-		local height = 25 + info.Rank * 8
-		glow(Vector3.new(height, 0.9, 0.9), CFrame.new(ground + Vector3.new(0, height / 2, 0)) * upright, 0.55)
-	end
+	glow(Vector3.new(0.15, diameter, diameter), CFrame.new(ground + Vector3.new(0, 0.12, 0)) * upright, 0.55)
+	glow(Vector3.new(0.18, diameter - 1.2, diameter - 1.2), CFrame.new(ground + Vector3.new(0, 0.14, 0)) * upright, 0.85)
 	marker.Parent = markerFolder
 	record.Marker = marker
 end
 
-local function spawnAt(point, def, ground: Vector3?)
+local function spawnAt(point, def, ground: Vector3?, mutation: string?)
 	nextUid += 1
 	local s = TreasureVisual.Scale(def)
 	local base = if point then point.Position else ground :: Vector3
 	local cframe = CFrame.new(base + Vector3.new(0, s * 0.9 + 0.3, 0))
 		* CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
-	local model = TreasureVisual.Build(def, cframe)
+	local model = TreasureVisual.Build(def, cframe, nil, mutation)
 	model.Name = def.Id .. "_" .. nextUid
 	model:SetAttribute("TreasureId", def.Id)
 	model:SetAttribute("Uid", nextUid)
@@ -200,6 +172,7 @@ local function spawnAt(point, def, ground: Vector3?)
 	local record: Record = {
 		Uid = nextUid,
 		Def = def,
+		Mutation = mutation,
 		State = "World",
 		Model = model,
 		Handle = model.PrimaryPart :: BasePart,
@@ -230,33 +203,48 @@ local function spawnAt(point, def, ground: Vector3?)
 	return record
 end
 
--- Events can temporarily multiply rarity weights (e.g. Cursed Hour).
-local rarityBoost: { [string]: number }? = nil
+-- Regional event modifiers (Cursed Hour, Gold Rush): only spawn points in `Area` are affected.
+type RegionBoost = { Area: string, Rarity: { [string]: number }?, Mutation: number? }
+local regionBoost: RegionBoost? = nil
 
-function TreasureService.SetRarityBoost(boost: { [string]: number }?)
-	rarityBoost = boost
+function TreasureService.SetRegionBoost(boost: RegionBoost?)
+	regionBoost = boost
 	if boost then
-		-- Let empty spawn points refill right away so the boost is felt immediately.
+		-- Let empty spawn points in the region refill right away so the event is felt immediately.
 		for _, point in spawnPoints do
-			if not point.Occupied then
+			if not point.Occupied and point.Area == boost.Area then
 				point.NextSpawnAt = 0
 			end
 		end
 	end
 end
 
-local function currentWeights()
-	if not rarityBoost then
-		return cfg.RarityWeights
-	end
+local function weightsFor(area: string, isNight: boolean)
 	local weights = table.clone(cfg.RarityWeights)
-	for rarity, mult in rarityBoost do
-		if weights[rarity] then
-			weights[rarity] *= mult
+	local function apply(mults)
+		for rarity, mult in mults do
+			if weights[rarity] then
+				weights[rarity] *= mult
+			end
 		end
+	end
+	if isNight then
+		apply(GameConfig.DayNight.NightRarityBoost)
+	end
+	if regionBoost and regionBoost.Area == area and regionBoost.Rarity then
+		apply(regionBoost.Rarity)
 	end
 	return weights
 end
+
+local function rollMutation(area: string?): string?
+	local isNight = DayNight.IsNight(workspace:GetServerTimeNow())
+	local boost = if regionBoost and area and regionBoost.Area == area then regionBoost.Mutation or 1 else 1
+	return Mutations.Roll(function()
+		return rng:NextNumber()
+	end, isNight, boost)
+end
+TreasureService.RollMutation = rollMutation
 
 local function trySpawnOne(): boolean
 	local now = os.clock()
@@ -270,16 +258,17 @@ local function trySpawnOne(): boolean
 		return false
 	end
 	local counts = activeByRarity()
+	local isNight = DayNight.IsNight(workspace:GetServerTimeNow())
 	-- Try a few random free points (some may have no eligible treasure due to caps).
 	for _ = 1, math.min(#free, 6) do
 		local point = table.remove(free, rng:NextInteger(1, #free))
 		local candidates =
-			TreasureRoll.Candidates(Treasures.List, point, Rarities.Order, currentWeights(), cfg.RarityCaps, counts)
+			TreasureRoll.Candidates(Treasures.List, point, Rarities.Order, weightsFor(point.Area, isNight), cfg.RarityCaps, counts)
 		local def = TreasureRoll.Pick(candidates, function()
 			return rng:NextNumber()
 		end)
 		if def then
-			spawnAt(point, def)
+			spawnAt(point, def, nil, rollMutation(point.Area))
 			return true
 		end
 		point.NextSpawnAt = now + 5
@@ -326,6 +315,7 @@ end
 local function setPlayerCarryAttributes(player: Player, record: Record?)
 	player:SetAttribute("CarryingUid", record and record.Uid or 0)
 	player:SetAttribute("CarryingId", record and record.Def.Id or "")
+	player:SetAttribute("CarryingMutation", record and record.Mutation or "")
 	if not record then
 		player:SetAttribute("CarrySpeed", 1)
 	end
@@ -409,7 +399,7 @@ function TreasureService.TryPickup(player: Player, uid: number): (boolean, strin
 	record.KnockedFrom = nil
 	record.Prompt.Enabled = false
 	clearMarker(record)
-	record.Billboard.MaxDistance = if record.Def.SpecialEffect == "RevealsCarrier" then 2000 else 160
+	record.Billboard.MaxDistance = if record.Def.SpecialEffect == "RevealsCarrier" then 2000 else cfg.CarriedLabelDistance
 	record.Billboard.AlwaysOnTop = record.Def.SpecialEffect == "RevealsCarrier"
 	carrying[player] = record
 	setState(record, "Carried")
@@ -498,7 +488,7 @@ function TreasureService.Drop(player: Player, reason: string, knockedBy: Player?
 	record.ProtectedUntil = now + cfg.ReclaimProtection
 	record.KnockedFrom = if reason == "Knocked" then player else nil
 	record.Prompt.Enabled = true
-	record.Billboard.MaxDistance = Rarities.Info[record.Def.Rarity].BillboardDistance
+	record.Billboard.MaxDistance = cfg.LabelDistance
 	record.Billboard.AlwaysOnTop = false
 	record.Model:SetAttribute("ProtectedUntil", workspace:GetServerTimeNow() + cfg.ReclaimProtection)
 	record.Model:SetAttribute("ProtectedForUserId", player.UserId)
@@ -518,8 +508,8 @@ function TreasureService.Drop(player: Player, reason: string, knockedBy: Player?
 	return record
 end
 
--- Consumes the carried treasure for extraction. Returns the definition, or nil if invalid.
-function TreasureService.Consume(player: Player, expectedUid: number)
+-- Consumes the carried treasure for extraction. Returns (definition, mutation), or nil if invalid.
+function TreasureService.Consume(player: Player, expectedUid: number): (any, string?)
 	local record = carrying[player]
 	if not record or record.Uid ~= expectedUid or record.State ~= "Carried" then
 		return nil
@@ -529,13 +519,20 @@ function TreasureService.Consume(player: Player, expectedUid: number)
 	setPlayerCarryAttributes(player, nil)
 	applyCarrierMovement(player, nil)
 	remove(record, "Extracted")
-	return record.Def
+	return record.Def, record.Mutation
 end
 
 -- Event spawn outside the spawn-point system. The treasure falls from the sky onto `ground`,
 -- can't be picked up until it lands, and despawns after `lifetime` if nobody took it.
-function TreasureService.SpawnFalling(def, ground: Vector3, dropHeight: number, fallTime: number, lifetime: number)
-	local record = spawnAt(nil, def, ground)
+function TreasureService.SpawnFalling(
+	def,
+	ground: Vector3,
+	dropHeight: number,
+	fallTime: number,
+	lifetime: number,
+	area: string?
+)
+	local record = spawnAt(nil, def, ground, rollMutation(area))
 	local landed = record.Handle.CFrame
 	record.Handle.CFrame = landed + Vector3.new(0, dropHeight, 0)
 	record.Prompt.Enabled = false
