@@ -1,15 +1,16 @@
--- Timing-bar training at physical stations. A ProximityPrompt starts a set; the client shows a
--- marker sweeping a bar (synchronised by server time) and sends taps. The server grades taps
--- against its own clock (client timestamp only accepted within a small tolerance).
+-- Treadmill training: AFK-friendly Strength gain. A player steps onto a treadmill (prompt), gets
+-- locked in place running, and earns Strength every tick. Tapping SPRINT briefly multiplies the
+-- rate. Higher tiers are unlocked with Cash + a Strength requirement. All gains are server-side.
 
+local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
-local TrainingTiming = require(Shared.Logic.TrainingTiming)
 local Net = require(Shared.Net)
 
+local Movement = require(script.Parent.Movement)
 local PlayerData = require(script.Parent.PlayerData)
 local TreasureService = require(script.Parent.TreasureService)
 local Combat = require(script.Parent.Combat)
@@ -19,156 +20,201 @@ local Training = {}
 
 local cfg = GameConfig.Training
 
-type Session = {
-	StationId: string,
-	Position: Vector3,
-	StartedAt: number, -- server time (workspace:GetServerTimeNow)
-	Reps: number,
-	LastTap: number,
-}
-local sessions: { [Player]: Session } = {}
-local lastSetEnded: { [Player]: number } = {}
+type Machine = { Tier: any, BeltCFrame: CFrame, Prompt: ProximityPrompt, Occupant: Player? }
+type Session = { Machine: Machine, Pending: number, SprintUntil: number, Gained: number }
 
-local function stop(player: Player, reason: string)
-	if sessions[player] then
-		sessions[player] = nil
-		lastSetEnded[player] = os.clock()
-		Net.Fire("TrainingState", player, { Active = false, Reason = reason })
+local sessions: { [Player]: Session } = {}
+local passMultiplier: { [Player]: number } = {}
+
+local function tierIndex(id: string): number
+	for i, tier in cfg.Treadmills do
+		if tier.Id == id then
+			return i
+		end
 	end
+	return 0
 end
 
-local function start(player: Player, stationId: string, position: Vector3)
-	local station = cfg.Stations[stationId]
-	local data = PlayerData.Get(player)
-	local root = Combat.RootOf(player)
-	if not station or not data or not root then
+local function commit(player: Player, session: Session)
+	if session.Pending <= 0 then
 		return
 	end
-	if sessions[player] then
+	local amount = session.Pending
+	session.Pending = 0
+	PlayerData.Update(player, function(d)
+		d.Strength = math.min(GameConfig.Strength.Max, d.Strength + amount)
+	end)
+	TreasureService.RefreshCarrier(player)
+end
+
+local function stop(player: Player, reason: string)
+	local session = sessions[player]
+	if not session then
+		return
+	end
+	sessions[player] = nil
+	commit(player, session)
+	if session.Machine.Occupant == player then
+		session.Machine.Occupant = nil
+	end
+	Movement.SetLock(player, "Treadmill", false)
+	player:SetAttribute("Treadmill", "")
+	Net.Fire("TrainingState", player, { Active = false, Reason = reason, Gained = session.Gained })
+end
+
+local function rateFor(player: Player, tier): number
+	return tier.Rate * (passMultiplier[player] or 1)
+end
+
+local function owns(data, tier): boolean
+	return tier.Price <= 0 or data.OwnedTreadmills[tier.Id] == true
+end
+
+local function start(player: Player, machine: Machine)
+	local data = PlayerData.Get(player)
+	local root = Combat.RootOf(player)
+	if not data or not root or Combat.IsKnocked(player) then
 		return
 	end
 	if TreasureService.GetCarrying(player) then
 		Net.Fire("Notify", player, { Kind = "Toast", Text = "Extract your treasure before training", Tone = "Warn" })
 		return
 	end
-	if data.Strength < station.RequiredStrength then
+	if machine.Occupant and machine.Occupant ~= player and sessions[machine.Occupant] then
+		Net.Fire("Notify", player, { Kind = "Toast", Text = "Someone is already running here", Tone = "Info" })
+		return
+	end
+	local tier = machine.Tier
+	if data.Strength < tier.RequiredStrength then
 		Net.Fire("Notify", player, {
 			Kind = "Toast",
-			Text = ("%s needs %d STRENGTH"):format(station.Name:upper(), station.RequiredStrength),
+			Text = ("%s needs %d STRENGTH"):format(tier.Name:upper(), tier.RequiredStrength),
 			Tone = "Warn",
 		})
 		return
 	end
-	if os.clock() - (lastSetEnded[player] or 0) < cfg.RestBetweenSets then
-		return
+	if not owns(data, tier) then
+		if not PlayerData.TrySpend(player, tier.Price) then
+			Net.Fire("Notify", player, {
+				Kind = "Toast",
+				Text = ("%s costs $%d"):format(tier.Name:upper(), tier.Price),
+				Tone = "Warn",
+			})
+			return
+		end
+		PlayerData.Update(player, function(d)
+			d.OwnedTreadmills[tier.Id] = true
+		end)
+		Net.Fire("Notify", player, { Kind = "Banner", Title = "UNLOCKED", Text = tier.Name:upper(), Tone = "Reward" })
+		Analytics.Economy(player, "Sink", tier.Price, data.Cash, "Shop", "treadmill_" .. tier.Id)
 	end
-	if (root.Position - position).Magnitude > cfg.MaxStationDistance then
-		return
-	end
-	local session = {
-		StationId = stationId,
-		Position = position,
-		StartedAt = workspace:GetServerTimeNow(),
-		Reps = 0,
-		LastTap = 0,
-	}
-	sessions[player] = session
+
+	stop(player, "Switched")
+	machine.Occupant = player
+	sessions[player] = { Machine = machine, Pending = 0, SprintUntil = 0, Gained = 0 }
+	local character = root.Parent :: Model
+	root.AssemblyLinearVelocity = Vector3.zero
+	character:PivotTo(machine.BeltCFrame * CFrame.new(0, 3.2, 0))
+	Movement.SetLock(player, "Treadmill", true)
+	player:SetAttribute("Treadmill", tier.Id)
 	Net.Fire("TrainingState", player, {
 		Active = true,
-		StationId = stationId,
-		StartedAt = session.StartedAt,
-		Period = station.Period or cfg.Period,
-		Position = position,
-		MaxDistance = cfg.MaxStationDistance,
-		Reps = cfg.RepsPerSet,
-		PerfectWindow = station.PerfectWindow,
-		GoodWindow = station.GoodWindow,
+		TierId = tier.Id,
+		Name = tier.Name,
+		Rate = rateFor(player, tier),
+		SprintMultiplier = cfg.SprintMultiplier,
+		Position = machine.BeltCFrame.Position,
+		LeaveDistance = cfg.LeaveDistance,
 	})
 	if PlayerData.Milestone(player, "FirstTraining") then
 		Analytics.Funnel(player, "FirstTraining")
 	end
 end
 
-local function onTap(player: Player, clientTime: any)
-	local session = sessions[player]
-	if not session then
-		return
-	end
-	local serverNow = workspace:GetServerTimeNow()
-	if serverNow - session.LastTap < cfg.MinTapInterval then
-		return
-	end
-	local root = Combat.RootOf(player)
-	if not root or (root.Position - session.Position).Magnitude > cfg.MaxStationDistance then
-		stop(player, "Left")
-		return
-	end
-	-- Accept the client's timestamp only if it's plausible (compensates for latency).
-	local tapTime = serverNow
-	if type(clientTime) == "number" and clientTime == clientTime then
-		tapTime = math.clamp(clientTime, serverNow - cfg.ClientTimestampTolerance, serverNow)
-	end
-	session.LastTap = serverNow
-	session.Reps += 1
-
-	local station = cfg.Stations[session.StationId]
-	local position = TrainingTiming.MarkerPosition(tapTime - session.StartedAt, station.Period or cfg.Period)
-	local grade = TrainingTiming.Grade(position, station)
-	local data = PlayerData.Get(player)
-	if not data then
-		return
-	end
-	local gain = TrainingTiming.Gain(grade, data.Strength, station, cfg.OverCapGain)
-	if gain > 0 then
-		PlayerData.Update(player, function(d)
-			d.Strength = math.min(GameConfig.Strength.Max, d.Strength + gain)
-		end)
-	end
-	Net.Fire("Feedback", player, {
-		Type = "TrainingRep",
-		Grade = grade,
-		Gain = gain,
-		Rep = session.Reps,
-		StationId = session.StationId,
-	})
-	if session.Reps >= cfg.RepsPerSet then
-		stop(player, "SetComplete")
+local function tick(dt: number)
+	local now = os.clock()
+	for player, session in sessions do
+		local root = Combat.RootOf(player)
+		local data = PlayerData.Get(player)
+		local belt = session.Machine.BeltCFrame.Position
+		local offBelt = not root
+			or (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(belt.X, 0, belt.Z)).Magnitude
+				> cfg.LeaveDistance
+		if offBelt or not data then
+			stop(player, "Left")
+		else
+			local sprinting = now < session.SprintUntil
+			local gain = rateFor(player, session.Machine.Tier) * dt * (if sprinting then cfg.SprintMultiplier else 1)
+			session.Pending += gain
+			session.Gained += gain
+			-- Commit whenever the displayed (whole) Strength would change, so the HUD ticks up
+			-- without a data sync every second.
+			if math.floor(data.Strength + session.Pending) > math.floor(data.Strength) then
+				commit(player, session)
+			end
+		end
 	end
 end
 
-function Training.Init(stations)
-	-- stations: { { Id, Position, Prompt } } built by WorldBuilder
-	for _, station in stations do
-		station.Prompt.Triggered:Connect(function(player)
-			start(player, station.Id, station.Position)
+local function onSprint(player: Player)
+	local session = sessions[player]
+	if session then
+		session.SprintUntil = os.clock() + cfg.SprintDuration
+	end
+end
+
+local function loadPass(player: Player)
+	if cfg.StrengthPassId <= 0 then
+		return
+	end
+	local ok, owned = pcall(function()
+		return MarketplaceService:UserOwnsGamePassAsync(player.UserId, cfg.StrengthPassId)
+	end)
+	if ok and owned then
+		passMultiplier[player] = cfg.StrengthPassMultiplier
+	end
+end
+
+function Training.TierIndex(id: string): number
+	return tierIndex(id)
+end
+
+function Training.Init(machines: { Machine })
+	for _, machine in machines do
+		machine.Prompt.Triggered:Connect(function(player)
+			start(player, machine)
 		end)
 	end
-	Net.On("TrainingTap", onTap, 6)
+	Net.On("TrainingTap", onSprint, cfg.MaxTapsPerSecond)
 	Net.On("StopTraining", function(player)
 		stop(player, "Stopped")
 	end, 4)
 	TreasureService.PickedUp:Connect(function(player)
 		stop(player, "Carrying")
 	end)
-	Players.PlayerRemoving:Connect(function(player)
-		sessions[player] = nil
-		lastSetEnded[player] = nil
+	Combat.PlayerHit:Connect(function(victim)
+		stop(victim, "Hit")
 	end)
 	Players.PlayerAdded:Connect(function(player)
+		task.spawn(loadPass, player)
 		player.CharacterAdded:Connect(function()
 			stop(player, "Respawned")
 		end)
 	end)
+	Players.PlayerRemoving:Connect(function(player)
+		stop(player, "Left")
+		passMultiplier[player] = nil
+	end)
 
-	-- Walking away from the station ends the set (the client also closes instantly on its side).
 	task.spawn(function()
+		local last = os.clock()
 		while true do
-			task.wait(0.25)
-			for player, session in sessions do
-				local root = Combat.RootOf(player)
-				if not root or (root.Position - session.Position).Magnitude > cfg.MaxStationDistance then
-					stop(player, "Left")
-				end
+			task.wait(cfg.TickRate)
+			local now = os.clock()
+			local ok, err = pcall(tick, now - last)
+			last = now
+			if not ok then
+				warn("[Training] tick error:", err)
 			end
 		end
 	end)

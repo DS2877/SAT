@@ -8,7 +8,6 @@ local Gadgets = require("../src/shared/Config/Gadgets")
 local Carry = require("../src/shared/Logic/Carry")
 local Stability = require("../src/shared/Logic/Stability")
 local TreasureRoll = require("../src/shared/Logic/TreasureRoll")
-local TrainingTiming = require("../src/shared/Logic/TrainingTiming")
 local DataSchema = require("../src/shared/Logic/DataSchema")
 local TerrainGen = require("../src/server/World/TerrainGen")
 
@@ -51,6 +50,7 @@ test("carry bands match spec", function()
 	check(Carry.SpeedMultiplier(151, 100, cfg) == 0.3, "ratio >1.50 -> 30%")
 	check(Carry.SpeedMultiplier(1, 1, cfg) == 0.6, "strength 1 carrying weight 1")
 	check(Carry.SpeedMultiplier(80, 0, cfg) == 0.3, "zero strength treated as 1, never errors")
+	check(Carry.SpeedMultiplier(5, GameConfig.Strength.Start, cfg) >= 0.9, "a new player carries a Common at 90%+")
 end)
 
 test("carry never hard-locks and jump has a floor", function()
@@ -132,27 +132,32 @@ test("every spawn area referenced by treasures can spawn something", function()
 end)
 
 -- TRAINING ------------------------------------------------------------------------
-test("training timing + grading", function()
-	local period = GameConfig.Training.Period
-	check(near(TrainingTiming.MarkerPosition(0, period), 0), "starts at 0")
-	check(near(TrainingTiming.MarkerPosition(period / 2, period), 1), "peaks at half period")
-	check(near(TrainingTiming.MarkerPosition(period / 4, period), 0.5), "centre at quarter period")
-	check(near(TrainingTiming.MarkerPosition(period * 3, period), 0), "periodic")
-	local station = GameConfig.Training.Stations.stone_lift
-	check(TrainingTiming.Grade(0.5, station) == "Perfect", "centre is perfect")
-	check(TrainingTiming.Grade(0.5 + station.GoodWindow - 0.001, station) == "Good", "edge of good")
-	check(TrainingTiming.Grade(0.95, station) == "Miss", "far is miss")
-	check(TrainingTiming.Gain("Perfect", 5, station, 1) == station.PerfectGain, "perfect gain")
-	check(TrainingTiming.Gain("Good", station.Cap, station, 1) == 0, "good gives nothing over cap")
-	check(TrainingTiming.Gain("Perfect", station.Cap, station, 1) == 1, "perfect over cap gives overcap gain")
-	check(TrainingTiming.Gain("Miss", 1, station, 1) == 0, "miss gives nothing")
+test("treadmill tiers are ordered and slow enough to matter", function()
+	local tiers = GameConfig.Training.Treadmills
+	check(#tiers >= 3, "at least three treadmill tiers")
+	local afkSeconds = 0
+	local strength = GameConfig.Strength.Start
+	for i, tier in tiers do
+		check(tier.Rate > 0 and tier.Count > 0, "valid tier " .. tier.Id)
+		if i > 1 then
+			check(tier.Rate > tiers[i - 1].Rate, "rate increases " .. tier.Id)
+			check(tier.Price > tiers[i - 1].Price, "price increases " .. tier.Id)
+			check(tier.RequiredStrength > tiers[i - 1].RequiredStrength, "requirement increases " .. tier.Id)
+		end
+		-- AFK time to climb from this tier's requirement to the next one (or ascension).
+		local target = if tiers[i + 1] then tiers[i + 1].RequiredStrength else GameConfig.Ascension.RequiredStrength
+		afkSeconds += math.max(0, target - math.max(strength, tier.RequiredStrength)) / tier.Rate
+		strength = target
+	end
+	check(afkSeconds >= 15 * 60, ("reaching Ascension AFK takes 15+ minutes (%.0f min)"):format(afkSeconds / 60))
+	check(GameConfig.Strength.Start >= 5, "starting strength lets a new player carry a Common")
 end)
 
 -- DATA ----------------------------------------------------------------------------
 test("first join gets defaults", function()
 	local data = DataSchema.Migrate(nil)
 	check(data.Version == DataSchema.Version, "version set")
-	check(data.Cash == 0 and data.Strength == 1 and data.Ascension == 0, "starting stats")
+	check(data.Cash == 0 and data.Strength == 10 and data.Ascension == 0, "starting stats")
 	check(data.Vault.Tier == 1, "vault tier 1")
 	check(#data.EquippedGadgets == 3, "three gadget slots")
 end)
@@ -179,7 +184,7 @@ end)
 test("corrupt values are sanitised", function()
 	local data = DataSchema.Migrate({ Cash = -50, Strength = "abc", Ascension = 2.7, EquippedGadgets = { 5, nil, "balloon" } })
 	check(data.Cash == 0, "negative cash clamped")
-	check(data.Strength == 1, "invalid strength reset")
+	check(data.Strength == 10, "invalid strength reset to the v2 starting value")
 	check(data.Ascension == 2, "ascension floored")
 	check(data.EquippedGadgets[1] == "" and data.EquippedGadgets[3] == "balloon", "slots sanitised")
 end)

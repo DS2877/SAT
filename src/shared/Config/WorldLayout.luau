@@ -17,10 +17,11 @@ WorldLayout.District = {
 
 WorldLayout.Spawn = Vector3.new(0, 11, 290)
 
-WorldLayout.TrainingStations = {
-	{ Id = "stone_lift", Position = Vector3.new(-62, 10, 235) },
-	{ Id = "chain_pull", Position = Vector3.new(-82, 10, 200) },
-	{ Id = "strength_challenge", Position = Vector3.new(-50, 10, 170) },
+-- Strength Gym: one row of treadmills per tier (GameConfig.Training.Treadmills), belts run toward +X.
+WorldLayout.Gym = {
+	Origin = Vector3.new(-62, 10, 196), -- first treadmill of the first (cheapest, plaza-side) row
+	RowSpacing = -14, -- each higher tier sits one row further from the plaza (-X)
+	LaneSpacing = 7, -- along +Z within a row
 }
 
 WorldLayout.Shop = Vector3.new(70, 10, 215)

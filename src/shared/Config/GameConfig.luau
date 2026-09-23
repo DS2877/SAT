@@ -14,10 +14,10 @@ GameConfig.Player = {
 }
 
 GameConfig.Strength = {
-	Start = 1,
-	Max = 150,
+	Start = 10, -- enough to carry a Common comfortably on the very first run
+	Max = 250,
 	-- Strength earned when extracting: ceil(weight * factor)
-	ExtractionGainPerWeight = 0.2,
+	ExtractionGainPerWeight = 0.1,
 }
 
 GameConfig.Carry = {
@@ -100,44 +100,22 @@ GameConfig.SafeZone = {
 	Radius = 145,
 }
 
+-- Treadmill training (AFK-friendly). Stand on a treadmill to gain Strength over time; tap SPRINT
+-- for a short boost. Higher tiers are unlocked with Cash + a Strength requirement.
 GameConfig.Training = {
-	Period = 1.6, -- default seconds for the marker to sweep 0 -> 1 -> 0 (stations may override)
-	RepsPerSet = 8,
-	MinTapInterval = 0.3,
-	ClientTimestampTolerance = 0.4,
-	MaxStationDistance = 16,
-	RestBetweenSets = 1.5,
-	OverCapGain = 1, -- perfect reps above a station's cap still give this much
-	Stations = {
-		stone_lift = {
-			Name = "Stone Lift",
-			RequiredStrength = 1,
-			Cap = 30,
-			PerfectGain = 2,
-			GoodGain = 1,
-			PerfectWindow = 0.08,
-			GoodWindow = 0.2,
-		},
-		chain_pull = {
-			Name = "Chain Pull",
-			RequiredStrength = 25,
-			Cap = 60,
-			Period = 2.0,
-			PerfectGain = 3,
-			GoodGain = 1,
-			PerfectWindow = 0.07,
-			GoodWindow = 0.17,
-		},
-		strength_challenge = {
-			Name = "Strength Challenge",
-			RequiredStrength = 55,
-			Cap = 150,
-			Period = 2.4,
-			PerfectGain = 2,
-			GoodGain = 1,
-			PerfectWindow = 0.06,
-			GoodWindow = 0.14,
-		},
+	TickRate = 1, -- seconds between server strength ticks
+	SprintMultiplier = 2,
+	SprintDuration = 1.5, -- seconds of boost per tap
+	MaxTapsPerSecond = 4,
+	LeaveDistance = 6, -- studs from the belt centre before the session ends
+	-- Placeholder for a "2x Strength" game pass (0 = disabled). Multiplies all treadmill gains.
+	StrengthPassId = 0,
+	StrengthPassMultiplier = 2,
+	Treadmills = {
+		{ Id = "wooden", Name = "Wooden Treadmill", Price = 0, RequiredStrength = 0, Rate = 0.02, Color = { 170, 120, 70 }, Count = 4 },
+		{ Id = "iron", Name = "Iron Treadmill", Price = 5000, RequiredStrength = 20, Rate = 0.05, Color = { 150, 155, 170 }, Count = 4 },
+		{ Id = "golden", Name = "Golden Treadmill", Price = 75000, RequiredStrength = 45, Rate = 0.12, Color = { 255, 196, 50 }, Count = 4 },
+		{ Id = "diamond", Name = "Diamond Treadmill", Price = 500000, RequiredStrength = 80, Rate = 0.3, Color = { 120, 220, 255 }, Count = 4 },
 	},
 }
 

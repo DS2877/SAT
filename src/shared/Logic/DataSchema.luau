@@ -3,13 +3,13 @@
 
 local DataSchema = {}
 
-DataSchema.Version = 1
+DataSchema.Version = 2
 
 function DataSchema.Default()
 	return {
 		Version = DataSchema.Version,
 		Cash = 0,
-		Strength = 1,
+		Strength = 10,
 		Ascension = 0,
 		Collection = {}, -- [treasureId] = { Discovered = true, Count = n }
 		Vault = {
@@ -17,6 +17,7 @@ function DataSchema.Default()
 			Displays = {}, -- ["slotIndex"] = treasureId (string keys: DataStore-safe sparse map)
 		},
 		OwnedGadgets = {}, -- [gadgetId] = true
+		OwnedTreadmills = {}, -- [treadmillId] = true (free tiers need no entry)
 		EquippedGadgets = { "", "", "" },
 		OwnedCosmetics = {},
 		Titles = {},
@@ -60,7 +61,10 @@ end
 
 -- Ordered migrations: Migrations[n] upgrades a version n-1 save to version n.
 DataSchema.Migrations = {
-	-- [2] = function(data) ... end,
+	-- v2: treadmill training. Starting Strength rose from 1 to 10.
+	[2] = function(data)
+		data.Strength = math.max(tonumber(data.Strength) or 10, 10)
+	end,
 }
 
 function DataSchema.Migrate(data)
@@ -79,7 +83,7 @@ function DataSchema.Migrate(data)
 
 	-- Sanitise values that must never be invalid.
 	data.Cash = math.max(0, math.floor(tonumber(data.Cash) or 0))
-	data.Strength = math.max(1, tonumber(data.Strength) or 1)
+	data.Strength = math.max(1, tonumber(data.Strength) or 10)
 	data.Ascension = math.max(0, math.floor(tonumber(data.Ascension) or 0))
 	for i = 1, 3 do
 		if type(data.EquippedGadgets[i]) ~= "string" then

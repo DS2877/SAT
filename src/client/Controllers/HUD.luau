@@ -53,9 +53,11 @@ local function buildStats()
 		Name = "Stats",
 		BackgroundTransparency = 1,
 		Position = UDim2.fromOffset(12, 10),
-		Size = UDim2.fromOffset(210, 150),
+		Size = UDim2.fromOffset(230, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
 		Parent = gui,
 	}, { Kit.list(Enum.FillDirection.Vertical, 6, Enum.HorizontalAlignment.Left) })
+	refs.StatsStack = stack
 
 	local function pill(name: string, icon: string, color: Color3, order: number)
 		local frame = Kit.panel({
@@ -117,7 +119,7 @@ local function buildMenuButtons()
 		Name = "MenuButtons",
 		BackgroundTransparency = 1,
 		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, 12, 0.5, 20),
+		Position = UDim2.new(0, 12, 0.62, 0),
 		Size = UDim2.fromOffset(64, 230),
 		Parent = gui,
 	}, { Kit.list(Enum.FillDirection.Vertical, 10, Enum.HorizontalAlignment.Left) })
@@ -164,21 +166,30 @@ local function buildObjective()
 		Parent = gui,
 	}, { Kit.list(Enum.FillDirection.Vertical, 6) })
 	HUD.TopStack = topStack
+	-- Objective tracker: slim card under the stats (left), out of the player's line of sight.
+	-- Expands for a few seconds when the goal changes, then collapses to one line; tap to toggle.
 	local card = Kit.panel({
 		Name = "Objective",
-		LayoutOrder = 1,
-		Size = UDim2.fromOffset(330, 0),
+		LayoutOrder = 5,
+		Size = UDim2.fromOffset(220, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
-		Parent = topStack,
-	}, { Kit.list(Enum.FillDirection.Vertical, 3), Kit.padding(6, 12) })
+		BackgroundTransparency = 0.4,
+		Parent = refs.StatsStack,
+	}, { Kit.list(Enum.FillDirection.Vertical, 2, Enum.HorizontalAlignment.Left), Kit.padding(5, 10) })
+	card.Active = true
+	card.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			HUD.SetObjectiveExpanded(not refs.ObjExpanded)
+		end
+	end)
 	refs.ObjectiveCard = card
-	refs.ObjHeader = Kit.label({ Name = "Header", LayoutOrder = 1, Size = UDim2.new(1, 0, 0, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.TextDim, Parent = card })
-	refs.ObjTitle = Kit.label({ Name = "Title", LayoutOrder = 2, Size = UDim2.new(1, 0, 0, 24), Font = Theme.Font.Display, TextSize = 21, Parent = card })
-	refs.ObjLine1 = Kit.label({ Name = "Line1", LayoutOrder = 3, Size = UDim2.new(1, 0, 0, 18), Font = Theme.Font.Bold, TextSize = Theme.TextSize.Small, TextColor3 = Theme.Color.TextDim, RichText = true, Parent = card })
+	refs.ObjHeader = Kit.label({ Name = "Header", LayoutOrder = 1, Size = UDim2.new(1, 0, 0, 13), Font = Theme.Font.Black, TextSize = 10, TextColor3 = Theme.Color.TextDim, TextXAlignment = Enum.TextXAlignment.Left, Parent = card })
+	refs.ObjTitle = Kit.label({ Name = "Title", LayoutOrder = 2, Size = UDim2.new(1, 0, 0, 18), Font = Theme.Font.Display, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, TextWrapped = false, Parent = card })
+	refs.ObjLine1 = Kit.label({ Name = "Line1", LayoutOrder = 3, Size = UDim2.new(1, 0, 0, 15), Font = Theme.Font.Bold, TextSize = 12, TextColor3 = Theme.Color.TextDim, TextXAlignment = Enum.TextXAlignment.Left, RichText = true, Parent = card })
 	local barBack = Kit.new("Frame", {
 		Name = "Bar",
 		LayoutOrder = 4,
-		Size = UDim2.new(1, 0, 0, 6),
+		Size = UDim2.new(1, 0, 0, 4),
 		BackgroundColor3 = Theme.Color.PanelLight,
 		BorderSizePixel = 0,
 		Parent = card,
@@ -191,7 +202,7 @@ local function buildObjective()
 		BorderSizePixel = 0,
 		Parent = barBack,
 	}, { Kit.corner(Theme.Radius.Round) })
-	refs.ObjLine2 = Kit.label({ Name = "Line2", LayoutOrder = 5, Size = UDim2.new(1, 0, 0, 18), Font = Theme.Font.Black, TextSize = Theme.TextSize.Small, TextColor3 = Theme.Color.Gold, RichText = true, Parent = card })
+	refs.ObjLine2 = Kit.label({ Name = "Line2", LayoutOrder = 5, Size = UDim2.new(1, 0, 0, 15), Font = Theme.Font.Black, TextSize = 12, TextColor3 = Theme.Color.Gold, TextXAlignment = Enum.TextXAlignment.Left, RichText = true, Parent = card })
 
 	refs.Event = Kit.panel({
 		Name = "Event",
@@ -437,18 +448,46 @@ end
 
 local AREA_NAMES = { Wilds = "THE WILDS", Ruins = "THE ANCIENT RUINS", Coast = "SHIPWRECK COAST", Falls = "THE FALLS" }
 
+local objectiveDetails = { Line1 = false, Line2 = false, Bar = false }
+local objectiveKey = ""
+local pinnedExpanded = false -- carrying: always show details
+
+function HUD.SetObjectiveExpanded(expanded: boolean)
+	refs.ObjExpanded = expanded
+	local show = expanded or pinnedExpanded
+	refs.ObjLine1.Visible = show and objectiveDetails.Line1
+	refs.ObjLine2.Visible = show and objectiveDetails.Line2
+	refs.ObjBar.Visible = show and objectiveDetails.Bar
+end
+
 local function setObjective(header: string, title: string, titleColor: Color3?, line1: string?, line2: string?, bar: number?, barColor: Color3?)
 	refs.ObjHeader.Text = header
 	refs.ObjTitle.Text = title
 	refs.ObjTitle.TextColor3 = titleColor or Theme.Color.Text
 	refs.ObjLine1.Text = line1 or ""
-	refs.ObjLine1.Visible = line1 ~= nil
 	refs.ObjLine2.Text = line2 or ""
-	refs.ObjLine2.Visible = line2 ~= nil
-	refs.ObjBar.Visible = bar ~= nil
+	objectiveDetails.Line1 = line1 ~= nil
+	objectiveDetails.Line2 = line2 ~= nil
+	objectiveDetails.Bar = bar ~= nil
 	if bar then
 		refs.ObjBarFill.Size = UDim2.fromScale(math.clamp(bar, 0.02, 1), 1)
 		refs.ObjBarFill.BackgroundColor3 = barColor or Theme.Color.Strength
+	end
+	-- A new goal pops open briefly, then tucks away.
+	local key = header .. "|" .. title
+	if key ~= objectiveKey then
+		objectiveKey = key
+		HUD.SetObjectiveExpanded(true)
+		Kit.pulse(refs.ObjectiveCard)
+		local token = {}
+		refs.ObjCollapseToken = token
+		task.delay(6, function()
+			if refs.ObjCollapseToken == token then
+				HUD.SetObjectiveExpanded(false)
+			end
+		end)
+	else
+		HUD.SetObjectiveExpanded(refs.ObjExpanded == true)
 	end
 end
 
@@ -461,6 +500,7 @@ local function refreshObjective()
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	local position = if root then root.Position else WorldLayout.Spawn
 
+	pinnedExpanded = carrying ~= nil
 	if carrying then
 		local info = Rarities.Info[carrying.Rarity]
 		local speed = player:GetAttribute("CarrySpeed") or 1
@@ -485,8 +525,8 @@ local function refreshObjective()
 	end
 
 	if not ClientState.Milestone("FirstTraining") then
-		setObjective("STEP 1 • GET STRONGER", "TRAIN AT THE STONE LIFT", Theme.Color.Strength, "Stronger = carry heavy treasure faster", nil)
-		navTarget = { Name = "STONE LIFT", Position = WorldLayout.TrainingStations[1].Position }
+		setObjective("STEP 1 • GET STRONGER", "RUN ON A TREADMILL", Theme.Color.Strength, "Stronger = carry heavy treasure faster", nil)
+		navTarget = { Name = "STRENGTH GYM", Position = WorldLayout.Gym.Origin }
 		return
 	end
 	if not ClientState.Milestone("FirstExtraction") then

@@ -1,5 +1,6 @@
--- Timing-bar training minigame. Marker position comes from server time so the client shows
--- exactly what the server will grade. Tap: big button (touch), Space/click (PC), A (gamepad).
+-- Treadmill panel. While running: running animation, live Strength counter, SPRINT button
+-- (tap / Space / A / click) and STOP. Pushing the joystick or movement keys also steps off.
+-- The counter is a local estimate between server commits; the Strength pill is authoritative.
 
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
@@ -8,176 +9,184 @@ local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
-local TrainingTiming = require(Shared.Logic.TrainingTiming)
 local Net = require(Shared.Net)
 
 local UI = script.Parent.Parent.UI
 local Theme = require(UI.Theme)
 local Kit = require(UI.Kit)
 local Sounds = require(UI.Sounds)
+local Notifications = require(script.Parent.Notifications)
 
 local TrainingUI = {}
 
+local player = Players.LocalPlayer
 local panel: Frame
-local marker: Frame
-local perfectZone: Frame
-local goodZone: Frame
 local title: TextLabel
-local repsLabel: TextLabel
-local popup: TextLabel
+local rateLabel: TextLabel
+local gainedLabel: TextLabel
+local sprintButton: TextButton
 local session = nil
-local renderConnection: RBXScriptConnection? = nil
-local ACTION = "SAT_TrainTap"
+local heartbeat: RBXScriptConnection? = nil
+local runTrack: AnimationTrack? = nil
+local ACTION = "SAT_TreadmillSprint"
 
-local GRADE_STYLE = {
-	Perfect = { Text = "PERFECT!", Color = Theme.Color.Gold, Sound = "TrainPerfect" },
-	Good = { Text = "GOOD", Color = Theme.Color.Safe, Sound = "TrainGood" },
-	Miss = { Text = "MISS", Color = Theme.Color.TextDim, Sound = "TrainMiss" },
-}
+-- Default Roblox run animations (R15 / R6).
+local RUN_ANIMATION = { R15 = "rbxassetid://913376220", R6 = "rbxassetid://180426354" }
 
-local function tap()
+local function humanoid(): Humanoid?
+	local character = player.Character
+	return character and character:FindFirstChildOfClass("Humanoid")
+end
+
+local function playRun()
+	local hum = humanoid()
+	local animator = hum and hum:FindFirstChildOfClass("Animator")
+	if not hum or not animator then
+		return
+	end
+	local animation = Instance.new("Animation")
+	animation.AnimationId = if hum.RigType == Enum.HumanoidRigType.R15 then RUN_ANIMATION.R15 else RUN_ANIMATION.R6
+	local ok, track = pcall(function()
+		return (animator :: Animator):LoadAnimation(animation)
+	end)
+	if ok and track then
+		track.Looped = true
+		track.Priority = Enum.AnimationPriority.Action
+		track:Play(0.2)
+		runTrack = track
+	end
+end
+
+local function stopRun()
+	if runTrack then
+		runTrack:Stop(0.2)
+		runTrack = nil
+	end
+end
+
+local function sprint()
 	if not session then
 		return
 	end
-	Net.Get("TrainingTap"):FireServer(workspace:GetServerTimeNow())
+	session.SprintUntil = os.clock() + GameConfig.Training.SprintDuration
+	Net.Get("TrainingTap"):FireServer()
+	Kit.pulse(sprintButton)
+	Sounds.Play("TrainGood", 0.5)
 end
 
 local function stop()
+	if session and session.Gained >= 1 then
+		Notifications.Toast(("+%d 💪 STRENGTH FROM TRAINING"):format(math.floor(session.Gained)), "Reward")
+	end
 	session = nil
 	panel.Visible = false
-	if renderConnection then
-		renderConnection:Disconnect()
-		renderConnection = nil
+	stopRun()
+	if heartbeat then
+		heartbeat:Disconnect()
+		heartbeat = nil
 	end
 	ContextActionService:UnbindAction(ACTION)
 end
 
 local function start(payload)
-	session = payload
-	local stationCfg = GameConfig.Training.Stations[payload.StationId]
-	title.Text = (stationCfg and stationCfg.Name or "TRAINING"):upper()
-	repsLabel.Text = ("0 / %d"):format(payload.Reps)
-	perfectZone.Size = UDim2.fromScale(payload.PerfectWindow * 2, 1)
-	goodZone.Size = UDim2.fromScale(payload.GoodWindow * 2, 1)
+	session = {
+		Rate = payload.Rate,
+		Multiplier = payload.SprintMultiplier or 2,
+		Position = payload.Position,
+		LeaveDistance = payload.LeaveDistance or 6,
+		Gained = 0,
+		SprintUntil = 0,
+		MovingFor = 0,
+	}
+	title.Text = ("🏃 %s"):format(tostring(payload.Name):upper())
+	rateLabel.Text = ("+%.2f 💪 per second"):format(payload.Rate)
+	gainedLabel.Text = "+0.0"
 	panel.Visible = true
-	if renderConnection then
-		renderConnection:Disconnect()
+	stopRun()
+	playRun()
+	Sounds.Play("TrainPerfect", 0.6)
+
+	if heartbeat then
+		heartbeat:Disconnect()
 	end
-	renderConnection = RunService.RenderStepped:Connect(function()
-		if session then
-			local position = TrainingTiming.MarkerPosition(workspace:GetServerTimeNow() - session.StartedAt, session.Period)
-			marker.Position = UDim2.fromScale(position, 0.5)
-			-- Close immediately when the player walks away (server confirms independently).
-			local character = Players.LocalPlayer.Character
-			local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-			if root and typeof(session.Position) == "Vector3" and (root.Position - session.Position).Magnitude > (session.MaxDistance or 16) then
+	heartbeat = RunService.Heartbeat:Connect(function(dt)
+		if not session then
+			return
+		end
+		local sprinting = os.clock() < session.SprintUntil
+		session.Gained += session.Rate * dt * (if sprinting then session.Multiplier else 1)
+		gainedLabel.Text = ("+%.1f"):format(session.Gained)
+		gainedLabel.TextColor3 = if sprinting then Theme.Color.Gold else Theme.Color.Strength
+		if runTrack then
+			runTrack:AdjustSpeed(if sprinting then 1.7 else 1)
+		end
+		-- Push the stick / movement keys to step off.
+		local hum = humanoid()
+		if hum and hum.MoveDirection.Magnitude > 0.5 then
+			session.MovingFor += dt
+			if session.MovingFor > 0.25 then
 				Net.Get("StopTraining"):FireServer()
 				stop()
 			end
+		elseif session then
+			session.MovingFor = 0
 		end
 	end)
 	ContextActionService:BindActionAtPriority(ACTION, function(_, inputState)
 		if inputState == Enum.UserInputState.Begin then
-			tap()
+			sprint()
 		end
 		return Enum.ContextActionResult.Sink
-	end, false, Enum.ContextActionPriority.High.Value, Enum.KeyCode.Space, Enum.KeyCode.ButtonA, Enum.UserInputType.MouseButton1)
-end
-
-local function showRep(payload)
-	local style = GRADE_STYLE[payload.Grade] or GRADE_STYLE.Miss
-	Sounds.Play(style.Sound)
-	popup.Text = if payload.Gain > 0 then ("%s  +%d 💪"):format(style.Text, payload.Gain) else style.Text
-	popup.TextColor3 = style.Color
-	popup.Visible = true
-	Kit.pulse(popup)
-	if session then
-		repsLabel.Text = ("%d / %d"):format(payload.Rep, session.Reps)
-	end
-	local token = {}
-	TrainingUI._popupToken = token
-	task.delay(0.7, function()
-		if TrainingUI._popupToken == token then
-			popup.Visible = false
-		end
-	end)
+	end, false, Enum.ContextActionPriority.High.Value, Enum.KeyCode.Space, Enum.KeyCode.ButtonA)
 end
 
 function TrainingUI.Init(gui: ScreenGui)
 	panel = Kit.panel({
-		Name = "Training",
+		Name = "Treadmill",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -130),
-		Size = UDim2.fromOffset(440, 170),
+		Position = UDim2.new(0.5, 0, 1, -24),
+		Size = UDim2.fromOffset(360, 118),
 		Visible = false,
 		Parent = gui,
-	}, { Kit.padding(12, 16) })
-	title = Kit.label({ Text = "STONE LIFT", Size = UDim2.new(1, -90, 0, 28), Font = Theme.Font.Display, TextSize = 26, TextXAlignment = Enum.TextXAlignment.Left, Parent = panel })
-	repsLabel = Kit.label({ Text = "0 / 8", Position = UDim2.new(1, -90, 0, 0), Size = UDim2.fromOffset(90, 28), Font = Theme.Font.Display, TextSize = 22, TextColor3 = Theme.Color.TextDim, TextXAlignment = Enum.TextXAlignment.Right, Parent = panel })
-
-	local bar = Kit.new("Frame", {
-		Name = "Bar",
-		Position = UDim2.fromOffset(0, 40),
-		Size = UDim2.new(1, 0, 0, 30),
-		BackgroundColor3 = Theme.Color.PanelLight,
-		BorderSizePixel = 0,
-		Parent = panel,
-	}, { Kit.corner(Theme.Radius.Small) })
-	goodZone = Kit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0), BackgroundColor3 = Theme.Color.Safe, BackgroundTransparency = 0.45, BorderSizePixel = 0, Parent = bar })
-	perfectZone = Kit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0), BackgroundColor3 = Theme.Color.Gold, BorderSizePixel = 0, Parent = bar })
-	marker = Kit.new("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0, 0.5),
-		Size = UDim2.new(0, 8, 1, 14),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BorderSizePixel = 0,
-		ZIndex = 3,
-		Parent = bar,
-	}, { Kit.corner(Theme.Radius.Round), Kit.stroke(Color3.new(0, 0, 0), 2, 0.3) })
-
-	Kit.button({
-		Name = "Tap",
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.fromScale(0.5, 1),
-		Size = UDim2.new(0.62, 0, 0, 56),
-		Text = "LIFT!",
+	}, { Kit.padding(10, 14) })
+	title = Kit.label({ Text = "", Size = UDim2.new(1, -110, 0, 24), Font = Theme.Font.Display, TextSize = 20, TextXAlignment = Enum.TextXAlignment.Left, Parent = panel })
+	rateLabel = Kit.label({ Text = "", Position = UDim2.fromOffset(0, 24), Size = UDim2.new(1, -110, 0, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.TextDim, TextXAlignment = Enum.TextXAlignment.Left, Parent = panel })
+	gainedLabel = Kit.label({ Text = "+0.0", AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0), Size = UDim2.fromOffset(110, 40), Font = Theme.Font.Display, TextSize = 30, TextColor3 = Theme.Color.Strength, TextXAlignment = Enum.TextXAlignment.Right, Parent = panel })
+	sprintButton = Kit.button({
+		Name = "Sprint",
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.fromScale(0, 1),
+		Size = UDim2.new(1, -66, 0, 50),
+		Text = "SPRINT! ⚡",
 		Font = Theme.Font.Display,
-		TextSize = 30,
+		TextSize = 26,
 		Parent = panel,
-	}, tap)
+	}, sprint)
 	Kit.button({
-		Name = "Close",
+		Name = "Stop",
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.fromScale(1, 1),
-		Size = UDim2.fromOffset(56, 56),
+		Size = UDim2.fromOffset(56, 50),
 		Text = "✕",
 		BackgroundColor3 = Theme.Color.ButtonAlt,
 		TextColor3 = Theme.Color.Text,
 		Parent = panel,
 	}, function()
 		Net.Get("StopTraining"):FireServer()
+		stop()
 	end)
-	popup = Kit.label({
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 0, -8),
-		Size = UDim2.fromOffset(400, 44),
-		Font = Theme.Font.Display,
-		TextSize = 38,
-		TextStrokeTransparency = 0.2,
-		Visible = false,
-		Parent = panel,
-	})
 
 	Net.Get("TrainingState").OnClientEvent:Connect(function(payload)
+		if type(payload) ~= "table" then
+			return
+		end
 		if payload.Active then
 			start(payload)
 		else
+			if session and type(payload.Gained) == "number" then
+				session.Gained = payload.Gained -- server total is authoritative for the summary
+			end
 			stop()
-		end
-	end)
-	Net.Get("Feedback").OnClientEvent:Connect(function(payload)
-		if type(payload) == "table" and payload.Type == "TrainingRep" then
-			showRep(payload)
 		end
 	end)
 end
