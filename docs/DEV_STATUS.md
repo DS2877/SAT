@@ -24,7 +24,9 @@ M0–M7 implemented in code; awaiting first Roblox runtime playtest (M8 multipla
 - CI: stylua, selene, lune tests (pure logic), compile check, rojo build, test-place publish
 
 ## VALIDATION LEVEL
-- Static: all files compile; unit tests pass; Rojo builds a place file.
+- Static: stylua, selene (0 warnings), luau-lsp type check vs Roblox API (0 errors), compile check,
+  201 unit assertions, place-structure check — all green locally and in GitHub Actions.
+- Deployment: CI published the build to test place 75735389926017 (Open Cloud HTTP 200, version 4).
 - NOT yet validated in a live Roblox server (no Studio in the dev environment). Needs a manual playtest.
 
 ## KNOWN BUGS / RISKS
