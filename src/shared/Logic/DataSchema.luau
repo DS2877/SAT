@@ -1,0 +1,92 @@
+-- Player save format + versioned migrations. Pure (no Roblox APIs) so it is unit-tested.
+-- Never wipe data because a field was added: Reconcile fills gaps, Migrate upgrades versions.
+
+local DataSchema = {}
+
+DataSchema.Version = 1
+
+function DataSchema.Default()
+	return {
+		Version = DataSchema.Version,
+		Cash = 0,
+		Strength = 1,
+		Ascension = 0,
+		Collection = {}, -- [treasureId] = { Discovered = true, Count = n }
+		Vault = {
+			Tier = 1,
+			Displays = {}, -- ["slotIndex"] = treasureId (string keys: DataStore-safe sparse map)
+		},
+		OwnedGadgets = {}, -- [gadgetId] = true
+		EquippedGadgets = { "", "", "" },
+		OwnedCosmetics = {},
+		Titles = {},
+		SelectedTitle = "",
+		Stats = {
+			Extractions = 0,
+			Thefts = 0,
+			Knocks = 0,
+			Deaths = 0,
+			TotalEarned = 0,
+			BestRarityRank = 0,
+			BestTreasureId = "",
+		},
+		Milestones = {}, -- [milestoneName] = unix time (analytics funnel, tutorial)
+		TutorialStep = 0,
+	}
+end
+
+local function deepCopy(value)
+	if type(value) ~= "table" then
+		return value
+	end
+	local out = {}
+	for k, v in value do
+		out[k] = deepCopy(v)
+	end
+	return out
+end
+
+local function reconcile(target, template)
+	for key, default in template do
+		local current = target[key]
+		if current == nil or type(current) ~= type(default) then
+			target[key] = deepCopy(default)
+		elseif type(default) == "table" and next(default) ~= nil and #default == 0 then
+			-- Only recurse into record-like tables with known keys (not maps/arrays).
+			reconcile(current, default)
+		end
+	end
+end
+
+-- Ordered migrations: Migrations[n] upgrades a version n-1 save to version n.
+DataSchema.Migrations = {
+	-- [2] = function(data) ... end,
+}
+
+function DataSchema.Migrate(data)
+	if type(data) ~= "table" then
+		return DataSchema.Default()
+	end
+	local version = tonumber(data.Version) or 0
+	for v = version + 1, DataSchema.Version do
+		local migrate = DataSchema.Migrations[v]
+		if migrate then
+			migrate(data)
+		end
+	end
+	data.Version = DataSchema.Version
+	reconcile(data, DataSchema.Default())
+
+	-- Sanitise values that must never be invalid.
+	data.Cash = math.max(0, math.floor(tonumber(data.Cash) or 0))
+	data.Strength = math.max(1, tonumber(data.Strength) or 1)
+	data.Ascension = math.max(0, math.floor(tonumber(data.Ascension) or 0))
+	for i = 1, 3 do
+		if type(data.EquippedGadgets[i]) ~= "string" then
+			data.EquippedGadgets[i] = ""
+		end
+	end
+	return data
+end
+
+return DataSchema

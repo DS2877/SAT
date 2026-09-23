@@ -1,0 +1,761 @@
+-- Default HUD: stats (top-left), objective / carried treasure (top-centre), navigation hint,
+-- extraction bar, danger status, action cluster (attack + 3 gadget slots, bottom-right).
+-- Event-driven: rebuilds only on state changes; a light 10 Hz loop handles nav + cooldowns.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+
+local Shared = ReplicatedStorage.Shared
+local GameConfig = require(Shared.Config.GameConfig)
+local Gadgets = require(Shared.Config.Gadgets)
+local Rarities = require(Shared.Config.Rarities)
+local Treasures = require(Shared.Config.Treasures)
+local WorldLayout = require(Shared.Config.WorldLayout)
+local Carry = require(Shared.Logic.Carry)
+local Zones = require(Shared.Util.Zones)
+local Net = require(Shared.Net)
+
+local UI = script.Parent.Parent.UI
+local Theme = require(UI.Theme)
+local Kit = require(UI.Kit)
+local Sounds = require(UI.Sounds)
+local ClientState = require(script.Parent.Parent.ClientState)
+
+local HUD = {}
+
+local player = Players.LocalPlayer
+local gui: ScreenGui
+local refs: { [string]: any } = {}
+local navTarget: { Name: string, Position: Vector3 }? = nil
+local extraction: { StartedAt: number, Duration: number, ZoneName: string, Category: string }? = nil
+local secretKnown = false
+local isTouch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
+HUD.OpenMenu = nil :: ((string) -> ())? -- injected by Main
+
+local AREA_COLORS = {
+	["TREASURE DISTRICT"] = Theme.Color.Safe,
+	["THE WILDS"] = Color3.fromRGB(150, 220, 120),
+	["ANCIENT RUINS"] = Theme.Color.Gold,
+	["SHIPWRECK COAST"] = Theme.Color.Info,
+	["THE FALLS"] = Color3.fromRGB(140, 230, 255),
+}
+
+local function rarityColor(rarity: string): Color3
+	return Rarities.Info[rarity] and Rarities.Info[rarity].Color or Theme.Color.Text
+end
+
+-- LAYOUT ----------------------------------------------------------------------
+
+local function buildStats()
+	local stack = Kit.new("Frame", {
+		Name = "Stats",
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(12, 10),
+		Size = UDim2.fromOffset(210, 150),
+		Parent = gui,
+	}, { Kit.list(Enum.FillDirection.Vertical, 6, Enum.HorizontalAlignment.Left) })
+
+	local function pill(name: string, icon: string, color: Color3, order: number)
+		local frame = Kit.panel({
+			Name = name,
+			Size = UDim2.fromOffset(190, 40),
+			LayoutOrder = order,
+			Radius = Theme.Radius.Round,
+			Parent = stack,
+		})
+		Kit.label({
+			Text = icon,
+			Size = UDim2.fromOffset(40, 40),
+			TextSize = 22,
+			Parent = frame,
+		})
+		local value = Kit.label({
+			Name = "Value",
+			Text = "0",
+			Position = UDim2.fromOffset(40, 0),
+			Size = UDim2.new(1, -50, 1, 0),
+			Font = Theme.Font.Display,
+			TextSize = 24,
+			TextColor3 = color,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Parent = frame,
+		})
+		return value
+	end
+	refs.Strength = pill("Strength", "💪", Theme.Color.Strength, 1)
+	refs.Cash = pill("Cash", "💰", Theme.Color.Cash, 2)
+	refs.Area = Kit.label({
+		Name = "Area",
+		Text = "TREASURE DISTRICT • SAFE",
+		LayoutOrder = 3,
+		Size = UDim2.fromOffset(260, 20),
+		Font = Theme.Font.Black,
+		TextSize = Theme.TextSize.Small,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextStrokeTransparency = 0.5,
+		Parent = stack,
+	})
+	refs.Ascension = Kit.label({
+		Name = "Ascension",
+		Text = "",
+		LayoutOrder = 4,
+		Size = UDim2.fromOffset(260, 18),
+		Font = Theme.Font.Black,
+		TextSize = Theme.TextSize.Small,
+		TextColor3 = Theme.Color.Secret,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextStrokeTransparency = 0.5,
+		Visible = false,
+		Parent = stack,
+	})
+end
+
+local function buildMenuButtons()
+	local column = Kit.new("Frame", {
+		Name = "MenuButtons",
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 12, 0.5, 20),
+		Size = UDim2.fromOffset(64, 230),
+		Parent = gui,
+	}, { Kit.list(Enum.FillDirection.Vertical, 10, Enum.HorizontalAlignment.Left) })
+	for i, entry in { { "Collection", "📖" }, { "Vault", "🏆" }, { "Shop", "🛒" } } do
+		local button = Kit.button({
+			Name = entry[1],
+			Text = "",
+			Size = UDim2.fromOffset(60, 60),
+			BackgroundColor3 = Theme.Color.Panel,
+			BackgroundTransparency = Theme.Transparency.Panel,
+			Radius = Theme.Radius.Large,
+			LayoutOrder = i,
+			Parent = column,
+		}, function()
+			if HUD.OpenMenu then
+				HUD.OpenMenu(entry[1])
+			end
+		end)
+		Kit.stroke().Parent = button
+		Kit.label({ Text = entry[2], Size = UDim2.new(1, 0, 0, 34), Position = UDim2.fromOffset(0, 4), TextSize = 26, Parent = button })
+		Kit.label({
+			Text = entry[1]:upper(),
+			Size = UDim2.new(1, 0, 0, 14),
+			Position = UDim2.new(0, 0, 1, -18),
+			TextSize = 10,
+			Font = Theme.Font.Black,
+			TextColor3 = Theme.Color.TextDim,
+			Parent = button,
+		})
+		refs["Menu" .. entry[1]] = button
+	end
+end
+
+local function buildObjective()
+	-- Objective card + nav hint stack vertically so the hint always sits under the card.
+	local topStack = Kit.new("Frame", {
+		Name = "TopCenter",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 8),
+		Size = UDim2.fromOffset(380, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+		Parent = gui,
+	}, { Kit.list(Enum.FillDirection.Vertical, 8) })
+	local card = Kit.panel({
+		Name = "Objective",
+		LayoutOrder = 1,
+		Size = UDim2.fromOffset(380, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		Parent = topStack,
+	}, { Kit.list(Enum.FillDirection.Vertical, 2), Kit.padding(8, 14) })
+	refs.ObjectiveCard = card
+	refs.ObjHeader = Kit.label({ Name = "Header", LayoutOrder = 1, Size = UDim2.new(1, 0, 0, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.TextDim, Parent = card })
+	refs.ObjTitle = Kit.label({ Name = "Title", LayoutOrder = 2, Size = UDim2.new(1, 0, 0, 28), Font = Theme.Font.Display, TextSize = 26, Parent = card })
+	refs.ObjLine1 = Kit.label({ Name = "Line1", LayoutOrder = 3, Size = UDim2.new(1, 0, 0, 20), Font = Theme.Font.Bold, TextSize = Theme.TextSize.Body, TextColor3 = Theme.Color.TextDim, RichText = true, Parent = card })
+	local barBack = Kit.new("Frame", {
+		Name = "Bar",
+		LayoutOrder = 4,
+		Size = UDim2.new(1, 0, 0, 10),
+		BackgroundColor3 = Theme.Color.PanelLight,
+		BorderSizePixel = 0,
+		Parent = card,
+	}, { Kit.corner(Theme.Radius.Round) })
+	refs.ObjBar = barBack
+	refs.ObjBarFill = Kit.new("Frame", {
+		Name = "Fill",
+		Size = UDim2.fromScale(0.5, 1),
+		BackgroundColor3 = Theme.Color.Strength,
+		BorderSizePixel = 0,
+		Parent = barBack,
+	}, { Kit.corner(Theme.Radius.Round) })
+	refs.ObjLine2 = Kit.label({ Name = "Line2", LayoutOrder = 5, Size = UDim2.new(1, 0, 0, 20), Font = Theme.Font.Black, TextSize = Theme.TextSize.Body, TextColor3 = Theme.Color.Gold, RichText = true, Parent = card })
+
+	refs.Nav = Kit.panel({
+		Name = "Nav",
+		LayoutOrder = 2,
+		Size = UDim2.fromOffset(260, 34),
+		Radius = Theme.Radius.Round,
+		BackgroundTransparency = Theme.Transparency.PanelSoft,
+		Visible = false,
+		Parent = topStack,
+	})
+	refs.NavArrow = Kit.label({ Name = "Arrow", Text = "▲", Size = UDim2.fromOffset(34, 34), TextSize = 22, TextColor3 = Theme.Color.Gold, Parent = refs.Nav })
+	refs.NavText = Kit.label({ Name = "Text", Text = "", Position = UDim2.fromOffset(34, 0), Size = UDim2.new(1, -44, 1, 0), Font = Theme.Font.Black, TextSize = Theme.TextSize.Small, TextXAlignment = Enum.TextXAlignment.Left, Parent = refs.Nav })
+end
+
+local function buildStatus()
+	refs.Status = Kit.label({
+		Name = "Status",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.36),
+		Size = UDim2.fromOffset(600, 60),
+		Font = Theme.Font.Display,
+		TextSize = Theme.TextSize.Hero,
+		TextColor3 = Theme.Color.Danger,
+		TextStrokeTransparency = 0.2,
+		Text = "",
+		Visible = false,
+		Parent = gui,
+	})
+	refs.StatusSub = Kit.label({
+		Name = "StatusSub",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 0.36, 40),
+		Size = UDim2.fromOffset(600, 26),
+		Font = Theme.Font.Black,
+		TextSize = Theme.TextSize.Heading,
+		TextStrokeTransparency = 0.3,
+		Text = "",
+		Visible = false,
+		Parent = gui,
+	})
+	-- Danger vignette (edge glow) for Shaken / Knocked
+	refs.Vignette = Kit.new("Frame", {
+		Name = "Vignette",
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		ZIndex = 0,
+		Parent = gui,
+	})
+	refs.VignetteStroke = Kit.new("UIStroke", {
+		Color = Theme.Color.Danger,
+		Thickness = 22,
+		Transparency = 1,
+		Parent = refs.Vignette,
+	})
+end
+
+local function buildExtractionBar()
+	local frame = Kit.panel({
+		Name = "Extraction",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -150),
+		Size = UDim2.fromOffset(420, 86),
+		Visible = false,
+		Parent = gui,
+	}, { Kit.padding(10, 16) })
+	refs.Extraction = frame
+	refs.ExtTitle = Kit.label({ Text = "EXTRACTING...", Size = UDim2.new(1, -70, 0, 26), Font = Theme.Font.Display, TextSize = 24, TextXAlignment = Enum.TextXAlignment.Left, Parent = frame })
+	refs.ExtTime = Kit.label({ Text = "10.0", Position = UDim2.new(1, -70, 0, 0), Size = UDim2.fromOffset(70, 26), Font = Theme.Font.Display, TextSize = 24, TextXAlignment = Enum.TextXAlignment.Right, TextColor3 = Theme.Color.Gold, Parent = frame })
+	local back = Kit.new("Frame", {
+		Position = UDim2.fromOffset(0, 32),
+		Size = UDim2.new(1, 0, 0, 14),
+		BackgroundColor3 = Theme.Color.PanelLight,
+		BorderSizePixel = 0,
+		Parent = frame,
+	}, { Kit.corner(Theme.Radius.Round) })
+	refs.ExtFill = Kit.new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = Theme.Color.Safe, BorderSizePixel = 0, Parent = back }, { Kit.corner(Theme.Radius.Round) })
+	refs.ExtZone = Kit.label({ Text = "", Position = UDim2.fromOffset(0, 50), Size = UDim2.new(1, 0, 0, 18), Font = Theme.Font.Black, TextSize = Theme.TextSize.Small, TextColor3 = Theme.Color.TextDim, Parent = frame })
+end
+
+-- Action cluster: attack + 3 gadget slots, clear of the mobile jump button.
+local function buildActions()
+	local right = if isTouch then 175 else 24
+	local cluster = Kit.new("Frame", {
+		Name = "Actions",
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -right, 1, -18),
+		Size = UDim2.fromOffset(250, 210),
+		Parent = gui,
+	})
+	local attack = Kit.button({
+		Name = "Attack",
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, 0, 1, 0),
+		Size = UDim2.fromOffset(96, 96),
+		BackgroundColor3 = Theme.Color.Danger,
+		TextColor3 = Theme.Color.Text,
+		Radius = Theme.Radius.Round,
+		Parent = cluster,
+	}, function()
+		HUD.Attack()
+	end)
+	Kit.stroke(Color3.new(1, 1, 1), 3, 0.3).Parent = attack
+	Kit.label({ Text = "👊", Size = UDim2.new(1, 0, 0, 50), Position = UDim2.fromOffset(0, 12), TextSize = 38, Parent = attack })
+	refs.AttackLabel = Kit.label({ Text = "BONK", Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, 1, -32), TextSize = 16, Font = Theme.Font.Black, Parent = attack })
+	refs.Attack = attack
+
+	refs.Slots = {}
+	local positions = {
+		UDim2.new(1, -118, 1, -2),
+		UDim2.new(1, -108, 1, -84),
+		UDim2.new(1, -32, 1, -112),
+	}
+	for slot = 1, GameConfig.Gadgets.Slots do
+		local button = Kit.button({
+			Name = "Gadget" .. slot,
+			AnchorPoint = Vector2.new(1, 1),
+			Position = positions[slot],
+			Size = UDim2.fromOffset(68, 68),
+			BackgroundColor3 = Theme.Color.Panel,
+			BackgroundTransparency = Theme.Transparency.Panel,
+			Radius = Theme.Radius.Round,
+			ClipsDescendants = true,
+			Parent = cluster,
+		}, function()
+			HUD.UseGadget(slot)
+		end)
+		Kit.stroke(Theme.Color.Gold, 2, 0.4).Parent = button
+		local icon = Kit.label({ Name = "Icon", Text = "+", Size = UDim2.fromScale(1, 1), TextSize = 32, Parent = button })
+		local cooldown = Kit.new("Frame", {
+			Name = "Cooldown",
+			AnchorPoint = Vector2.new(0, 1),
+			Position = UDim2.fromScale(0, 1),
+			Size = UDim2.fromScale(1, 0),
+			BackgroundColor3 = Color3.new(0, 0, 0),
+			BackgroundTransparency = 0.35,
+			BorderSizePixel = 0,
+			ZIndex = 2,
+			Parent = button,
+		})
+		local timer = Kit.label({ Name = "Timer", Text = "", Size = UDim2.fromScale(1, 1), Font = Theme.Font.Display, TextSize = 24, ZIndex = 3, Parent = button })
+		local key = Kit.label({
+			Name = "Key",
+			Text = if isTouch then "" else tostring(slot),
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.new(0.5, 0, 0, 2),
+			Size = UDim2.fromOffset(20, 14),
+			TextSize = 11,
+			Font = Theme.Font.Black,
+			TextColor3 = Theme.Color.TextDim,
+			ZIndex = 3,
+			Parent = button,
+		})
+		refs.Slots[slot] = { Button = button, Icon = icon, Cooldown = cooldown, Timer = timer, Key = key }
+	end
+end
+
+-- STATE -> UI --------------------------------------------------------------------
+
+local function nearestExtraction(position: Vector3)
+	local best, bestDistance = nil, math.huge
+	for _, zone in WorldLayout.ExtractionZones do
+		if zone.Category ~= "Secret" or secretKnown then
+			local d = (zone.Position - position).Magnitude
+			if d < bestDistance then
+				best, bestDistance = zone, d
+			end
+		end
+	end
+	return best
+end
+
+local function nearestTreasure(position: Vector3, maxRank: number?)
+	local folder = workspace:FindFirstChild("Treasures")
+	if not folder then
+		return nil
+	end
+	local best, bestDistance = nil, math.huge
+	for _, model in folder:GetChildren() do
+		local state = model:GetAttribute("State")
+		local primary = (model :: Model).PrimaryPart
+		if primary and (state == "World" or state == "Dropped") then
+			local rank = Rarities.Rank(model:GetAttribute("Rarity") or "Common")
+			if not maxRank or rank <= maxRank then
+				local d = (primary.Position - position).Magnitude
+				if d < bestDistance then
+					best, bestDistance = primary, d
+				end
+			end
+		end
+	end
+	return best
+end
+
+local function nextTreasureGoal(data)
+	local best = nil
+	for _, def in Treasures.List do
+		local entry = data.Collection[def.Id]
+		if (not entry or not entry.Discovered) and def.Rarity ~= "Secret" then
+			if not best or def.Value < best.Value then
+				best = def
+			end
+		end
+	end
+	return best
+end
+
+local AREA_NAMES = { Wilds = "THE WILDS", Ruins = "THE ANCIENT RUINS", Coast = "SHIPWRECK COAST", Falls = "THE FALLS" }
+
+local function setObjective(header: string, title: string, titleColor: Color3?, line1: string?, line2: string?, bar: number?, barColor: Color3?)
+	refs.ObjHeader.Text = header
+	refs.ObjTitle.Text = title
+	refs.ObjTitle.TextColor3 = titleColor or Theme.Color.Text
+	refs.ObjLine1.Text = line1 or ""
+	refs.ObjLine1.Visible = line1 ~= nil
+	refs.ObjLine2.Text = line2 or ""
+	refs.ObjLine2.Visible = line2 ~= nil
+	refs.ObjBar.Visible = bar ~= nil
+	if bar then
+		refs.ObjBarFill.Size = UDim2.fromScale(math.clamp(bar, 0.02, 1), 1)
+		refs.ObjBarFill.BackgroundColor3 = barColor or Theme.Color.Strength
+	end
+end
+
+local function refreshObjective()
+	local data = ClientState.Data
+	if not data then
+		return
+	end
+	local carrying = ClientState.Carrying()
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local position = if root then root.Position else WorldLayout.Spawn
+
+	if carrying then
+		local info = Rarities.Info[carrying.Rarity]
+		local speed = player:GetAttribute("CarrySpeed") or 1
+		local stability = ClientState.Stability()
+		local burden = Carry.BurdenLabel(speed)
+		local line2 = ("SPEED %d%% • %s"):format(math.floor(speed * 100 + 0.5), burden)
+		if stability == "Shaken" then
+			line2 = "<font color=\"#ff4650\">⚠ SHAKEN — ONE MORE HIT AND YOU DROP IT</font>"
+		end
+		setObjective(
+			("%s %s • CARRYING"):format(info.Glyph, carrying.Rarity:upper()),
+			carrying.Name:upper(),
+			info.Color,
+			("<font color=\"#78eb78\">%s</font>  •  WEIGHT %d"):format(Kit.formatCash(carrying.Value), carrying.Weight),
+			line2,
+			speed,
+			if speed >= 0.75 then Theme.Color.Safe elseif speed >= 0.45 then Theme.Color.Warn else Theme.Color.Danger
+		)
+		local zone = nearestExtraction(position)
+		navTarget = zone and { Name = zone.Name:upper(), Position = zone.Position }
+		return
+	end
+
+	if not ClientState.Milestone("FirstTraining") then
+		setObjective("STEP 1 • GET STRONGER", "TRAIN AT THE STONE LIFT", Theme.Color.Strength, "Stronger = carry heavy treasure faster", nil)
+		navTarget = { Name = "STONE LIFT", Position = WorldLayout.TrainingStations[1].Position }
+		return
+	end
+	if not ClientState.Milestone("FirstExtraction") then
+		local target = nearestTreasure(position, 2)
+		if ClientState.Milestone("FirstTreasure") then
+			setObjective("STEP 3 • PICK IT UP", "GRAB A TREASURE", Theme.Color.Gold, "Carry it to an EXTRACTION beam to bank it", nil)
+		else
+			setObjective("STEP 2 • EXPLORE", "FIND A TREASURE", Theme.Color.Gold, "Head through the gate into THE WILDS", nil)
+		end
+		navTarget = if target then { Name = "TREASURE", Position = target.Position } else { Name = "THE WILDS", Position = WorldLayout.District.Gate }
+		return
+	end
+
+	local owned = 0
+	for _ in data.OwnedGadgets do
+		owned += 1
+	end
+	local cheapest = Gadgets.Get("speed_soda")
+	if owned == 0 and cheapest and data.Cash >= cheapest.Price then
+		setObjective("NEW • GADGETS", "BUY YOUR FIRST GADGET", Theme.Color.Info, ("You can afford the %s!"):format(cheapest.Name:upper()), nil)
+		navTarget = { Name = "GADGET SHOP", Position = WorldLayout.Shop }
+		return
+	end
+
+	if data.Strength >= GameConfig.Ascension.RequiredStrength then
+		setObjective("✦ READY", "ASCENSION AVAILABLE", Theme.Color.Secret, ("Permanent x%.2f Cash multiplier"):format(GameConfig.GetAscensionMultiplier(data.Ascension + 1)), nil)
+		navTarget = { Name = "ASCENSION ALTAR", Position = WorldLayout.AscensionAltar }
+		return
+	end
+
+	local goal = nextTreasureGoal(data)
+	if not goal then
+		setObjective("COLLECTION COMPLETE", "HUNT THE SECRET", Theme.Color.Secret, "Legends speak of the Heart of the Island...", nil)
+		navTarget = nil
+		return
+	end
+	local recommended = Carry.RecommendedStrength(goal.Weight, GameConfig.Carry)
+	local strength = math.floor(data.Strength)
+	local needsTraining = strength < recommended
+	setObjective(
+		"NEXT TREASURE",
+		goal.Name:upper(),
+		rarityColor(goal.Rarity),
+		("<font color=\"#78eb78\">%s</font>  •  WEIGHT %d  •  STRENGTH %d / %d"):format(Kit.formatCash(goal.Value), goal.Weight, strength, recommended),
+		if needsTraining then "▶ TRAIN" else ("▶ FIND IT IN %s"):format(AREA_NAMES[goal.SpawnArea] or goal.SpawnArea:upper()),
+		strength / recommended,
+		if needsTraining then Theme.Color.Strength else Theme.Color.Safe
+	)
+	navTarget = nil
+end
+HUD.RefreshObjective = refreshObjective
+
+local function refreshStats(data, previous)
+	refs.Strength.Text = tostring(math.floor(data.Strength))
+	refs.Cash.Text = Kit.formatCash(data.Cash)
+	if previous then
+		if data.Cash ~= previous.Cash then
+			Kit.pulse(refs.Cash.Parent)
+		end
+		if math.floor(data.Strength) ~= math.floor(previous.Strength) then
+			Kit.pulse(refs.Strength.Parent)
+		end
+	end
+	refs.Ascension.Visible = data.Ascension > 0
+	refs.Ascension.Text = ("✦ %s • x%.2f CASH"):format((data.SelectedTitle or ""):upper(), GameConfig.GetAscensionMultiplier(data.Ascension))
+end
+
+local function refreshSlots()
+	local data = ClientState.Data
+	if not data then
+		return
+	end
+	local carrying = ClientState.Carrying() ~= nil
+	for slot, ui in refs.Slots do
+		local id = data.EquippedGadgets[slot]
+		local def = id and id ~= "" and Gadgets.Get(id)
+		if def then
+			ui.Icon.Text = def.Icon
+			local blocked = carrying and not def.CanUseWhileCarrying
+			ui.Icon.TextTransparency = if blocked then 0.6 else 0
+			ui.Button.BackgroundColor3 = if blocked then Theme.Color.Disabled else Theme.Color.Panel
+		else
+			ui.Icon.Text = "+"
+			ui.Icon.TextTransparency = 0.4
+			ui.Button.BackgroundColor3 = Theme.Color.Panel
+		end
+	end
+	refs.AttackLabel.Text = if carrying and not GameConfig.Combat.CarrierCanAttack then "RUN!" else "BONK"
+	refs.Attack.BackgroundColor3 = if carrying and not GameConfig.Combat.CarrierCanAttack then Theme.Color.Disabled else Theme.Color.Danger
+end
+
+local function updateCooldowns(serverNow: number)
+	local data = ClientState.Data
+	if not data then
+		return
+	end
+	for slot, ui in refs.Slots do
+		local id = data.EquippedGadgets[slot]
+		local def = id and id ~= "" and Gadgets.Get(id)
+		local ready = def and ClientState.Cooldowns[id] or 0
+		local remaining = if def then ready - serverNow else 0
+		if remaining > 0 then
+			ui.Cooldown.Size = UDim2.fromScale(1, math.clamp(remaining / def.Cooldown, 0, 1))
+			ui.Timer.Text = tostring(math.ceil(remaining))
+		else
+			ui.Cooldown.Size = UDim2.fromScale(1, 0)
+			ui.Timer.Text = ""
+		end
+	end
+end
+
+local lastArea = ""
+local function updateNav()
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not root then
+		refs.Nav.Visible = false
+		return
+	end
+	local position = root.Position
+
+	local area = Zones.AreaName(position)
+	if area ~= lastArea then
+		lastArea = area
+		local safe = area == "TREASURE DISTRICT"
+		refs.Area.Text = if safe then "🛡 TREASURE DISTRICT • SAFE" else "⚔ " .. area
+		refs.Area.TextColor3 = AREA_COLORS[area] or Theme.Color.Text
+	end
+	if not secretKnown then
+		for _, zone in WorldLayout.ExtractionZones do
+			if zone.Category == "Secret" and (zone.Position - position).Magnitude < 45 then
+				secretKnown = true
+			end
+		end
+	end
+
+	if not navTarget then
+		refs.Nav.Visible = false
+		return
+	end
+	local target = (navTarget :: any).Position :: Vector3
+	local offset = target - position
+	local distance = Vector3.new(offset.X, 0, offset.Z).Magnitude
+	if distance < 14 then
+		refs.Nav.Visible = false
+		return
+	end
+	local camera = workspace.CurrentCamera
+	local look = camera.CFrame.LookVector
+	local camAngle = math.atan2(look.X, -look.Z)
+	local targetAngle = math.atan2(offset.X, -offset.Z)
+	refs.NavArrow.Rotation = math.deg(targetAngle - camAngle)
+	refs.NavText.Text = ("%s • %dm"):format((navTarget :: any).Name, math.floor(distance / 3.5 + 0.5))
+	refs.Nav.Visible = true
+end
+
+local function updateExtraction(serverNow: number)
+	if not extraction then
+		return
+	end
+	local e = extraction :: any
+	local elapsed = serverNow - e.StartedAt
+	local remaining = math.max(0, e.Duration - elapsed)
+	refs.ExtFill.Size = UDim2.fromScale(math.clamp(elapsed / e.Duration, 0, 1), 1)
+	refs.ExtTime.Text = ("%.1f"):format(remaining)
+end
+
+function HUD.ShowStatus(title: string, subtitle: string?, color: Color3, duration: number)
+	refs.Status.Text = title
+	refs.Status.TextColor3 = color
+	refs.Status.Visible = true
+	refs.StatusSub.Text = subtitle or ""
+	refs.StatusSub.Visible = subtitle ~= nil
+	Kit.pulse(refs.Status)
+	local token = {}
+	refs.StatusToken = token
+	task.delay(duration, function()
+		if refs.StatusToken == token then
+			refs.Status.Visible = false
+			refs.StatusSub.Visible = false
+		end
+	end)
+end
+
+function HUD.FlashDanger(strength: number, duration: number)
+	refs.VignetteStroke.Transparency = 1 - strength
+	Kit.tween(refs.VignetteStroke, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Transparency = 1 })
+end
+
+local lastSwing = 0
+function HUD.Attack()
+	if os.clock() - lastSwing < GameConfig.Combat.AttackCooldown then
+		return
+	end
+	if ClientState.Carrying() and not GameConfig.Combat.CarrierCanAttack then
+		return
+	end
+	lastSwing = os.clock()
+	Net.Get("Attack"):FireServer()
+end
+
+function HUD.UseGadget(slot: number)
+	local data = ClientState.Data
+	if not data then
+		return
+	end
+	local id = data.EquippedGadgets[slot]
+	if not id or id == "" then
+		if HUD.OpenMenu then
+			HUD.OpenMenu("Shop")
+		end
+		return
+	end
+	local def = Gadgets.Get(id)
+	if not def then
+		return
+	end
+	if (ClientState.Cooldowns[id] or 0) > workspace:GetServerTimeNow() then
+		Sounds.Play("Error")
+		return
+	end
+	if ClientState.Carrying() and not def.CanUseWhileCarrying then
+		Sounds.Play("Error")
+		return
+	end
+	Net.Get("UseGadget"):FireServer(slot)
+end
+
+local function onExtractionState(payload)
+	if payload.Active then
+		extraction = { StartedAt = payload.StartedAt, Duration = payload.Duration, ZoneName = payload.ZoneName, Category = payload.Category }
+		local cat = GameConfig.Extraction.Categories[payload.Category]
+		refs.ExtTitle.Text = "EXTRACTING..."
+		refs.ExtTitle.TextColor3 = Theme.Color.Text
+		refs.ExtZone.Text = ("%s • %s • x%.1f CASH"):format(payload.ZoneName:upper(), cat and cat.Label or "", cat and cat.Bonus or 1)
+		refs.ExtFill.BackgroundColor3 = if payload.Category == "Secret" then Theme.Color.Secret elseif payload.Category == "Dangerous" then Theme.Color.Warn else Theme.Color.Safe
+		refs.Extraction.Visible = true
+		Sounds.Play("ExtractStart")
+	else
+		extraction = nil
+		refs.Extraction.Visible = false
+		local reason = payload.Reason
+		if reason == "Hit" then
+			HUD.ShowStatus("EXTRACTION INTERRUPTED", "Hold the zone to try again", Theme.Color.Danger, 2)
+			Sounds.Play("ExtractInterrupted")
+		elseif reason == "Knocked" or reason == "Dropped" then
+			HUD.ShowStatus("EXTRACTION INTERRUPTED", "TREASURE DROPPED", Theme.Color.Danger, 2.5)
+			Sounds.Play("ExtractInterrupted")
+		end
+	end
+end
+
+function HUD.Init(screenGui: ScreenGui)
+	gui = screenGui
+	buildStats()
+	buildMenuButtons()
+	buildObjective()
+	buildStatus()
+	buildExtractionBar()
+	buildActions()
+
+	ClientState.DataChanged:Connect(function(data, previous)
+		refreshStats(data, previous)
+		refreshSlots()
+		refreshObjective()
+	end)
+	ClientState.AttributeChanged:Connect(function(name)
+		if name == "CarryingId" or name == "Stability" or name == "CarrySpeed" then
+			refreshObjective()
+			refreshSlots()
+		end
+	end)
+	Net.Get("ExtractionState").OnClientEvent:Connect(onExtractionState)
+
+	-- Keyboard / gamepad bindings (touch uses the on-screen buttons).
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if processed then
+			return
+		end
+		local key = input.KeyCode
+		if key == Enum.KeyCode.F or key == Enum.KeyCode.ButtonR2 or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			HUD.Attack()
+		elseif key == Enum.KeyCode.One or key == Enum.KeyCode.ButtonL1 then
+			HUD.UseGadget(1)
+		elseif key == Enum.KeyCode.Two or key == Enum.KeyCode.ButtonR1 then
+			HUD.UseGadget(2)
+		elseif key == Enum.KeyCode.Three or key == Enum.KeyCode.ButtonY then
+			HUD.UseGadget(3)
+		end
+	end)
+
+	-- Light polling loop: navigation arrow, cooldown overlays, extraction countdown,
+	-- and objective refresh (nearest treasure moves as treasures spawn/despawn).
+	task.spawn(function()
+		local elapsed = 0
+		while true do
+			local dt = task.wait(0.1)
+			elapsed += dt
+			local serverNow = workspace:GetServerTimeNow()
+			updateNav()
+			updateCooldowns(serverNow)
+			updateExtraction(serverNow)
+			if elapsed >= 1.5 then
+				elapsed = 0
+				refreshObjective()
+			end
+		end
+	end)
+end
+
+return HUD

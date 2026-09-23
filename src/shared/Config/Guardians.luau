@@ -1,0 +1,53 @@
+-- Guardian (PvE) archetypes. Reliability over complexity:
+-- PATROL -> DETECT -> CHASE -> ATTACK -> (KNOCK) -> RETURN
+
+return {
+	Wolf = {
+		Name = "Wolf",
+		PatrolSpeed = 9,
+		ChaseSpeed = 15, -- slower than an unburdened player (18), faster than a heavy carrier
+		DetectRange = 45,
+		LeashRange = 110,
+		AttackRange = 5.5,
+		AttackCooldown = 1.3,
+		Damage = 10,
+		RetreatAfterKnock = 4,
+		BodyColor = { 110, 110, 125 },
+		AccentColor = { 230, 230, 240 },
+		EyeColor = { 255, 220, 60 },
+		Size = { 2.4, 2.4, 4.6 },
+		HipHeight = 1.6,
+	},
+	Goblin = {
+		Name = "Goblin",
+		PatrolSpeed = 8,
+		ChaseSpeed = 14,
+		DetectRange = 40,
+		LeashRange = 90,
+		AttackRange = 5,
+		AttackCooldown = 1.1,
+		Damage = 8,
+		RetreatAfterKnock = 4,
+		BodyColor = { 90, 160, 70 },
+		AccentColor = { 120, 80, 40 },
+		EyeColor = { 255, 60, 60 },
+		Size = { 2.4, 3, 2 },
+		HipHeight = 1.4,
+	},
+	Spider = {
+		Name = "Cave Spider",
+		PatrolSpeed = 7,
+		ChaseSpeed = 13,
+		DetectRange = 35,
+		LeashRange = 60,
+		AttackRange = 6,
+		AttackCooldown = 1.6,
+		Damage = 14,
+		RetreatAfterKnock = 5,
+		BodyColor = { 50, 30, 60 },
+		AccentColor = { 150, 60, 200 },
+		EyeColor = { 120, 255, 120 },
+		Size = { 4, 2, 4 },
+		HipHeight = 1.4,
+	},
+}
