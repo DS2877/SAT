@@ -499,6 +499,20 @@ end
 
 local AREA_NAMES = { Wilds = "THE WILDS", Ruins = "THE ANCIENT RUINS", Coast = "SHIPWRECK COAST", Falls = "THE FALLS" }
 
+-- Loot mostly spawns on the night wave: say whether the goal treasure is out there right now.
+local function goalWhere(goal): string
+	local area = AREA_NAMES[goal.SpawnArea] or goal.SpawnArea:upper()
+	local folder = workspace:FindFirstChild("Treasures")
+	if folder then
+		for _, model in folder:GetChildren() do
+			if model:GetAttribute("TreasureId") == goal.Id and model:GetAttribute("State") ~= "Carried" then
+				return ("▶ ONE IS OUT NOW IN %s!"):format(area)
+			end
+		end
+	end
+	return ("▶ SPAWNS AT NIGHT IN %s"):format(area)
+end
+
 local objectiveDetails = { Line1 = false, Line2 = false, Bar = false }
 local objectiveKey = ""
 local pinnedExpanded = false -- carrying: always show details
@@ -591,6 +605,17 @@ local function refreshObjective()
 		return
 	end
 
+	-- Step 4: the new economy's key idea - your Vault pays you, walk over and collect it.
+	if not ClientState.Milestone("FirstCollect") then
+		local plotIndex = player:GetAttribute("VaultPlot")
+		local plotFolder = workspace:FindFirstChild("Vaults", true)
+		local plot = plotFolder and plotIndex and plotFolder:FindFirstChild("Vault" .. tostring(plotIndex))
+		local center = plot and plot:GetAttribute("VaultCenter")
+		setObjective("STEP 4 • GET PAID", "COLLECT YOUR CASH", Theme.Color.Cash, "Your treasure earns $ every second", "▶ STEP ON THE GREEN PAD AT YOUR VAULT", nil)
+		navTarget = if typeof(center) == "Vector3" then { Name = "YOUR VAULT", Position = center } else nil
+		return
+	end
+
 	local owned = 0
 	for _ in data.OwnedGadgets do
 		owned += 1
@@ -634,7 +659,7 @@ local function refreshObjective()
 		if needsTraining
 			then ("<font color=\"#78eb78\">%s/s</font>  •  STRENGTH %s / %s"):format(Kit.shortCash(Economy.Income(goal)), Kit.bigNumber(strength), Kit.bigNumber(recommended))
 			else ("<font color=\"#78eb78\">%s/s</font>  •  WEIGHT %s"):format(Kit.shortCash(Economy.Income(goal)), Kit.bigNumber(goal.Weight)),
-		if needsTraining then "▶ TRAIN" else ("▶ FIND IT IN %s"):format(AREA_NAMES[goal.SpawnArea] or goal.SpawnArea:upper()),
+		if needsTraining then "▶ TRAIN" else goalWhere(goal),
 		if needsTraining then strength / recommended else nil,
 		if needsTraining then Theme.Color.Strength else Theme.Color.Safe
 	)

@@ -1,10 +1,12 @@
 # Development Status
 
 ## CURRENT PHASE
-Phase 2–4 — vertical slice (core treasure loop + PvP/PvE + first gadgets + basic Vault).
+Roadmap phase 1 — STABILISE the current build (see docs/ROADMAP.md). No big new features
+until the whole core loop passes the mobile checklist (docs/PLAYTEST_CHECKLIST.md).
 
 ## CURRENT MILESTONE
-M0–M7 implemented in code; awaiting first Roblox runtime playtest (M8 multiplayer loop).
+Full core loop + economy + day/night implemented; phase-1 static audit fixes shipped;
+awaiting the phase-1 mobile playtest.
 
 ## COMPLETED (code + static validation)
 - Rojo project, server/client/shared architecture, remotes with per-player rate limiting
@@ -12,13 +14,13 @@ M0–M7 implemented in code; awaiting first Roblox runtime playtest (M8 multipla
   Wilds (trees, hills, trails, ravine bridge), Giant Waterfall + hidden cave, Ancient Temple + courtyard,
   Shipwreck Coast, Volcano + Lighthouse landmarks, 3 extraction zones (Safe / Dangerous / Secret)
 - Player data: session-locked DataStore, versioned migration + reconcile, autosave, BindToClose
-- Strength + timing-bar training (3 stations), server-graded
+- Strength + AFK bench-press training (see REWARDING TRAINING below)
 - 30 data-driven treasures, spawn budget + rarity caps, pickup validation, carry weld, carry speed formula
 - Stability STABLE→SHAKEN→KNOCKED, knock immunity, reclaim protection, dropped timeout, theft detection
-- Extraction (10 s, interruptible), Cash reward w/ zone bonus + Ascension multiplier, Collection, auto Vault placement
+- Extraction (10 s, interruptible), finder's fee w/ zone bonus + Ascension multiplier, Collection, auto Vault placement
 - PvP bonk (server hit detection), 3 Guardian types (Wolf, Goblin, Cave Spider), death/respawn
 - Gadget framework (3 slots, server cooldowns): Speed Soda, Balloon, Bubble Blaster
-- Physical Vault with pedestals + editor + tier upgrades; Ascension
+- Physical Vault with pedestals that earn $/s, sell, tier upgrades; Ascension
 - HUD (stats, objective/next treasure, carried treasure, nav arrow, extraction bar, danger states, action cluster),
   notifications (toast/banner/social/reward), Collection / Shop / Vault / Ascension menus, analytics wrapper
 - CI: stylua, selene, lune tests (pure logic), compile check, rojo build, test-place publish
@@ -128,18 +130,27 @@ M0–M7 implemented in code; awaiting first Roblox runtime playtest (M8 multipla
   Clock comes from server time (Logic/DayNight), lighting is client-side (Ambience).
 - Collect pad + sign board moved OUTSIDE the Vault entrance (text was cut by the gate posts).
 
+## PHASE 1 AUDIT FIXES
+- Starter loot: spawn points with MaxRarity <= Uncommon (near the gate) refill during the day.
+- Tutorial step 4 "COLLECT YOUR CASH" until the first collect.
+- Vault sell prompt on E / ButtonX (was F = BONK, ButtonY = gadget 3).
+- "Next treasure" goal: "ONE IS OUT NOW IN X" vs "SPAWNS AT NIGHT IN X".
+- Funnel: Joined, FirstTraining, FirstTreasure, FirstExtraction, FirstCollect, FirstGadget,
+  FirstVaultUpgrade, FirstTheft, FirstAscension + FunnelTime_<step> (seconds since join).
+
 ## KNOWN BUGS / RISKS
-- Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp slopes.
+- Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp
+  slopes, IK arms on the bench, nightfall teleport, collect board placement on every plot.
 - No server-side speed-hack detection yet (movement is client-authoritative in Roblox).
-- Vault tiers 40/60 designed but disabled (physical layout supports 20).
+- Dangerous/Secret extraction bonus only scales the finder's fee now (see ROADMAP phase 2).
 
 ## NEXT PRIORITY
-1. Playtest the vertical slice in Studio / test place; fix runtime issues.
-2. Tune first-10-minutes pacing (training gains, first treasure distance, prices).
-3. Playtest gadgets/events; then Meteor Crash / Dragon Awakens / Ancient Vault events and world polish.
+See docs/ROADMAP.md: 1 stabilise → 2 addictive core loop → 3 first 10 minutes →
+4 treasure content → 5 world → 6 social.
 
 ## OPEN DESIGN QUESTIONS
 - Is the Ascension cash cost curve right once Mythic Bench players appear? Needs playtest data.
+- Day length (5 min) and nightfall loot loss: fair or too harsh? Needs playtest data.
 
 ## IMPORTANT ARCHITECTURE DECISIONS
 - World is built procedurally at server start (code-only repo; swap build* functions for prefabs later).

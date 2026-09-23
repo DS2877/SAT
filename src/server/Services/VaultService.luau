@@ -134,8 +134,9 @@ local function buildPedestal(parent: Instance, base: CFrame, def, ghost: boolean
 			prompt.ActionText = ("Sell %s"):format(formatShort(Economy.SellPrice(def, mutation)))
 			prompt.ObjectText = if mutation then mutation .. " " .. def.Name else def.Name
 			prompt.HoldDuration = 1.2
-			prompt.KeyboardKeyCode = Enum.KeyCode.F
-			prompt.GamepadKeyCode = Enum.KeyCode.ButtonY
+			-- E / X like every other prompt (F is BONK and Y is gadget 3: a held attack must never sell).
+			prompt.KeyboardKeyCode = Enum.KeyCode.E
+			prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
 			prompt.MaxActivationDistance = 6
 			prompt.RequiresLineOfSight = false
 			-- Clients hide sell prompts on other players' Vaults (VaultBeacon).
@@ -371,6 +372,9 @@ local function onUpgrade(player: Player)
 	PlayerData.Update(player, function(d)
 		d.Vault.Tier += 1
 	end)
+	if PlayerData.Milestone(player, "FirstVaultUpgrade") then
+		Analytics.Funnel(player, "FirstVaultUpgrade")
+	end
 	Net.Fire("Notify", player, {
 		Kind = "Banner",
 		Title = "VAULT UPGRADED",
@@ -430,11 +434,7 @@ end
 
 local function onExtracted(player: Player, def, mutation: string?, placedSlot: number?, soldFor: number)
 	render(player)
-	if placedSlot then
-		if PlayerData.Milestone(player, "FirstVault") then
-			Analytics.Funnel(player, "FirstVault")
-		end
-	else
+	if not placedSlot then
 		Net.Fire("Notify", player, {
 			Kind = "Banner",
 			Title = "VAULT FULL",
@@ -472,6 +472,9 @@ local function collect(player: Player, data)
 		d.Stats.TotalEarned += amount
 	end)
 	Net.Fire("Feedback", player, { Type = "Collected", Amount = amount })
+	if PlayerData.Milestone(player, "FirstCollect") then
+		Analytics.Funnel(player, "FirstCollect")
+	end
 	Analytics.Economy(player, "Source", amount, data.Cash, "Gameplay", "vault_income")
 end
 

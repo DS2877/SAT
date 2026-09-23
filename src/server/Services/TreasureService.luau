@@ -2,7 +2,8 @@
 -- The server alone decides which treasure spawns, who holds it and where it is.
 -- Loot only spawns during the NIGHT (one wave per night, see GameConfig.DayNight); nightfall
 -- wipes whatever is left, carried or not (ClearAll). A fresh server gets one initial fill so
--- the first day isn't empty. Treasure Rain (SpawnFalling) is the daytime exception.
+-- the first day isn't empty. Daytime exceptions: Treasure Rain (SpawnFalling) and the starter
+-- spawn points near the gate (Commons/Uncommons) so newcomers always find a first treasure.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -246,11 +247,16 @@ local function rollMutation(area: string?): string?
 end
 TreasureService.RollMutation = rollMutation
 
-local function trySpawnOne(): boolean
+local function isStarter(point): boolean
+	return point.MaxRarity ~= nil and Rarities.Rank(point.MaxRarity) <= Rarities.Rank(cfg.StarterMaxRarity)
+end
+
+-- starterOnly: daytime refill of the low-rarity spawn points near the gate.
+local function trySpawnOne(starterOnly: boolean?): boolean
 	local now = os.clock()
 	local free = {}
 	for _, point in spawnPoints do
-		if not point.Occupied and now >= point.NextSpawnAt then
+		if not point.Occupied and now >= point.NextSpawnAt and (not starterOnly or isStarter(point)) then
 			table.insert(free, point)
 		end
 	end
@@ -640,6 +646,8 @@ function TreasureService.Start()
 						break
 					end
 				end
+			elseif activeCount() < cfg.MaxActive then
+				trySpawnOne(true)
 			end
 			-- Safety net: treasure that fell out of the world goes back to the spawn system.
 			for _, record in records do

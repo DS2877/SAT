@@ -108,6 +108,10 @@ GameConfig.Treasure = {
 	-- Overhead name tag (mutation / name / rarity / $ per s) only shows up close: you should
 	-- read rarity and mutation from the treasure's LOOK first; the tag confirms it.
 	LabelDistance = 40,
+	-- Starter loot: spawn points near the gate whose MaxRarity is at most this keep refilling
+	-- during the DAY too (Commons/Uncommons only), so a player who joins mid-day always finds a
+	-- first treasure. Everything else only spawns on the night wave.
+	StarterMaxRarity = "Uncommon",
 	CarriedLabelDistance = 60,
 	VaultLabelDistance = 22,
 }

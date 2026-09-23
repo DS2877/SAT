@@ -42,6 +42,13 @@ Ascension.Init(world.AltarPrompt)
 LeaderboardService.Init(world.Leaderboards)
 EventService.Init()
 
+-- Funnel step 1: every first-time player (lets the dashboard show where newcomers drop off).
+PlayerData.Loaded:Connect(function(player)
+	if PlayerData.Milestone(player, "Joined") then
+		Analytics.Funnel(player, "Joined")
+	end
+end)
+
 world.ShopPrompt.Triggered:Connect(function(player)
 	Net.Fire("OpenMenu", player, { Menu = "Shop" })
 end)

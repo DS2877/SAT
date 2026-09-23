@@ -364,7 +364,7 @@ local function buildSpawnPavilion(district: Folder)
 		text.RichText = true
 		text.TextColor3 = C.Gold
 		text.Text = if face == Enum.NormalId.Front
-			then "STEAL THE TREASURE\n<font color=\"#ffffff\" size=\"60\">TRAIN • FIND • CARRY • EXTRACT</font>"
+			then "STEAL THE TREASURE\n<font color=\"#ffffff\" size=\"60\">TRAIN • FIND • CARRY • EXTRACT • EARN</font>"
 			else "WELCOME HOME, TREASURE HUNTER"
 		text.Parent = surface
 	end
