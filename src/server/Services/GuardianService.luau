@@ -12,6 +12,8 @@ local Net = require(Shared.Net)
 
 local Combat = require(script.Parent.Combat)
 local TreasureService = require(script.Parent.TreasureService)
+local Decoys = require(script.Parent.Decoys)
+local Gadgets = require(Shared.Config.Gadgets)
 
 local GuardianService = {}
 
@@ -164,6 +166,9 @@ local function findTarget(g: Guardian): (Player?, BasePart?)
 		local root = Combat.RootOf(player)
 		if root and not player.Character:FindFirstChildOfClass("ForceField") and not Zones.InSafeZone(root.Position) then
 			local detect = g.Def.DetectRange * (if attractsGuardians(player) then 2.5 else 1)
+			if player:GetAttribute("Disguised") then
+				detect *= Gadgets.Get("disguise").GuardianDetectMultiplier
+			end
 			local distance = (root.Position - g.Root.Position).Magnitude
 			local fromHome = (root.Position - g.Home).Magnitude
 			if distance <= detect and fromHome <= g.Def.LeashRange and not Combat.IsKnocked(player) then
@@ -202,6 +207,20 @@ local function step(g: Guardian, now: number)
 	if g.State == "Return" and now < g.StateUntil then
 		g.Humanoid.WalkSpeed = g.Def.PatrolSpeed * 1.4
 		g.Humanoid:MoveTo(g.Home)
+		return
+	end
+
+	-- A decoy duck in range is irresistible.
+	local decoy = Decoys.Nearest(g.Root.Position, Gadgets.Get("decoy_duck").GuardianLureRange)
+	if decoy and (decoy.Root.Position - g.Home).Magnitude <= g.Def.LeashRange then
+		setState(g, "Chase", nil)
+		g.Humanoid.WalkSpeed = g.Def.ChaseSpeed
+		g.Humanoid:MoveTo(decoy.Root.Position)
+		if (decoy.Root.Position - g.Root.Position).Magnitude <= g.Def.AttackRange + g.Root.Size.Z / 2 then
+			decoy:Pop(nil)
+			setState(g, "Return", nil)
+			g.StateUntil = now + 2
+		end
 		return
 	end
 

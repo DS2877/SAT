@@ -7,6 +7,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
 local Gadgets = require(Shared.Config.Gadgets)
+local Treasures = require(Shared.Config.Treasures)
+local Rarities = require(Shared.Config.Rarities)
+local TreasureVisual = require(Shared.TreasureVisual)
 local Zones = require(Shared.Util.Zones)
 local Net = require(Shared.Net)
 
@@ -15,6 +18,7 @@ local PlayerData = require(script.Parent.PlayerData)
 local TreasureService = require(script.Parent.TreasureService)
 local Combat = require(script.Parent.Combat)
 local Analytics = require(script.Parent.Analytics)
+local Decoys = require(script.Parent.Decoys)
 
 local GadgetService = {}
 
@@ -257,6 +261,205 @@ function Effects.grapple_hook(player: Player, def, root: BasePart, aim: Vector3?
 	return true
 end
 
+local function cosmeticPart(props): Part
+	local p = Instance.new("Part")
+	p.Name = props.Name or "Fx"
+	p.Shape = props.Shape or Enum.PartType.Ball
+	p.Size = props.Size
+	p.Color = props.Color
+	p.Material = props.Material or Enum.Material.SmoothPlastic
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Massless = true
+	return p
+end
+
+-- DECOY DUCK: waddles away carrying a convincing fake treasure tag. Guardians chase it; a bonk pops it.
+function Effects.decoy_duck(player: Player, def, root: BasePart): boolean
+	local look = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
+	local direction = if look.Magnitude > 0.1 then look.Unit else Vector3.new(0, 0, -1)
+	local model = Instance.new("Model")
+	model.Name = "DecoyDuck"
+	local body = cosmeticPart({ Name = "Body", Size = Vector3.new(2.6, 2.2, 3.2), Color = Color3.fromRGB(255, 220, 60) })
+	body.Anchored = true
+	body.Massless = false
+	body.CFrame = CFrame.lookAt(root.Position, root.Position + direction)
+	body.Parent = model
+	model.PrimaryPart = body
+	local function attach(part: BasePart, offset: CFrame)
+		part.CFrame = body.CFrame * offset
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = body
+		weld.Part1 = part
+		weld.Parent = part
+		part.Parent = model
+	end
+	attach(cosmeticPart({ Name = "Head", Size = Vector3.new(1.6, 1.6, 1.6), Color = Color3.fromRGB(255, 220, 60) }), CFrame.new(0, 1.4, -1.2))
+	attach(cosmeticPart({ Name = "Beak", Shape = Enum.PartType.Block, Size = Vector3.new(0.8, 0.3, 0.8), Color = Color3.fromRGB(255, 140, 30) }), CFrame.new(0, 1.3, -2.1))
+	for _, x in { -0.4, 0.4 } do
+		attach(cosmeticPart({ Name = "Eye", Size = Vector3.new(0.3, 0.3, 0.3), Color = Color3.new(0, 0, 0) }), CFrame.new(x, 1.7, -1.9))
+	end
+
+	-- The fake: a real-looking Rare/Epic treasure and tag.
+	local pool = {}
+	for _, t in Treasures.List do
+		if t.Rarity == "Rare" or t.Rarity == "Epic" then
+			table.insert(pool, t)
+		end
+	end
+	local fake = pool[math.random(1, #pool)]
+	local fakeModel = TreasureVisual.Build(fake, body.CFrame * CFrame.new(0, 3.6, 0))
+	for _, d in fakeModel:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.Anchored = false
+			d.CanQuery = false
+			d.Massless = true
+		end
+	end
+	attach(fakeModel.PrimaryPart :: BasePart, (body.CFrame:Inverse() * (fakeModel.PrimaryPart :: BasePart).CFrame))
+	for _, d in fakeModel:GetChildren() do
+		d.Parent = model
+	end
+	fakeModel:Destroy()
+	local info = Rarities.Info[fake.Rarity]
+	local tag = Instance.new("BillboardGui")
+	tag.Size = UDim2.fromOffset(150, 38)
+	tag.StudsOffsetWorldSpace = Vector3.new(0, 7, 0)
+	tag.MaxDistance = 160
+	tag.LightInfluence = 0
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(1, 1)
+	label.Font = Enum.Font.GothamBold
+	label.TextScaled = true
+	label.TextColor3 = info.Color
+	label.TextStrokeTransparency = 0.2
+	label.Text = ("%s %s"):format(info.Glyph, fake.Name)
+	label.Parent = tag
+	tag.Parent = body
+	model.Parent = workspace
+
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.IgnoreWater = false
+	local decoy = { Root = body :: BasePart, Owner = player, Popped = false }
+	function decoy.Pop(self, by: Player?)
+		if self.Popped then
+			return
+		end
+		self.Popped = true
+		Decoys.Remove(self)
+		Net.FireAll("Feedback", { Type = "DecoyPopped", Position = body.Position })
+		if by then
+			Net.Fire("Notify", by, { Kind = "Toast", Text = "🦆 QUACK! IT WAS A DECOY!", Tone = "Warn" })
+		end
+		model:Destroy()
+	end
+	Decoys.Add(decoy :: any)
+
+	task.spawn(function()
+		local started = os.clock()
+		local position = body.Position
+		while not decoy.Popped and os.clock() - started < def.Duration do
+			local exclude: { Instance } = { model }
+			for _, p in Players:GetPlayers() do
+				if p.Character then
+					table.insert(exclude, p.Character)
+				end
+			end
+			params.FilterDescendantsInstances = exclude
+			local nextPosition = position + direction * def.Speed * 0.1
+			local ground = workspace:Raycast(nextPosition + Vector3.new(0, 8, 0), Vector3.new(0, -40, 0), params)
+			if not ground or ground.Position.Y - position.Y > 5 then
+				-- Wall or cliff ahead: waddle off at an angle instead.
+				direction = (CFrame.Angles(0, math.rad(math.random(60, 120)) * (if math.random() < 0.5 then 1 else -1), 0) * direction).Unit
+			else
+				position = ground.Position + Vector3.new(0, 1.2, 0)
+				body.CFrame = CFrame.lookAt(position, position + direction)
+			end
+			task.wait(0.1)
+		end
+		decoy:Pop(nil)
+	end)
+	return true
+end
+
+-- DISGUISE: become a bush. Hides the carried treasure + name tag until hit, drop, or timeout.
+type DisguiseState = { Token: number, Bush: Instance, Hidden: { [BasePart]: number }, Billboard: BillboardGui? }
+local disguises: { [Player]: DisguiseState } = {}
+
+local function endDisguise(player: Player)
+	local state = disguises[player]
+	if not state then
+		return
+	end
+	disguises[player] = nil
+	state.Bush:Destroy()
+	for part, transparency in state.Hidden do
+		if part.Parent then
+			part.Transparency = transparency
+		end
+	end
+	if state.Billboard and state.Billboard.Parent then
+		state.Billboard.Enabled = true
+	end
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer
+	end
+	player:SetAttribute("Disguised", false)
+end
+GadgetService.EndDisguise = endDisguise
+
+function Effects.disguise(player: Player, def, root: BasePart): boolean
+	endDisguise(player)
+	local character = root.Parent :: Model
+	local bush = Instance.new("Model")
+	bush.Name = "DisguiseBush"
+	for _, info in {
+		{ Size = Vector3.new(6.5, 6, 6.5), Offset = CFrame.new(0, -0.3, 0), Color = Color3.fromRGB(70, 160, 70) },
+		{ Size = Vector3.new(3.5, 3.5, 3.5), Offset = CFrame.new(1.8, 1.8, 0.6), Color = Color3.fromRGB(45, 120, 60) },
+		{ Size = Vector3.new(3, 3, 3), Offset = CFrame.new(-1.6, 1.6, -0.8), Color = Color3.fromRGB(90, 180, 80) },
+	} do
+		local leaf = cosmeticPart({ Name = "Leaves", Size = info.Size, Color = info.Color, Material = Enum.Material.Grass })
+		leaf.CFrame = root.CFrame * info.Offset
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = root
+		weld.Part1 = leaf
+		weld.Parent = leaf
+		leaf.Parent = bush
+	end
+	bush.Parent = character
+
+	local state: DisguiseState = { Token = os.clock(), Bush = bush, Hidden = {}, Billboard = nil }
+	local record = TreasureService.GetCarrying(player)
+	if record then
+		for _, d in record.Model:GetDescendants() do
+			if d:IsA("BasePart") then
+				state.Hidden[d] = d.Transparency
+				d.Transparency = 1
+			end
+		end
+		record.Billboard.Enabled = false
+		state.Billboard = record.Billboard
+	end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+	end
+	disguises[player] = state
+	player:SetAttribute("Disguised", true)
+	local token = state.Token
+	task.delay(def.Duration, function()
+		local current = disguises[player]
+		if current and current.Token == token then
+			endDisguise(player)
+		end
+	end)
+	return true
+end
+
 local function sendCooldowns(player: Player)
 	Net.Fire("GadgetState", player, { Cooldowns = cooldowns[player] or {} })
 end
@@ -381,7 +584,18 @@ function GadgetService.Init()
 	PlayerData.Loaded:Connect(function(player)
 		sendCooldowns(player)
 	end)
+	-- Disguise breaks on any hit, drop or new pickup.
+	Combat.PlayerHit:Connect(function(victim)
+		endDisguise(victim)
+	end)
+	TreasureService.Dropped:Connect(function(player)
+		endDisguise(player)
+	end)
+	TreasureService.PickedUp:Connect(function(player)
+		endDisguise(player)
+	end)
 	Players.PlayerRemoving:Connect(function(player)
+		disguises[player] = nil
 		cooldowns[player] = nil
 		trapImmuneUntil[player] = nil
 		effectTokens[player] = nil
@@ -390,6 +604,9 @@ function GadgetService.Init()
 		player.CharacterAdded:Connect(function()
 			-- Invalidate running effects; Movement clears its temporary modifiers itself.
 			effectTokens[player] = nil
+			if disguises[player] then
+				endDisguise(player)
+			end
 		end)
 	end)
 end

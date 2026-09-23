@@ -211,6 +211,27 @@ function handlers.Grapple()
 	end
 end
 
+function handlers.DecoyPopped(payload)
+	if typeof(payload.Position) == "Vector3" then
+		Sounds.PlayAt("Splash", payload.Position)
+		local puff = Instance.new("Part")
+		puff.Anchored = true
+		puff.CanCollide = false
+		puff.CanQuery = false
+		puff.CanTouch = false
+		puff.Shape = Enum.PartType.Ball
+		puff.Material = Enum.Material.Neon
+		puff.Color = Color3.fromRGB(255, 230, 120)
+		puff.Size = Vector3.new(3, 3, 3)
+		puff.Position = payload.Position
+		puff.Parent = workspace
+		Kit.tween(puff, TweenInfo.new(0.35), { Size = Vector3.new(9, 9, 9), Transparency = 1 })
+		task.delay(0.4, function()
+			puff:Destroy()
+		end)
+	end
+end
+
 function handlers.Bubbled(payload)
 	Sounds.Play("Splash")
 	HUD.ShowStatus("BUBBLED!", ("by %s"):format(tostring(payload.By)), Theme.Color.Info, payload.Duration or 2)

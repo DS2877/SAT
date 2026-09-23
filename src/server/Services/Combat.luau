@@ -15,6 +15,7 @@ local Movement = require(script.Parent.Movement)
 local PlayerData = require(script.Parent.PlayerData)
 local TreasureService = require(script.Parent.TreasureService)
 local Analytics = require(script.Parent.Analytics)
+local Decoys = require(script.Parent.Decoys)
 
 local Combat = {}
 
@@ -186,6 +187,9 @@ local function onAttack(attacker: Player)
 		end
 	end
 
+	if Decoys.PopNear(root.Position + look * 3, cfg.AttackRange, attacker) then
+		return
+	end
 	if Combat.TryHitGuardian then
 		Combat.TryHitGuardian(attacker, root)
 	end

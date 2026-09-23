@@ -66,10 +66,35 @@ Gadgets.List = {
 		Implemented = true,
 		Description = "Aim at a cliff, tree or roof and zip there. Great escape tool.",
 	},
-	{ Id = "disguise", Name = "Disguise", Role = "Misdirection", Icon = "🥸", Price = 12000, Cooldown = 45, Duration = 10, CanUseWhileCarrying = true, Implemented = false, Description = "Hide what you carry." },
+	{
+		Id = "disguise",
+		Name = "Disguise",
+		Role = "Misdirection",
+		Icon = "🥸",
+		Price = 12000,
+		Cooldown = 45,
+		Duration = 10,
+		GuardianDetectMultiplier = 0.3, -- guardians barely notice a bush
+		CanUseWhileCarrying = true,
+		Implemented = true,
+		Description = "Become a bush. Your treasure and name vanish until you get hit.",
+	},
 	{ Id = "bee_box", Name = "Bee Box", Role = "Area Disruption", Icon = "🐝", Price = 15000, Cooldown = 30, CanUseWhileCarrying = false, Implemented = false, Description = "Bees. Everywhere." },
 	{ Id = "boomerang", Name = "Boomerang", Role = "Utility", Icon = "🪃", Price = 10000, Cooldown = 10, CanUseWhileCarrying = false, Implemented = false, Description = "Bonk from range." },
-	{ Id = "decoy_duck", Name = "Decoy Duck", Role = "Misdirection", Icon = "🦆", Price = 9000, Cooldown = 30, CanUseWhileCarrying = true, Implemented = false, Description = "Quack. Look over there." },
+	{
+		Id = "decoy_duck",
+		Name = "Decoy Duck",
+		Role = "Misdirection",
+		Icon = "🦆",
+		Price = 9000,
+		Cooldown = 30,
+		Duration = 7,
+		Speed = 17,
+		GuardianLureRange = 70, -- guardians chase the duck instead of players
+		CanUseWhileCarrying = true,
+		Implemented = true,
+		Description = "A duck carrying a FAKE treasure waddles off. Guardians and players chase it.",
+	},
 }
 
 Gadgets.ById = {}
