@@ -173,11 +173,95 @@ function Effects.bubble_blaster(player: Player, def, root: BasePart): boolean
 	return true
 end
 
+function Effects.grapple_hook(player: Player, def, root: BasePart, aim: Vector3?): boolean
+	if not aim then
+		return false
+	end
+	local character = root.Parent :: Model
+	local origin = root.Position + Vector3.new(0, 1.5, 0)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	local exclude: { Instance } = {}
+	for _, p in Players:GetPlayers() do
+		if p.Character then
+			table.insert(exclude, p.Character)
+		end
+	end
+	for _, name in { "Treasures", "Guardians" } do
+		local folder = workspace:FindFirstChild(name)
+		if folder then
+			table.insert(exclude, folder)
+		end
+	end
+	params.FilterDescendantsInstances = exclude
+	params.IgnoreWater = true
+	local hit = workspace:Raycast(origin, aim * def.Range, params)
+	if not hit or (hit.Position - origin).Magnitude < def.MinDistance then
+		Net.Fire("Notify", player, { Kind = "Toast", Text = "Nothing to hook onto — aim at a cliff or tree", Tone = "Warn" })
+		return false
+	end
+	local target = hit.Position + hit.Normal * 2.5
+
+	local rootAttachment = Instance.new("Attachment")
+	rootAttachment.Name = "GrappleAttachment"
+	rootAttachment.Parent = root
+	local anchor = Instance.new("Attachment")
+	anchor.Name = "GrappleAnchor"
+	anchor.WorldPosition = hit.Position
+	anchor.Parent = workspace.Terrain
+	local rope = Instance.new("Beam")
+	rope.Attachment0 = rootAttachment
+	rope.Attachment1 = anchor
+	rope.Width0 = 0.25
+	rope.Width1 = 0.25
+	rope.FaceCamera = true
+	rope.Color = ColorSequence.new(Color3.fromRGB(150, 110, 70))
+	rope.Parent = anchor
+
+	local carrySpeed = player:GetAttribute("CarrySpeed") or 1
+	local speed = def.PullSpeed * math.max(def.CarriedSpeedFloor, carrySpeed)
+	local mass = 0
+	for _, p in character:GetDescendants() do
+		if p:IsA("BasePart") and not p.Massless then
+			mass += p:GetMass()
+		end
+	end
+	local pull = Instance.new("LinearVelocity")
+	pull.Name = "GrapplePull"
+	pull.Attachment0 = rootAttachment
+	pull.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+	pull.RelativeTo = Enum.ActuatorRelativeTo.World
+	pull.MaxForce = math.max(mass, 10) * workspace.Gravity * 8
+	pull.VectorVelocity = (target - root.Position).Unit * speed
+	pull.Parent = root
+	Net.Fire("Feedback", player, { Type = "Grapple" })
+
+	task.spawn(function()
+		local started = os.clock()
+		while pull.Parent and root.Parent and os.clock() - started < def.MaxDuration do
+			local offset = target - root.Position
+			if offset.Magnitude <= def.ArriveDistance or Combat.IsKnocked(player) or Movement.IsLocked(player) then
+				break
+			end
+			pull.VectorVelocity = offset.Unit * speed
+			task.wait(0.05)
+		end
+		pull:Destroy()
+		anchor:Destroy()
+		rootAttachment:Destroy()
+		if root.Parent then
+			-- Small hop at the end so the player lands on ledges instead of sliding off.
+			root.AssemblyLinearVelocity = Vector3.new(0, 22, 0)
+		end
+	end)
+	return true
+end
+
 local function sendCooldowns(player: Player)
 	Net.Fire("GadgetState", player, { Cooldowns = cooldowns[player] or {} })
 end
 
-local function onUse(player: Player, slot: any)
+local function onUse(player: Player, slot: any, aim: any)
 	if type(slot) ~= "number" or slot ~= math.floor(slot) or slot < 1 or slot > GameConfig.Gadgets.Slots then
 		return
 	end
@@ -210,7 +294,14 @@ local function onUse(player: Player, slot: any)
 		})
 		return
 	end
-	if effect(player, def, root) then
+	local aimDirection: Vector3? = nil
+	if typeof(aim) == "Vector3" and aim.Magnitude > 0.5 and aim.Magnitude < 1.5 then
+		aimDirection = aim.Unit
+	end
+	if def.NeedsAim and not aimDirection then
+		return
+	end
+	if effect(player, def, root, aimDirection) then
 		playerCooldowns[id] = now + def.Cooldown
 		sendCooldowns(player)
 		Net.FireAll("Feedback", { Type = "GadgetUsed", UserId = player.UserId, GadgetId = id })

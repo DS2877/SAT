@@ -489,6 +489,61 @@ local function buildVaultPlots(district: Folder)
 	return plots
 end
 
+local function buildLeaderboards(district: Folder)
+	local boardsFolder = folder("Leaderboards", district)
+	local d = WorldLayout.District
+	local layout = WorldLayout.Leaderboards
+	local defs = GameConfig.Leaderboards.Boards
+	local boards = {}
+	for i, def in defs do
+		local t = if #defs == 1 then 0.5 else (i - 1) / (#defs - 1)
+		local angle = math.rad(-layout.SpreadDegrees / 2 + t * layout.SpreadDegrees)
+		local pos = d.Center + Vector3.new(math.sin(angle) * layout.Radius, 10.5, -math.cos(angle) * layout.Radius)
+		local facing = CFrame.lookAt(pos, Vector3.new(WorldLayout.Spawn.X, pos.Y, WorldLayout.Spawn.Z))
+		local board = part({
+			Name = def.Id,
+			Size = Vector3.new(12, 15, 0.8),
+			CFrame = facing,
+			Color = Color3.fromRGB(28, 32, 52),
+			Material = Enum.Material.SmoothPlastic,
+			Parent = boardsFolder,
+		})
+		part({ Name = "Frame", Size = Vector3.new(12.8, 15.8, 0.6), CFrame = facing * CFrame.new(0, 0, 0.3), Color = C.Gold, Material = Enum.Material.Metal, Parent = boardsFolder })
+		for _, x in { -5, 5 } do
+			part({ Name = "Leg", Size = Vector3.new(0.8, 4, 0.8), CFrame = facing * CFrame.new(x, -9, 0), Color = C.DarkWood, Parent = boardsFolder })
+		end
+		local surface = Instance.new("SurfaceGui")
+		surface.Name = "Board"
+		surface.Face = Enum.NormalId.Front
+		surface.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		surface.PixelsPerStud = 30
+		surface.LightInfluence = 0
+		surface.MaxDistance = 140
+		surface.Parent = board
+		local title = Instance.new("TextLabel")
+		title.Name = "Title"
+		title.BackgroundTransparency = 1
+		title.Size = UDim2.new(1, 0, 0, 56)
+		title.Font = Enum.Font.FredokaOne
+		title.TextScaled = true
+		title.TextColor3 = C.Gold
+		title.Text = def.Icon .. " " .. def.Title
+		title.Parent = surface
+		local rows = Instance.new("Frame")
+		rows.Name = "Rows"
+		rows.BackgroundTransparency = 1
+		rows.Position = UDim2.fromOffset(14, 64)
+		rows.Size = UDim2.new(1, -28, 1, -74)
+		rows.Parent = surface
+		local list = Instance.new("UIListLayout")
+		list.SortOrder = Enum.SortOrder.LayoutOrder
+		list.Padding = UDim.new(0, 4)
+		list.Parent = rows
+		boards[def.Id] = rows
+	end
+	return boards
+end
+
 -- WILDS -------------------------------------------------------------------------
 
 local function tooClose(x: number, z: number, avoid): boolean
@@ -843,6 +898,7 @@ function WorldBuilder.Build()
 	local shopPrompt = buildShop(district)
 	local altarPrompt = buildAscensionAltar(district)
 	local plots = buildVaultPlots(district)
+	local leaderboards = buildLeaderboards(district)
 	buildWaterfall()
 	buildTemple()
 	buildShipwreck()
@@ -877,6 +933,7 @@ function WorldBuilder.Build()
 		ShopPrompt = shopPrompt,
 		AltarPrompt = altarPrompt,
 		VaultPlots = plots,
+		Leaderboards = leaderboards,
 	}
 end
 

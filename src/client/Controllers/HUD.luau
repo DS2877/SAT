@@ -248,6 +248,23 @@ local function buildStatus()
 	})
 end
 
+-- Small centre reticle, only while an aimed gadget (Grapple Hook) is equipped.
+local function buildReticle()
+	refs.Reticle = Kit.label({
+		Name = "Reticle",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(24, 24),
+		Text = "◎",
+		TextSize = 22,
+		TextColor3 = Color3.new(1, 1, 1),
+		TextTransparency = 0.25,
+		TextStrokeTransparency = 0.5,
+		Visible = false,
+		Parent = gui,
+	})
+end
+
 local function buildExtractionBar()
 	local frame = Kit.panel({
 		Name = "Extraction",
@@ -544,6 +561,14 @@ local function refreshSlots()
 			ui.Button.BackgroundColor3 = Theme.Color.Panel
 		end
 	end
+	local aimed = false
+	for slot = 1, GameConfig.Gadgets.Slots do
+		local def = Gadgets.Get(data.EquippedGadgets[slot] or "")
+		if def and def.NeedsAim then
+			aimed = true
+		end
+	end
+	refs.Reticle.Visible = aimed
 	refs.AttackLabel.Text = if carrying and not GameConfig.Combat.CarrierCanAttack then "RUN!" else "BONK"
 	refs.Attack.BackgroundColor3 = if carrying and not GameConfig.Combat.CarrierCanAttack then Theme.Color.Disabled else Theme.Color.Danger
 end
@@ -689,7 +714,8 @@ function HUD.UseGadget(slot: number)
 		Sounds.Play("Error")
 		return
 	end
-	Net.Get("UseGadget"):FireServer(slot)
+	-- Aim = camera centre (works the same on touch, mouse and gamepad).
+	Net.Get("UseGadget"):FireServer(slot, workspace.CurrentCamera.CFrame.LookVector)
 end
 
 local function onExtractionState(payload)
@@ -723,6 +749,7 @@ function HUD.Init(screenGui: ScreenGui)
 	buildObjective()
 	buildStatus()
 	buildExtractionBar()
+	buildReticle()
 	buildActions()
 
 	ClientState.DataChanged:Connect(function(data, previous)

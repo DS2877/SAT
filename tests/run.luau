@@ -225,6 +225,24 @@ test("gadget config", function()
 	check(not Gadgets.Get("bubble_blaster").CanUseWhileCarrying, "bubble blaster is chaser-only")
 end)
 
+test("grapple hook config", function()
+	local grapple = Gadgets.Get("grapple_hook")
+	check(grapple.Implemented, "grapple implemented")
+	check(grapple.CanUseWhileCarrying, "grapple is an escape tool")
+	check(grapple.NeedsAim, "grapple needs aim direction")
+	check(grapple.Range > grapple.MinDistance, "range > min distance")
+	check(grapple.CarriedSpeedFloor > 0 and grapple.CarriedSpeedFloor <= 1, "carried speed floor sane")
+end)
+
+test("leaderboard config + unique treasure values", function()
+	check(#GameConfig.Leaderboards.Boards == 5, "five boards (spec)")
+	local values = {}
+	for _, def in Treasures.List do
+		check(not values[def.Value], "unique value (Rarest board maps value -> treasure) " .. def.Id)
+		values[def.Value] = true
+	end
+end)
+
 test("ascension multipliers", function()
 	check(GameConfig.GetAscensionMultiplier(0) == 1, "x1.00")
 	check(GameConfig.GetAscensionMultiplier(4) == 2, "x2.00")

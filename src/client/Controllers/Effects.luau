@@ -203,6 +203,14 @@ function handlers.Balloon()
 	end
 end
 
+function handlers.Grapple()
+	Sounds.Play("Gadget")
+	local humanoid = myHumanoid()
+	if humanoid then
+		humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+	end
+end
+
 function handlers.Bubbled(payload)
 	Sounds.Play("Splash")
 	HUD.ShowStatus("BUBBLED!", ("by %s"):format(tostring(payload.By)), Theme.Color.Info, payload.Duration or 2)

@@ -24,6 +24,8 @@ WorldLayout.TrainingStations = {
 }
 
 WorldLayout.Shop = Vector3.new(70, 10, 215)
+-- Leaderboards: arc behind the fountain, facing the spawn
+WorldLayout.Leaderboards = { Radius = 40, SpreadDegrees = 100 }
 WorldLayout.AscensionAltar = Vector3.new(58, 10, 160)
 
 WorldLayout.ExtractionZones = {

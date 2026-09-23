@@ -168,6 +168,21 @@ GameConfig.Ascension = {
 	Titles = { "Ascended", "Twice Ascended", "Treasure Titan", "Island Legend" },
 }
 
+GameConfig.Leaderboards = {
+	StorePrefix = "SAT_LB_v1_",
+	Rows = 10,
+	RefreshInterval = 75, -- seconds between global fetches / board redraws
+	WriteInterval = 120, -- seconds between a player's score uploads
+	-- Id -> how the score is computed from player data (see LeaderboardService.Score)
+	Boards = {
+		{ Id = "Richest", Title = "RICHEST", Icon = "💰", Format = "Cash" },
+		{ Id = "Strongest", Title = "STRONGEST", Icon = "💪", Format = "Number" },
+		{ Id = "Rarest", Title = "RAREST TREASURE", Icon = "♛", Format = "Treasure" },
+		{ Id = "Extractions", Title = "MOST EXTRACTIONS", Icon = "📦", Format = "Number" },
+		{ Id = "Ascended", Title = "MOST ASCENDED", Icon = "✦", Format = "Number" },
+	},
+}
+
 GameConfig.Gadgets = {
 	Slots = 3,
 }

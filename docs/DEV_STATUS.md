@@ -36,6 +36,12 @@ M0–M7 implemented in code; awaiting first Roblox runtime playtest (M8 multipla
 - Training set closes as soon as the player walks away (client + server check).
 - Successful extraction teleports the player to their Vault holding the treasure overhead.
 
+## ADDED AFTER PLAYTEST 1
+- Leaderboards (Richest, Strongest, Rarest Treasure, Most Extractions, Most Ascended): 5 physical
+  boards behind the District fountain; global via OrderedDataStore + live in-server merge.
+- Grapple Hook (gadget #4): aim with camera centre (reticle shown when equipped), server raycast,
+  pull slowed by carried weight, usable while carrying.
+
 ## KNOWN BUGS / RISKS
 - Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp slopes.
 - No server-side speed-hack detection yet (movement is client-authoritative in Roblox).
@@ -44,7 +50,7 @@ M0–M7 implemented in code; awaiting first Roblox runtime playtest (M8 multipla
 ## NEXT PRIORITY
 1. Playtest the vertical slice in Studio / test place; fix runtime issues.
 2. Tune first-10-minutes pacing (training gains, first treasure distance, prices).
-3. Remaining gadgets, leaderboards, events (Phase 7) only after the loop is fun.
+3. Remaining gadgets (Decoy Duck, Disguise, Boomerang, Bee Box), then first event (Treasure Rain).
 
 ## OPEN DESIGN QUESTIONS
 - Training style (timing bar) kept for now; revisit after more playtests.
