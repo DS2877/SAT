@@ -100,7 +100,7 @@ GameConfig.SafeZone = {
 	Radius = 150, -- matches the District wall
 }
 
--- Treadmill training (AFK-friendly). Stand on a treadmill to gain Strength over time; tap SPRINT
+-- Bench-press training (AFK-friendly). Lie on a bench to gain Strength over time; tap PUSH
 -- for a short boost. Higher tiers are unlocked with Cash + a Strength requirement.
 GameConfig.Training = {
 	TickRate = 1, -- seconds between server strength ticks
@@ -108,14 +108,15 @@ GameConfig.Training = {
 	SprintDuration = 1.5, -- seconds of boost per tap
 	MaxTapsPerSecond = 4,
 	LeaveDistance = 6, -- studs from the belt centre before the session ends
-	-- Placeholder for a "2x Strength" game pass (0 = disabled). Multiplies all treadmill gains.
+	PressPeriod = 1.6, -- seconds per rep (visual), halved while boosting
+	-- Placeholder for a "2x Strength" game pass (0 = disabled). Multiplies all bench gains.
 	StrengthPassId = 0,
 	StrengthPassMultiplier = 2,
-	Treadmills = {
-		{ Id = "wooden", Name = "Wooden Treadmill", Price = 0, RequiredStrength = 0, Rate = 0.02, Color = { 170, 120, 70 }, Count = 4 },
-		{ Id = "iron", Name = "Iron Treadmill", Price = 5000, RequiredStrength = 20, Rate = 0.05, Color = { 150, 155, 170 }, Count = 4 },
-		{ Id = "golden", Name = "Golden Treadmill", Price = 75000, RequiredStrength = 45, Rate = 0.12, Color = { 255, 196, 50 }, Count = 4 },
-		{ Id = "diamond", Name = "Diamond Treadmill", Price = 500000, RequiredStrength = 80, Rate = 0.3, Color = { 120, 220, 255 }, Count = 4 },
+	Benches = {
+		{ Id = "wooden", Name = "Wooden Bench", Price = 0, RequiredStrength = 0, Rate = 0.02, Color = { 170, 120, 70 }, Count = 4 },
+		{ Id = "iron", Name = "Iron Bench", Price = 5000, RequiredStrength = 20, Rate = 0.05, Color = { 150, 155, 170 }, Count = 4 },
+		{ Id = "golden", Name = "Golden Bench", Price = 75000, RequiredStrength = 45, Rate = 0.12, Color = { 255, 196, 50 }, Count = 4 },
+		{ Id = "diamond", Name = "Diamond Bench", Price = 500000, RequiredStrength = 80, Rate = 0.3, Color = { 120, 220, 255 }, Count = 4 },
 	},
 }
 

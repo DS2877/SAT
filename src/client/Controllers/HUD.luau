@@ -525,7 +525,7 @@ local function refreshObjective()
 	end
 
 	if not ClientState.Milestone("FirstTraining") then
-		setObjective("STEP 1 • GET STRONGER", "RUN ON A TREADMILL", Theme.Color.Strength, "Stronger = carry heavy treasure faster", nil)
+		setObjective("STEP 1 • GET STRONGER", "LIFT AT THE BENCH PRESS", Theme.Color.Strength, "Stronger = carry heavy treasure faster", nil)
 		navTarget = { Name = "STRENGTH GYM", Position = WorldLayout.Gym.Origin }
 		return
 	end

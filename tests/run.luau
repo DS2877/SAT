@@ -132,9 +132,9 @@ test("every spawn area referenced by treasures can spawn something", function()
 end)
 
 -- TRAINING ------------------------------------------------------------------------
-test("treadmill tiers are ordered and slow enough to matter", function()
-	local tiers = GameConfig.Training.Treadmills
-	check(#tiers >= 3, "at least three treadmill tiers")
+test("bench tiers are ordered and slow enough to matter", function()
+	local tiers = GameConfig.Training.Benches
+	check(#tiers >= 3, "at least three bench tiers")
 	local afkSeconds = 0
 	local strength = GameConfig.Strength.Start
 	for i, tier in tiers do
@@ -215,6 +215,25 @@ test("30 treasures with unique ids and spec economy ranges", function()
 			check(false, "unknown rarity " .. def.Rarity)
 		end
 	end
+end)
+
+test("first gadget is cheap, the rest stay expensive", function()
+	local cheapest, second = math.huge, math.huge
+	for _, def in Gadgets.List do
+		if def.Price < cheapest then
+			cheapest, second = def.Price, cheapest
+		elseif def.Price < second then
+			second = def.Price
+		end
+	end
+	check(cheapest <= 1000, "first gadget within reach of a couple of early extractions")
+	check(second >= 10000, "later gadgets stay a real goal")
+end)
+
+test("save v3 keeps unlocked treadmills as benches", function()
+	local data = DataSchema.Migrate({ Version = 2, Strength = 30, OwnedTreadmills = { iron = true } })
+	check(data.OwnedBenches.iron == true, "iron bench unlocked")
+	check(data.OwnedTreadmills == nil, "old field removed")
 end)
 
 test("gadget config", function()

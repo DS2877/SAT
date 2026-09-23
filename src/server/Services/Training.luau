@@ -1,6 +1,7 @@
--- Treadmill training: AFK-friendly Strength gain. A player steps onto a treadmill (prompt), gets
--- locked in place running, and earns Strength every tick. Tapping SPRINT briefly multiplies the
--- rate. Higher tiers are unlocked with Cash + a Strength requirement. All gains are server-side.
+-- Bench-press training: AFK-friendly Strength gain. A player lies down on a bench (prompt), is
+-- held in place, and earns Strength every tick. Tapping PUSH briefly multiplies the rate.
+-- Higher tiers are unlocked with Cash + a Strength requirement. All gains are server-side.
+-- Every client animates bench users from the "Bench"/"BenchBoost" player attributes.
 
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
@@ -20,14 +21,16 @@ local Training = {}
 
 local cfg = GameConfig.Training
 
-type Machine = { Tier: any, BeltCFrame: CFrame, Prompt: ProximityPrompt, Occupant: Player? }
+-- LieCFrame: root pose lying on the bench (looking at the sky, head toward the rack).
+-- StandCFrame: where the player is put back on their feet afterwards.
+type Machine = { Tier: any, LieCFrame: CFrame, StandCFrame: CFrame, Prompt: ProximityPrompt, Occupant: Player? }
 type Session = { Machine: Machine, Pending: number, SprintUntil: number, Gained: number }
 
 local sessions: { [Player]: Session } = {}
 local passMultiplier: { [Player]: number } = {}
 
 local function tierIndex(id: string): number
-	for i, tier in cfg.Treadmills do
+	for i, tier in cfg.Benches do
 		if tier.Id == id then
 			return i
 		end
@@ -57,8 +60,16 @@ local function stop(player: Player, reason: string)
 	if session.Machine.Occupant == player then
 		session.Machine.Occupant = nil
 	end
-	Movement.SetLock(player, "Treadmill", false)
-	player:SetAttribute("Treadmill", "")
+	Movement.SetLock(player, "Bench", false)
+	player:SetAttribute("Bench", "")
+	player:SetAttribute("BenchBoost", false)
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if root then
+		root.Anchored = false
+		if reason ~= "Respawned" then
+			(root.Parent :: Model):PivotTo(session.Machine.StandCFrame)
+		end
+	end
 	Net.Fire("TrainingState", player, { Active = false, Reason = reason, Gained = session.Gained })
 end
 
@@ -67,7 +78,7 @@ local function rateFor(player: Player, tier): number
 end
 
 local function owns(data, tier): boolean
-	return tier.Price <= 0 or data.OwnedTreadmills[tier.Id] == true
+	return tier.Price <= 0 or data.OwnedBenches[tier.Id] == true
 end
 
 local function start(player: Player, machine: Machine)
@@ -81,7 +92,7 @@ local function start(player: Player, machine: Machine)
 		return
 	end
 	if machine.Occupant and machine.Occupant ~= player and sessions[machine.Occupant] then
-		Net.Fire("Notify", player, { Kind = "Toast", Text = "Someone is already running here", Tone = "Info" })
+		Net.Fire("Notify", player, { Kind = "Toast", Text = "Someone is already lifting here", Tone = "Info" })
 		return
 	end
 	local tier = machine.Tier
@@ -103,10 +114,10 @@ local function start(player: Player, machine: Machine)
 			return
 		end
 		PlayerData.Update(player, function(d)
-			d.OwnedTreadmills[tier.Id] = true
+			d.OwnedBenches[tier.Id] = true
 		end)
 		Net.Fire("Notify", player, { Kind = "Banner", Title = "UNLOCKED", Text = tier.Name:upper(), Tone = "Reward" })
-		Analytics.Economy(player, "Sink", tier.Price, data.Cash, "Shop", "treadmill_" .. tier.Id)
+		Analytics.Economy(player, "Sink", tier.Price, data.Cash, "Shop", "bench_" .. tier.Id)
 	end
 
 	stop(player, "Switched")
@@ -114,16 +125,17 @@ local function start(player: Player, machine: Machine)
 	sessions[player] = { Machine = machine, Pending = 0, SprintUntil = 0, Gained = 0 }
 	local character = root.Parent :: Model
 	root.AssemblyLinearVelocity = Vector3.zero
-	character:PivotTo(machine.BeltCFrame * CFrame.new(0, 3.2, 0))
-	Movement.SetLock(player, "Treadmill", true)
-	player:SetAttribute("Treadmill", tier.Id)
+	character:PivotTo(machine.LieCFrame)
+	root.Anchored = true
+	Movement.SetLock(player, "Bench", true)
+	player:SetAttribute("Bench", tier.Id)
 	Net.Fire("TrainingState", player, {
 		Active = true,
 		TierId = tier.Id,
 		Name = tier.Name,
 		Rate = rateFor(player, tier),
 		SprintMultiplier = cfg.SprintMultiplier,
-		Position = machine.BeltCFrame.Position,
+		Position = machine.LieCFrame.Position,
 		LeaveDistance = cfg.LeaveDistance,
 	})
 	if PlayerData.Milestone(player, "FirstTraining") then
@@ -136,7 +148,7 @@ local function tick(dt: number)
 	for player, session in sessions do
 		local root = Combat.RootOf(player)
 		local data = PlayerData.Get(player)
-		local belt = session.Machine.BeltCFrame.Position
+		local belt = session.Machine.LieCFrame.Position
 		local offBelt = not root
 			or (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(belt.X, 0, belt.Z)).Magnitude
 				> cfg.LeaveDistance
@@ -159,7 +171,14 @@ end
 local function onSprint(player: Player)
 	local session = sessions[player]
 	if session then
-		session.SprintUntil = os.clock() + cfg.SprintDuration
+		local untilTime = os.clock() + cfg.SprintDuration
+		session.SprintUntil = untilTime
+		player:SetAttribute("BenchBoost", true)
+		task.delay(cfg.SprintDuration, function()
+			if sessions[player] == session and session.SprintUntil == untilTime then
+				player:SetAttribute("BenchBoost", false)
+			end
+		end)
 	end
 end
 

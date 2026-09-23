@@ -13,6 +13,7 @@ local HUD = require(Controllers.HUD)
 local Notifications = require(Controllers.Notifications)
 local Effects = require(Controllers.Effects)
 local TrainingUI = require(Controllers.TrainingUI)
+local BenchAnimator = require(Controllers.BenchAnimator)
 local MenuController = require(script.Parent.Menus.MenuController)
 
 local player = Players.LocalPlayer
@@ -44,6 +45,7 @@ HUD.Init(gui)
 Notifications.Init(gui, HUD.TopStack)
 Effects.Init()
 TrainingUI.Init(gui)
+BenchAnimator.Init()
 MenuController.Init(gui)
 HUD.OpenMenu = MenuController.Open
 

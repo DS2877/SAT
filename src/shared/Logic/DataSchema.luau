@@ -3,7 +3,7 @@
 
 local DataSchema = {}
 
-DataSchema.Version = 2
+DataSchema.Version = 3
 
 function DataSchema.Default()
 	return {
@@ -17,7 +17,7 @@ function DataSchema.Default()
 			Displays = {}, -- ["slotIndex"] = treasureId (string keys: DataStore-safe sparse map)
 		},
 		OwnedGadgets = {}, -- [gadgetId] = true
-		OwnedTreadmills = {}, -- [treadmillId] = true (free tiers need no entry)
+		OwnedBenches = {}, -- [benchTierId] = true (free tiers need no entry)
 		EquippedGadgets = { "", "", "" },
 		OwnedCosmetics = {},
 		Titles = {},
@@ -61,9 +61,16 @@ end
 
 -- Ordered migrations: Migrations[n] upgrades a version n-1 save to version n.
 DataSchema.Migrations = {
-	-- v2: treadmill training. Starting Strength rose from 1 to 10.
+	-- v2: AFK training. Starting Strength rose from 1 to 10.
 	[2] = function(data)
 		data.Strength = math.max(tonumber(data.Strength) or 10, 10)
+	end,
+	-- v3: treadmills became bench presses (same tier ids); keep anything already unlocked.
+	[3] = function(data)
+		if type(data.OwnedTreadmills) == "table" then
+			data.OwnedBenches = data.OwnedTreadmills
+			data.OwnedTreadmills = nil
+		end
 	end,
 }
 

@@ -471,13 +471,14 @@ local function buildDistrict()
 	return district
 end
 
--- Strength Gym: rows of treadmills, one row per tier. Belts run toward +X (the plaza).
+-- Strength Gym: rows of bench presses, one row per tier. Players lie with their head toward
+-- the rack (-X) and their feet toward the plaza (+X).
 local function buildGym(district: Folder)
 	local gym = folder("StrengthGym", district)
 	local layout = WorldLayout.Gym
 	local machines = {}
 	local floorY = WorldLayout.District.Center.Y + 1
-	local tiers = GameConfig.Training.Treadmills
+	local tiers = GameConfig.Training.Benches
 	local firstX = layout.Origin.X
 	local lastX = layout.Origin.X + (#tiers - 1) * layout.RowSpacing
 	local lanes = 0
@@ -486,7 +487,6 @@ local function buildGym(district: Folder)
 	end
 	local zMin = layout.Origin.Z - 5
 	local zMax = layout.Origin.Z + (lanes - 1) * layout.LaneSpacing + 5
-	-- Rubber gym floor under all rows
 	part({
 		Name = "GymFloor",
 		Size = Vector3.new(math.abs(lastX - firstX) + 16, 0.3, zMax - zMin),
@@ -495,31 +495,46 @@ local function buildGym(district: Folder)
 		Material = Enum.Material.Rubber,
 		Parent = gym,
 	})
+	local steel = Color3.fromRGB(70, 72, 80)
 	for row, tier in tiers do
 		local color = Color3.fromRGB(tier.Color[1], tier.Color[2], tier.Color[3])
 		local x = layout.Origin.X + (row - 1) * layout.RowSpacing
 		for lane = 1, tier.Count do
 			local z = layout.Origin.Z + (lane - 1) * layout.LaneSpacing
-			local beltCf = CFrame.lookAt(Vector3.new(x, floorY + 0.9, z), Vector3.new(x + 1, floorY + 0.9, z))
-			-- Frame + belt
-			part({ Name = "Frame", Size = Vector3.new(4.6, 1, 8.6), CFrame = beltCf * CFrame.new(0, -0.3, 0), Color = Color3.fromRGB(40, 42, 50), Material = Enum.Material.Metal, Parent = gym })
-			local belt = part({ Name = "Belt", Size = Vector3.new(3.6, 0.3, 8), CFrame = beltCf * CFrame.new(0, 0.35, 0), Color = Color3.fromRGB(25, 25, 30), Material = Enum.Material.Rubber, Parent = gym })
-			for _, side in { -2.2, 2.2 } do
-				part({ Name = "Trim", Size = Vector3.new(0.3, 0.4, 8.4), CFrame = beltCf * CFrame.new(side, 0.35, 0), Color = color, Material = Enum.Material.Neon, CanCollide = false, Parent = gym })
-				part({ Name = "Upright", Size = Vector3.new(0.35, 4, 0.35), CFrame = beltCf * CFrame.new(side, 2.3, -3.6) * CFrame.Angles(math.rad(-12), 0, 0), Color = Color3.fromRGB(70, 72, 80), Material = Enum.Material.Metal, Parent = gym })
+			local padTop = floorY + 2.2
+			-- Bench: legs, frame, padded top with tier-coloured trim
+			for _, lx in { -2.4, 2.4 } do
+				part({ Name = "Leg", Size = Vector3.new(0.5, 1.8, 2), CFrame = CFrame.new(x + lx, floorY + 1, z), Color = steel, Material = Enum.Material.Metal, Parent = gym })
 			end
-			part({ Name = "Handlebar", Size = Vector3.new(4.8, 0.35, 0.35), CFrame = beltCf * CFrame.new(0, 4.1, -4), Color = Color3.fromRGB(70, 72, 80), Material = Enum.Material.Metal, Parent = gym })
-			local console = part({ Name = "Console", Size = Vector3.new(2.6, 1.6, 0.4), CFrame = beltCf * CFrame.new(0, 4.6, -4.2) * CFrame.Angles(math.rad(-20), 0, 0), Color = color, Material = Enum.Material.Neon, Parent = gym })
-			local runPrompt = prompt(belt, if tier.Price > 0 then "Run / Unlock" else "Run", tier.Name, if tier.Price > 0 then 0.8 else 0)
-			runPrompt.MaxActivationDistance = 9
-			table.insert(machines, { Tier = tier, BeltCFrame = beltCf * CFrame.new(0, 0.5, 0), Prompt = runPrompt, Occupant = nil, Console = console })
+			part({ Name = "Frame", Size = Vector3.new(6.2, 0.4, 1.6), CFrame = CFrame.new(x, padTop - 0.6, z), Color = steel, Material = Enum.Material.Metal, Parent = gym })
+			local pad = part({ Name = "Pad", Size = Vector3.new(6, 0.6, 2.2), CFrame = CFrame.new(x, padTop - 0.3, z), Color = Color3.fromRGB(35, 35, 45), Material = Enum.Material.Fabric, Parent = gym })
+			part({ Name = "PadTrim", Size = Vector3.new(6.1, 0.15, 2.3), CFrame = CFrame.new(x, padTop - 0.62, z), Color = color, Material = Enum.Material.Neon, CanCollide = false, Parent = gym })
+			-- Rack at the head end with a resting barbell
+			local rackX = x - 3.2
+			for _, rz in { -2.6, 2.6 } do
+				part({ Name = "RackPost", Size = Vector3.new(0.5, 5, 0.5), CFrame = CFrame.new(rackX, floorY + 2.5, z + rz), Color = steel, Material = Enum.Material.Metal, Parent = gym })
+				part({ Name = "Hook", Size = Vector3.new(0.9, 0.3, 0.5), CFrame = CFrame.new(rackX + 0.35, floorY + 4.4, z + rz), Color = steel, Material = Enum.Material.Metal, Parent = gym })
+			end
+			part({ Name = "RackBar", Shape = Enum.PartType.Cylinder, Size = Vector3.new(7.4, 0.35, 0.35), CFrame = CFrame.new(rackX + 0.35, floorY + 4.8, z) * CFrame.Angles(0, math.rad(90), 0), Color = Color3.fromRGB(200, 200, 210), Material = Enum.Material.Metal, CanCollide = false, Parent = gym })
+			for _, pz in { -3.1, 3.1 } do
+				part({ Name = "Plate", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 2.2, 2.2), CFrame = CFrame.new(rackX + 0.35, floorY + 4.8, z + pz) * CFrame.Angles(0, math.rad(90), 0), Color = color, Material = Enum.Material.Metal, CanCollide = false, Parent = gym })
+			end
+			local liftPrompt = prompt(pad, if tier.Price > 0 then "Lift / Unlock" else "Lift", tier.Name, if tier.Price > 0 then 0.8 else 0)
+			liftPrompt.MaxActivationDistance = 9
+			local liePos = Vector3.new(x + 0.3, padTop + 1.05, z)
+			table.insert(machines, {
+				Tier = tier,
+				LieCFrame = CFrame.lookAt(liePos, liePos + Vector3.yAxis, -Vector3.xAxis),
+				StandCFrame = CFrame.lookAt(Vector3.new(x + 5.5, floorY + 3, z), Vector3.new(x + 10, floorY + 3, z)),
+				Prompt = liftPrompt,
+				Occupant = nil,
+			})
 		end
-		-- Row sign: tier name, rate and unlock requirement
 		local signPost = part({
 			Name = "RowSign",
 			Size = Vector3.new(0.6, 5, 0.6),
 			CFrame = CFrame.new(x, floorY + 2.5, zMin - 1),
-			Color = Color3.fromRGB(70, 72, 80),
+			Color = steel,
 			Material = Enum.Material.Metal,
 			Parent = gym,
 		})
@@ -536,7 +551,7 @@ local function buildGym(district: Folder)
 		CanQuery = false,
 		Parent = gym,
 	})
-	billboardSign(header, "💪 STRENGTH GYM", "Stand on a treadmill • Tap SPRINT to boost", C.Gold, 200, 0, 26)
+	billboardSign(header, "🏋 STRENGTH GYM", "Lie on a bench • Tap PUSH to boost", C.Gold, 200, 0, 26)
 	return machines
 end
 
@@ -1304,7 +1319,7 @@ function WorldBuilder.Build()
 	return {
 		TreasureSpawns = spawns,
 		GuardianSpawns = guardians,
-		Treadmills = machines,
+		Benches = machines,
 		ShopPrompt = shopPrompt,
 		AltarPrompt = altarPrompt,
 		VaultPlots = plots,

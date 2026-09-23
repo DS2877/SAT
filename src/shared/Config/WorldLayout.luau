@@ -20,9 +20,9 @@ WorldLayout.District = {
 
 WorldLayout.Spawn = Vector3.new(0, 13.5, 290) -- on top of the spawn pavilion
 
--- Strength Gym: one row of treadmills per tier (GameConfig.Training.Treadmills), belts run toward +X.
+-- Strength Gym: one row of bench presses per tier (GameConfig.Training.Benches).
 WorldLayout.Gym = {
-	Origin = Vector3.new(-62, 10, 196), -- first treadmill of the first (cheapest, plaza-side) row
+	Origin = Vector3.new(-62, 10, 196), -- first bench of the first (cheapest, plaza-side) row
 	RowSpacing = -14, -- each higher tier sits one row further from the plaza (-X)
 	LaneSpacing = 7, -- along +Z within a row
 }

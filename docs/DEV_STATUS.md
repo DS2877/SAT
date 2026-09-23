@@ -67,9 +67,10 @@ M0–M7 implemented in code; awaiting first Roblox runtime playtest (M8 multipla
   pedestals + locked-floor outlines show room to grow, lift pads between floors, new gallery design.
 - Treasures ~1.5x bigger with glowing rarity ground rings and light beams (Rare+).
 - Grass-free terrain under the District/camp/courtyard/beach (grass no longer pokes through floors).
-- AFK treadmill gym (4 tiers) replaces the timing-bar training; much slower Strength; 2x pass hook.
+- AFK bench-press gym (4 tiers) replaces the timing-bar training; much slower Strength; 2x pass hook.
+  Every client animates bench users locally (arms + barbell) from the "Bench" attribute.
 - Objective card is now a slim collapsible tracker under the stats.
-- Gadget prices raised ~7-10x ($3K–$120K).
+- Gadget prices raised ~7-10x ($12K–$120K); Speed Soda stays cheap ($600) as the first gadget.
 
 ## KNOWN BUGS / RISKS
 - Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp slopes.

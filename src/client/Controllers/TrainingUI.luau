@@ -1,5 +1,6 @@
--- Treadmill panel. While running: running animation, live Strength counter, SPRINT button
--- (tap / Space / A / click) and STOP. Pushing the joystick or movement keys also steps off.
+-- Bench-press panel: live Strength counter, PUSH button (tap / Space / A) and STOP. Pushing
+-- the joystick or movement keys also gets up. The lifting animation itself lives in
+-- BenchAnimator (it animates every player on a bench, not just us).
 -- The counter is a local estimate between server commits; the Strength pill is authoritative.
 
 local ContextActionService = game:GetService("ContextActionService")
@@ -27,41 +28,11 @@ local gainedLabel: TextLabel
 local sprintButton: TextButton
 local session = nil
 local heartbeat: RBXScriptConnection? = nil
-local runTrack: AnimationTrack? = nil
-local ACTION = "SAT_TreadmillSprint"
-
--- Default Roblox run animations (R15 / R6).
-local RUN_ANIMATION = { R15 = "rbxassetid://913376220", R6 = "rbxassetid://180426354" }
+local ACTION = "SAT_BenchPush"
 
 local function humanoid(): Humanoid?
 	local character = player.Character
 	return character and character:FindFirstChildOfClass("Humanoid")
-end
-
-local function playRun()
-	local hum = humanoid()
-	local animator = hum and hum:FindFirstChildOfClass("Animator")
-	if not hum or not animator then
-		return
-	end
-	local animation = Instance.new("Animation")
-	animation.AnimationId = if hum.RigType == Enum.HumanoidRigType.R15 then RUN_ANIMATION.R15 else RUN_ANIMATION.R6
-	local ok, track = pcall(function()
-		return (animator :: Animator):LoadAnimation(animation)
-	end)
-	if ok and track then
-		track.Looped = true
-		track.Priority = Enum.AnimationPriority.Action
-		track:Play(0.2)
-		runTrack = track
-	end
-end
-
-local function stopRun()
-	if runTrack then
-		runTrack:Stop(0.2)
-		runTrack = nil
-	end
 end
 
 local function sprint()
@@ -80,7 +51,6 @@ local function stop()
 	end
 	session = nil
 	panel.Visible = false
-	stopRun()
 	if heartbeat then
 		heartbeat:Disconnect()
 		heartbeat = nil
@@ -98,12 +68,10 @@ local function start(payload)
 		SprintUntil = 0,
 		MovingFor = 0,
 	}
-	title.Text = ("🏃 %s"):format(tostring(payload.Name):upper())
+	title.Text = ("🏋 %s"):format(tostring(payload.Name):upper())
 	rateLabel.Text = ("+%.2f 💪 per second"):format(payload.Rate)
 	gainedLabel.Text = "+0.0"
 	panel.Visible = true
-	stopRun()
-	playRun()
 	Sounds.Play("TrainPerfect", 0.6)
 
 	if heartbeat then
@@ -117,10 +85,7 @@ local function start(payload)
 		session.Gained += session.Rate * dt * (if sprinting then session.Multiplier else 1)
 		gainedLabel.Text = ("+%.1f"):format(session.Gained)
 		gainedLabel.TextColor3 = if sprinting then Theme.Color.Gold else Theme.Color.Strength
-		if runTrack then
-			runTrack:AdjustSpeed(if sprinting then 1.7 else 1)
-		end
-		-- Push the stick / movement keys to step off.
+		-- Push the stick / movement keys to get up.
 		local hum = humanoid()
 		if hum and hum.MoveDirection.Magnitude > 0.5 then
 			session.MovingFor += dt
@@ -142,7 +107,7 @@ end
 
 function TrainingUI.Init(gui: ScreenGui)
 	panel = Kit.panel({
-		Name = "Treadmill",
+		Name = "BenchPress",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -24),
 		Size = UDim2.fromOffset(360, 118),
@@ -157,7 +122,7 @@ function TrainingUI.Init(gui: ScreenGui)
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.fromScale(0, 1),
 		Size = UDim2.new(1, -66, 0, 50),
-		Text = "SPRINT! ⚡",
+		Text = "PUSH! ⚡",
 		Font = Theme.Font.Display,
 		TextSize = 26,
 		Parent = panel,
