@@ -275,8 +275,9 @@ local function buildSpawnPavilion(district: Folder)
 	local base = Vector3.new(spawnPos.X, WorldLayout.District.Center.Y + 1, spawnPos.Z)
 	cylinder(base + Vector3.new(0, 0.5, 0), 1, 34, { Name = "Step1", Color = Color3.fromRGB(225, 218, 200), Material = Enum.Material.Marble, Parent = pav })
 	cylinder(base + Vector3.new(0, 1.5, 0), 1, 28, { Name = "Step2", Color = Color3.fromRGB(240, 234, 220), Material = Enum.Material.Marble, Parent = pav })
-	cylinder(base + Vector3.new(0, 2.05, 0), 0.12, 24, { Name = "GoldInlay", Color = C.Gold, Material = Enum.Material.Metal, CanCollide = false, Parent = pav })
-	cylinder(base + Vector3.new(0, 2.08, 0), 0.12, 21, { Name = "InnerFloor", Color = Color3.fromRGB(70, 60, 110), Material = Enum.Material.Marble, CanCollide = false, Parent = pav })
+	-- Stacked discs: every top surface is at least 0.1 above the one below (no z-fighting).
+	cylinder(base + Vector3.new(0, 2.1, 0), 0.3, 24, { Name = "GoldInlay", Color = C.Gold, Material = Enum.Material.Metal, Parent = pav })
+	cylinder(base + Vector3.new(0, 2.2, 0), 0.5, 21, { Name = "InnerFloor", Color = Color3.fromRGB(70, 60, 110), Material = Enum.Material.Marble, Parent = pav })
 
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "DistrictSpawn"
@@ -301,10 +302,18 @@ local function buildSpawnPavilion(district: Folder)
 		cylinder(p + Vector3.new(0, 14.3, 0), 0.6, 2.2, { Name = "PillarCap", Color = C.Gold, Material = Enum.Material.Metal, Parent = pav })
 	end
 	cylinder(base + Vector3.new(0, 15, 0), 1.2, 27, { Name = "RoofRing", Color = C.Gold, Material = Enum.Material.Metal, Parent = pav })
-	part({ Name = "Dome", Shape = Enum.PartType.Ball, Size = Vector3.new(26, 11, 26), CFrame = CFrame.new(base + Vector3.new(0, 16.5, 0)), Color = Color3.fromRGB(60, 170, 190), Material = Enum.Material.SmoothPlastic, Parent = pav })
+	-- Tiered roof (a full sphere would hang down inside the pavilion)
+	for tier, diameter in { 24, 18, 12, 6 } do
+		cylinder(base + Vector3.new(0, 15.6 + tier * 1.4 - 0.7, 0), 1.4, diameter, {
+			Name = "RoofTier",
+			Color = if tier % 2 == 1 then Color3.fromRGB(60, 170, 190) else Color3.fromRGB(45, 140, 165),
+			Material = Enum.Material.SmoothPlastic,
+			Parent = pav,
+		})
+	end
 	local crownDef = Treasures.Get("golden_crown")
 	if crownDef then
-		local crown = TreasureVisual.Build(crownDef, CFrame.new(base + Vector3.new(0, 25.5, 0)), 3)
+		local crown = TreasureVisual.Build(crownDef, CFrame.new(base + Vector3.new(0, 24.5, 0)), 3)
 		crown.Name = "SpawnCrown"
 		crown.Parent = pav
 		local crownHandle = crown.PrimaryPart :: BasePart
@@ -438,7 +447,13 @@ local function buildDistrict()
 		Material = Enum.Material.Pavement,
 		Parent = district,
 	})
-	cylinder(center + Vector3.new(0, 0.55, 0), 1.02, 70, {
+	cylinder(center + Vector3.new(0, 0.55, 0), 1.1, 74, {
+		Name = "InnerPlazaTrim",
+		Color = C.Gold,
+		Material = Enum.Material.Metal,
+		Parent = district,
+	})
+	cylinder(center + Vector3.new(0, 0.6, 0), 1.2, 70, {
 		Name = "InnerPlaza",
 		Color = Color3.fromRGB(210, 175, 120),
 		Material = Enum.Material.Pavement,
@@ -585,22 +600,14 @@ local function buildAscensionAltar(district: Folder)
 	return prompt(obelisk, "Ascend", "Ascension Altar", 0.5)
 end
 
--- Vault plots: an open marble gallery with an arched entrance, red carpet and tall corner
--- towers that frame the upper floors a vault grows into (floors themselves are built by
--- VaultService as the owner upgrades).
+-- Vault plots: an open marble gallery with one glowing arched entrance, railings and a red
+-- carpet out onto the plaza. Upper floors (and their columns) are built by VaultService as the
+-- owner upgrades.
 local function buildVaultPlots(district: Folder)
 	local d = WorldLayout.District
 	local vcfg = GameConfig.Vault
 	local plots = {}
 	local vaults = folder("Vaults", district)
-	local maxSlots = 0
-	for _, tier in vcfg.Tiers do
-		if tier.Enabled then
-			maxSlots = math.max(maxSlots, tier.Slots)
-		end
-	end
-	local floors = math.ceil(maxSlots / vcfg.PerFloor)
-	local towerHeight = (floors - 1) * vcfg.FloorHeight + 12
 	local half = vcfg.PlotSize / 2
 	local count = GameConfig.MaxPlayers
 	for i = 1, count do
@@ -622,26 +629,46 @@ local function buildVaultPlots(district: Folder)
 			part({ Name = "Balustrade", Size = Vector3.new(1, 2.4, vcfg.PlotSize), CFrame = cf * CFrame.new(x, 1.8, 0), Color = C.Cream, Material = Enum.Material.Marble, Parent = plotFolder })
 			part({ Name = "Rail", Size = Vector3.new(1.4, 0.4, vcfg.PlotSize), CFrame = cf * CFrame.new(x, 3.2, 0), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
 		end
-		-- Corner towers: the frame the vault grows into
-		for _, x in { -half, half } do
-			for _, z in { -half, half } do
-				part({ Name = "CornerTower", Size = Vector3.new(2, towerHeight, 2), CFrame = cf * CFrame.new(x, towerHeight / 2 + 0.5, z), Color = Color3.fromRGB(235, 228, 210), Material = Enum.Material.Marble, Parent = plotFolder })
-				part({ Name = "TowerCap", Size = Vector3.new(2.8, 1, 2.8), CFrame = cf * CFrame.new(x, towerHeight + 1, z), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
-			end
+		-- Front railing: the arch is the one obvious way in.
+		for _, x in { -(half + 6) / 2 - 0.5, (half + 6) / 2 + 0.5 } do
+			part({ Name = "FrontRail", Size = Vector3.new(half - 6, 2.4, 1), CFrame = cf * CFrame.new(x, 1.8, -half), Color = C.Cream, Material = Enum.Material.Marble, Parent = plotFolder })
+			part({ Name = "FrontRailTop", Size = Vector3.new(half - 6, 0.4, 1.4), CFrame = cf * CFrame.new(x, 3.2, -half), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
 		end
-		-- Entrance arch with the owner's name plaque
-		for _, x in { -5, 5 } do
-			part({ Name = "ArchPost", Size = Vector3.new(1.6, 9, 1.6), CFrame = cf * CFrame.new(x, 5, -half), Color = C.Cream, Material = Enum.Material.Marble, Parent = plotFolder })
+		-- Glowing entrance gateway with the owner's name painted on the plaque
+		for _, x in { -6, 6 } do
+			part({ Name = "ArchPost", Size = Vector3.new(2, 11, 2), CFrame = cf * CFrame.new(x, 6, -half), Color = C.Cream, Material = Enum.Material.Marble, Parent = plotFolder })
+			part({ Name = "ArchGlow", Size = Vector3.new(0.4, 11, 0.4), CFrame = cf * CFrame.new(x + (if x < 0 then 1.2 else -1.2), 6, -half - 0.9), Color = C.Gold, Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = plotFolder })
 		end
-		local plaque = part({ Name = "ArchTop", Size = Vector3.new(12, 2.2, 1.8), CFrame = cf * CFrame.new(0, 10.4, -half), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
-		local sign = billboardSign(plaque, "EMPTY VAULT", nil, C.Gold, 140, 2.2, 16)
+		local plaque = part({ Name = "ArchTop", Size = Vector3.new(14.5, 3, 2), CFrame = cf * CFrame.new(0, 12.9, -half), Color = Color3.fromRGB(45, 36, 80), Material = Enum.Material.SmoothPlastic, Parent = plotFolder })
+		part({ Name = "ArchTrim", Size = Vector3.new(15, 0.4, 2.3), CFrame = cf * CFrame.new(0, 11.2, -half), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
+		part({ Name = "ArchTrimTop", Size = Vector3.new(15, 0.4, 2.3), CFrame = cf * CFrame.new(0, 14.6, -half), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
+		local surface = Instance.new("SurfaceGui")
+		surface.Face = Enum.NormalId.Front
+		surface.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		surface.PixelsPerStud = 30
+		surface.LightInfluence = 0
+		surface.Parent = plaque
+		local signLabel = Instance.new("TextLabel")
+		signLabel.Name = "Title"
+		signLabel.BackgroundTransparency = 1
+		signLabel.Size = UDim2.new(1, -20, 1, -8)
+		signLabel.Position = UDim2.fromOffset(10, 4)
+		signLabel.Font = Enum.Font.FredokaOne
+		signLabel.TextScaled = true
+		signLabel.TextColor3 = C.Gold
+		signLabel.Text = "EMPTY VAULT"
+		signLabel.Parent = surface
+		-- Welcome mat + carpet running out onto the plaza
+		part({ Name = "CarpetOut", Size = Vector3.new(5, 0.1, 8), CFrame = cf * CFrame.new(0, 0.05, -half - 4), Color = Color3.fromRGB(180, 30, 50), Material = Enum.Material.Fabric, CanCollide = false, Parent = plotFolder })
+		part({ Name = "EntranceGlow", Size = Vector3.new(11, 0.12, 3), CFrame = cf * CFrame.new(0, 0.66, -half + 1.5), Color = C.Gold, Material = Enum.Material.Neon, Transparency = 0.4, CanCollide = false, CanQuery = false, Parent = plotFolder })
+		plotFolder:SetAttribute("VaultCenter", (cf * CFrame.new(0, 0.6, 0)).Position)
 		local terminal = part({ Name = "Terminal", Size = Vector3.new(2.2, 3.4, 2.2), CFrame = cf * CFrame.new(-8.5, 2.3, -half + 1.5), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
 		part({ Name = "TerminalScreen", Size = Vector3.new(1.8, 1.2, 0.2), CFrame = cf * CFrame.new(-8.5, 3.6, -half + 0.35) * CFrame.Angles(math.rad(-20), 0, 0), Color = Color3.fromRGB(120, 220, 255), Material = Enum.Material.Neon, CanCollide = false, Parent = plotFolder })
 		local displays = folder("Displays", plotFolder)
 		table.insert(plots, {
 			Index = i,
 			CFrame = cf * CFrame.new(0, 0.6, 0), -- floor surface
-			Sign = sign:FindFirstChild("Title") :: TextLabel,
+			Sign = signLabel,
 			Prompt = prompt(terminal, "Edit Vault", "Vault", 0),
 			Displays = displays,
 			Owner = nil,
@@ -1048,23 +1075,12 @@ local function dressDistrict()
 	local dressing = folder("DistrictDressing")
 	local plazaY = center.Y + 1
 
-	-- Paving rings (stacked discs read as inlaid stone circles)
-	for i, ring in { { 104, Color3.fromRGB(205, 170, 120) }, { 100, Color3.fromRGB(232, 222, 196) }, { 64, Color3.fromRGB(190, 150, 105) }, { 60, Color3.fromRGB(232, 222, 196) } } do
-		cylinder(Vector3.new(center.X, plazaY + 0.01 * i, center.Z), 0.1, ring[1] * 2, {
-			Name = "PavingRing",
-			Color = ring[2],
-			Material = Enum.Material.Pavement,
-			CanCollide = false,
-			CanQuery = false,
-			Parent = dressing,
-		})
-	end
 	-- Cobbled avenue from the fountain to the north gate
 	local avenueStart, avenueEnd = center.Z - 36, d.Gate.Z
 	part({
 		Name = "Avenue",
 		Size = Vector3.new(12, 0.2, avenueStart - avenueEnd),
-		CFrame = CFrame.new(center.X, plazaY + 0.06, (avenueStart + avenueEnd) / 2),
+		CFrame = CFrame.new(center.X, plazaY + 0.15, (avenueStart + avenueEnd) / 2),
 		Color = Color3.fromRGB(170, 160, 150),
 		Material = Enum.Material.Cobblestone,
 		CanCollide = false,

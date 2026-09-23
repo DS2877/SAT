@@ -151,6 +151,22 @@ local function render(player: Player)
 		end
 	end
 
+	-- Columns hold up the unlocked upper floors (only as tall as the vault actually is).
+	if floorsUnlocked > 1 then
+		local columnHeight = (floorsUnlocked - 1) * cfg.FloorHeight
+		for _, x in { -half + 1, half - 1 } do
+			for _, z in { -half + 1, half - 1 } do
+				newPart(plot.Displays, {
+					Name = "Column",
+					Size = Vector3.new(1.6, columnHeight, 1.6),
+					CFrame = plot.CFrame * CFrame.new(x, columnHeight / 2, z),
+					Color = Color3.fromRGB(235, 228, 210),
+					Material = Enum.Material.Marble,
+				})
+			end
+		end
+	end
+
 	-- Pedestals: filled slots, then ghost pedestals for the rest of the unlocked floors.
 	local shownNextSign = false
 	for index = 1, floorsUnlocked * cfg.PerFloor do
