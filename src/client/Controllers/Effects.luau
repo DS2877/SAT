@@ -237,6 +237,47 @@ function handlers.EventStarted()
 	shakeCamera(0.4, 0.4)
 end
 
+function handlers.Stung()
+	Sounds.Play("Error")
+	Notifications.Toast("🐝 BEES! GET OUT OF THE SWARM!", "Danger")
+	shakeCamera(0.5, 0.3)
+end
+
+function handlers.BeeSwarm(payload)
+	if typeof(payload.Position) == "Vector3" then
+		Sounds.PlayAt("GuardianAlert", payload.Position)
+	end
+end
+
+function handlers.Boomerang(payload)
+	if typeof(payload.From) ~= "Vector3" or typeof(payload.To) ~= "Vector3" then
+		return
+	end
+	local rang = Instance.new("Part")
+	rang.Anchored = true
+	rang.CanCollide = false
+	rang.CanQuery = false
+	rang.CanTouch = false
+	rang.Size = Vector3.new(2.4, 0.3, 0.8)
+	rang.Color = Color3.fromRGB(200, 120, 50)
+	rang.Material = Enum.Material.Wood
+	rang.CFrame = CFrame.new(payload.From)
+	rang.Parent = workspace
+	Sounds.PlayAt("Swing", payload.From)
+	task.spawn(function()
+		local outTime, spin = 0.3, 0
+		local t = 0
+		while t < outTime * 2 do
+			local dt = task.wait()
+			t += dt
+			spin += dt * 30
+			local alpha = if t < outTime then t / outTime else 1 - (t - outTime) / outTime
+			rang.CFrame = CFrame.new(payload.From:Lerp(payload.To, math.clamp(alpha, 0, 1))) * CFrame.Angles(0, spin, 0)
+		end
+		rang:Destroy()
+	end)
+end
+
 function handlers.Bubbled(payload)
 	Sounds.Play("Splash")
 	HUD.ShowStatus("BUBBLED!", ("by %s"):format(tostring(payload.By)), Theme.Color.Info, payload.Duration or 2)

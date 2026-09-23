@@ -79,6 +79,18 @@ function Combat.IsPvPProtected(victim: Player): boolean
 	return false
 end
 
+-- Shared PvP rule for bonks and ranged gadgets: nobody gets hit inside the District unless they
+-- carry treasure (config), and players standing in the District can't attack non-carriers.
+function Combat.CanPlayerHit(attacker: Player, victim: Player): boolean
+	local attackerRoot = rootOf(attacker)
+	if not attackerRoot or Combat.IsPvPProtected(victim) then
+		return false
+	end
+	local victimCarrying = TreasureService.GetCarrying(victim) ~= nil
+	local carrierExposed = victimCarrying and not cfg.SafeZoneProtectsCarriers
+	return not (Zones.InSafeZone(attackerRoot.Position) and not carrierExposed)
+end
+
 local function knock(victim: Player, st: Stability.State, attacker: Player?)
 	publish(victim, st)
 	Movement.SetLock(victim, "Knocked", true)
@@ -155,7 +167,6 @@ local function onAttack(attacker: Player)
 	Net.FireAll("Feedback", { Type = "Swing", UserId = attacker.UserId })
 
 	local look = root.CFrame.LookVector
-	local attackerSafe = Zones.InSafeZone(root.Position)
 	local best: Player? = nil
 	local bestDistance = math.huge
 	for _, other in Players:GetPlayers() do
@@ -177,10 +188,7 @@ local function onAttack(attacker: Player)
 	end
 
 	if best then
-		local victimCarrying = TreasureService.GetCarrying(best) ~= nil
-		local blocked = Combat.IsPvPProtected(best)
-			or (attackerSafe and not (victimCarrying and not cfg.SafeZoneProtectsCarriers))
-		if not blocked then
+		if Combat.CanPlayerHit(attacker, best) then
 			local result = Combat.ApplyHit(best, { Attacker = attacker, Damage = cfg.PvPDamage, From = root.Position })
 			Net.Fire("Feedback", attacker, { Type = "HitConfirm", Result = result })
 			return

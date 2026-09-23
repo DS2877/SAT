@@ -460,6 +460,154 @@ function Effects.disguise(player: Player, def, root: BasePart): boolean
 	return true
 end
 
+local function characterExclusions(): { Instance }
+	local exclude: { Instance } = {}
+	for _, p in Players:GetPlayers() do
+		if p.Character then
+			table.insert(exclude, p.Character)
+		end
+	end
+	for _, name in { "Treasures", "Guardians" } do
+		local folder = workspace:FindFirstChild(name)
+		if folder then
+			table.insert(exclude, folder)
+		end
+	end
+	return exclude
+end
+
+-- BEE BOX: a swarm zone in front of the thrower. Slows + stings everyone else inside.
+function Effects.bee_box(player: Player, def, root: BasePart): boolean
+	local look = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
+	local direction = if look.Magnitude > 0.1 then look.Unit else Vector3.new(0, 0, -1)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = characterExclusions()
+	local aimPoint = root.Position + direction * def.ThrowDistance
+	local hit = workspace:Raycast(aimPoint + Vector3.new(0, 20, 0), Vector3.new(0, -60, 0), params)
+	local center = if hit then hit.Position else aimPoint
+	if Zones.InSafeZone(center) then
+		Net.Fire("Notify", player, { Kind = "Toast", Text = "No bees in the District", Tone = "Warn" })
+		return false
+	end
+
+	local swarm = cosmeticPart({
+		Name = "BeeSwarm",
+		Size = Vector3.one * def.Radius * 2,
+		Color = Color3.fromRGB(255, 210, 60),
+		Material = Enum.Material.ForceField,
+	})
+	swarm.Anchored = true
+	swarm.Transparency = 0.6
+	swarm.Position = center
+	local hive = cosmeticPart({
+		Name = "Hive",
+		Size = Vector3.new(2.4, 3, 2.4),
+		Color = Color3.fromRGB(230, 170, 40),
+		Material = Enum.Material.Wood,
+	})
+	hive.Anchored = true
+	hive.Position = center + Vector3.new(0, 1.5, 0)
+	local bees = Instance.new("ParticleEmitter")
+	bees.Color = ColorSequence.new(Color3.fromRGB(255, 220, 40), Color3.fromRGB(30, 30, 30))
+	bees.Size = NumberSequence.new(0.35)
+	bees.Rate = 60
+	bees.Lifetime = NumberRange.new(0.8, 1.4)
+	bees.Speed = NumberRange.new(4, 9)
+	bees.SpreadAngle = Vector2.new(180, 180)
+	bees.LightEmission = 0.4
+	bees.Parent = hive
+	swarm.Parent = workspace
+	hive.Parent = swarm
+	Net.FireAll("Feedback", { Type = "BeeSwarm", Position = center })
+
+	task.spawn(function()
+		local started = os.clock()
+		local warned: { [Player]: boolean } = {}
+		while os.clock() - started < def.Duration do
+			for _, other in Players:GetPlayers() do
+				local otherRoot, humanoid = Combat.RootOf(other)
+				if
+					other ~= player
+					and otherRoot
+					and humanoid
+					and (otherRoot.Position - center).Magnitude <= def.Radius
+					and Combat.CanPlayerHit(player, other)
+				then
+					humanoid:TakeDamage(def.DamagePerTick)
+					local t = token(other, "Bees")
+					Movement.SetSpeed(other, "Bees", def.SlowMultiplier)
+					task.delay(def.TickRate + 0.25, function()
+						if tokenValid(other, "Bees", t) then
+							Movement.SetSpeed(other, "Bees", nil)
+						end
+					end)
+					if not warned[other] then
+						warned[other] = true
+						Net.Fire("Feedback", other, { Type = "Stung" })
+					end
+				end
+			end
+			task.wait(def.TickRate)
+		end
+		swarm:Destroy()
+	end)
+	return true
+end
+
+-- BOOMERANG: ranged bonk along the camera aim. Counts as a qualifying hit (can Shake/Knock).
+function Effects.boomerang(player: Player, def, root: BasePart, aim: Vector3?): boolean
+	if not aim then
+		return false
+	end
+	local origin = root.Position + Vector3.new(0, 1.5, 0)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = characterExclusions()
+
+	local target: Player? = nil
+	local targetRoot: BasePart? = nil
+	local bestScore = math.huge
+	for _, other in Players:GetPlayers() do
+		local otherRoot = Combat.RootOf(other)
+		if other ~= player and otherRoot then
+			local offset = otherRoot.Position - origin
+			local distance = offset.Magnitude
+			local alignment = if distance > 0.1 then aim:Dot(offset.Unit) else 0
+			if distance <= def.Range and alignment >= def.AimDot then
+				local blocked = workspace:Raycast(origin, offset, params)
+				local score = distance * (2 - alignment)
+				if not blocked and score < bestScore then
+					target, targetRoot, bestScore = other, otherRoot, score
+				end
+			end
+		end
+	end
+
+	local endPoint = origin + aim * def.Range
+	local wall = workspace:Raycast(origin, aim * def.Range, params)
+	if wall then
+		endPoint = wall.Position
+	end
+	if target and targetRoot then
+		endPoint = targetRoot.Position
+		if Combat.CanPlayerHit(player, target) then
+			local result = Combat.ApplyHit(target, { Attacker = player, Damage = def.Damage, From = origin })
+			Net.Fire("Feedback", player, { Type = "HitConfirm", Result = result })
+		end
+	else
+		-- Decoys along the flight path pop.
+		local length = (endPoint - origin).Magnitude
+		for d = 5, length, 5 do
+			if Decoys.PopNear(origin + aim * d, 4, player) then
+				break
+			end
+		end
+	end
+	Net.FireAll("Feedback", { Type = "Boomerang", From = origin, To = endPoint })
+	return true
+end
+
 local function sendCooldowns(player: Player)
 	Net.Fire("GadgetState", player, { Cooldowns = cooldowns[player] or {} })
 end
