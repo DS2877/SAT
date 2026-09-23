@@ -538,6 +538,9 @@ local AREA_NAMES = { Wilds = "THE WILDS", Ruins = "THE ANCIENT RUINS", Coast = "
 -- Loot mostly spawns on the night wave: say whether the goal treasure is out there right now.
 local function goalWhere(goal): string
 	local area = AREA_NAMES[goal.SpawnArea] or goal.SpawnArea:upper()
+	if DayNight.IsNight(workspace:GetServerTimeNow()) then
+		return ("▶ THE WILDS OPEN AT DAWN • SEARCH %s"):format(area)
+	end
 	local folder = workspace:FindFirstChild("Treasures")
 	if folder then
 		for _, model in folder:GetChildren() do
@@ -632,7 +635,11 @@ local function refreshObjective()
 	end
 	if not ClientState.Milestone("FirstExtraction") then
 		local target = nearestTreasure(position, 2)
-		if ClientState.Milestone("FirstTreasure") then
+		local night = DayNight.State(workspace:GetServerTimeNow())
+		if night.IsNight then
+			local left = math.ceil(night.SecondsLeft)
+			setObjective("STEP 2 • WAIT FOR DAWN", "THE WILDS ARE CLOSED", Theme.Color.Info, ("New treasure is spawning • Gate opens in %d:%02d"):format(left // 60, left % 60), nil)
+		elseif ClientState.Milestone("FirstTreasure") then
 			setObjective("STEP 3 • PICK IT UP", "GRAB A TREASURE", Theme.Color.Gold, "Carry it to an EXTRACTION beam to bank it", nil)
 		else
 			setObjective("STEP 2 • EXPLORE", "FIND A TREASURE", Theme.Color.Gold, "Head through the gate into THE WILDS", nil)

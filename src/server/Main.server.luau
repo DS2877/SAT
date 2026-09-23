@@ -104,6 +104,7 @@ Extraction.Start()
 GuardianService.Start()
 LeaderboardService.Start()
 EventService.StartScheduler()
+DayCycle.Init(world.NightGate)
 DayCycle.Start()
 
 print("[StealTheTreasure] server ready")

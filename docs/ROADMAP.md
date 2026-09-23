@@ -58,7 +58,15 @@ FirstTreasure → FirstExtraction → FirstCollect → FirstGadget → FirstVaul
 FirstTheft → FirstAscension, plus a `FunnelTime_<step>` custom event whose value is the
 seconds since joining. Creator Dashboard → Analytics → Funnels / Custom events.
 
-## 4. Treasure / content expansion
+## 4. Treasure / content expansion  ← IN PROGRESS
+Shipped (slice 1):
+- Region collection sets (Wilds / Ruins / Coast / Falls): each completed set = +10% Vault
+  income forever; progress in the Collection menu, banner on completion.
+- 4 purposeful treasures: Wind Chime (Swift: +15% carry speed, the getaway treasure),
+  Explorer's Compass (reveals nearby treasure: chain runs), Storm Anchor (heaviest Rare: a
+  strength check), Moon Pearl (Nocturnal: x2 income at night).
+- Special effects are explained on the name tag.
+Next ideas: hidden treasure spots, more mutations, real models for the top rarities.
 More (and more visually extreme) treasures, more mutations, stronger rarity identity,
 secrets, hidden locations, better discovery moments, environmental storytelling.
 **Every new treasure needs a gameplay or economic purpose** (weight/value trade-off, special

@@ -60,6 +60,76 @@ local function applyLighting(serverNow: number)
 	return state
 end
 
+-- NIGHT FOG GATE -------------------------------------------------------------------------
+-- The gate into the Wilds (tag "NightGate", made solid by the server at night) turns into a
+-- shimmering wall of fog with a big "DAWN IN 0:23" countdown on both sides.
+
+local fog: BasePart? = nil
+local fogLabels: { TextLabel } = {}
+local fogEmitter: ParticleEmitter? = nil
+
+local function setupFogGate(part: Instance)
+	if not part:IsA("BasePart") or fog then
+		return
+	end
+	fog = part
+	part.Color = Color3.fromRGB(90, 100, 170)
+	part.Material = Enum.Material.ForceField
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	emitter.Color = ColorSequence.new(Color3.fromRGB(150, 160, 220))
+	emitter.LightInfluence = 0.3
+	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 6), NumberSequenceKeypoint.new(1, 12) })
+	emitter.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.3, 0.55), NumberSequenceKeypoint.new(1, 1) })
+	emitter.Lifetime = NumberRange.new(4, 6)
+	emitter.Speed = NumberRange.new(0.5, 1.5)
+	emitter.SpreadAngle = Vector2.new(30, 30)
+	emitter.Rate = 0
+	emitter.Parent = part
+	fogEmitter = emitter
+	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+		local surface = Instance.new("SurfaceGui")
+		surface.Face = face
+		surface.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		surface.PixelsPerStud = 20
+		surface.LightInfluence = 0
+		surface.AlwaysOnTop = false
+		local label = Instance.new("TextLabel")
+		label.BackgroundTransparency = 1
+		label.AnchorPoint = Vector2.new(0.5, 0.5)
+		label.Position = UDim2.fromScale(0.5, 0.45)
+		label.Size = UDim2.fromScale(0.9, 0.5)
+		label.Font = Enum.Font.FredokaOne
+		label.TextScaled = true
+		label.TextColor3 = Color3.fromRGB(220, 230, 255)
+		label.Text = ""
+		local stroke = Instance.new("UIStroke")
+		stroke.Thickness = 4
+		stroke.Color = Color3.fromRGB(20, 20, 50)
+		stroke.Parent = label
+		label.Parent = surface
+		surface.Parent = part
+		table.insert(fogLabels, label)
+	end
+end
+
+local function updateFogGate(state)
+	local part = fog
+	if not part then
+		return
+	end
+	local closed = state.IsNight
+	part.Transparency = if closed then 0.35 else 1
+	if fogEmitter then
+		fogEmitter.Rate = if closed then 6 else 0
+	end
+	local left = math.ceil(state.SecondsLeft)
+	for _, label in fogLabels do
+		label.Visible = closed
+		label.Text = ("🌙 THE WILDS ARE CLOSED\nDAWN IN %d:%02d"):format(left // 60, left % 60)
+	end
+end
+
 -- RAINBOW -------------------------------------------------------------------------------
 
 local rainbowParts: { [Instance]: { BasePart } } = {}
@@ -99,6 +169,10 @@ function Ambience.Init()
 	for _, d in workspace:GetDescendants() do
 		filterPrompt(d)
 	end
+	for _, part in CollectionService:GetTagged("NightGate") do
+		setupFogGate(part)
+	end
+	CollectionService:GetInstanceAddedSignal("NightGate"):Connect(setupFogGate)
 	workspace.DescendantAdded:Connect(filterPrompt)
 
 	local wasNight: boolean? = nil
@@ -112,19 +186,17 @@ function Ambience.Init()
 		accumulator = 0
 		local now = workspace:GetServerTimeNow()
 		local state = applyLighting(now)
-		if wasNight ~= nil and state.IsNight ~= wasNight then
-			if state.IsNight then
-				Notifications.Banner(
-					"🌙 NIGHT FALLS",
-					("New treasure is appearing • Vaults earn x%d"):format(GameConfig.DayNight.NightIncomeMultiplier),
-					"Info",
-					3
-				)
-				Sounds.Play("Event", 0.7)
-			else
-				Notifications.Banner("☀ A NEW DAY", "Fresh treasure is out there • Go hunt!", "Reward", 3)
-			end
+		-- (The dawn banner "A NEW DAY BEGINS" comes from the server with the rare-spawn news.)
+		if wasNight == false and state.IsNight then
+			Notifications.Banner(
+				"🌙 NIGHT FALLS",
+				("The Wilds are closed • New treasure appears • Vaults x%d"):format(GameConfig.DayNight.NightIncomeMultiplier),
+				"Info",
+				3
+			)
+			Sounds.Play("Event", 0.7)
 		end
+		updateFogGate(state)
 		if not state.IsNight and wasNight ~= nil then
 			for _, warnAt in GameConfig.DayNight.WarnSecondsBeforeNight do
 				if lastLeft > warnAt and state.SecondsLeft <= warnAt then

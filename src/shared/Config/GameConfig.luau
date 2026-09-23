@@ -46,6 +46,16 @@ GameConfig.DayNight = {
 	NightIncomeMultiplier = 3, -- Vaults earn triple while it's dark
 	WaveFillFraction = 0.6, -- the loot wave is fully spawned after 60% of the night
 	WarnSecondsBeforeNight = { 60, 30, 10 },
+	-- At dawn every spawned treasure of this rarity or better (plus Diamond/Rainbow mutations)
+	-- is announced to the server with its region, at most AnnounceMax banners.
+	AnnounceMinRarity = "Legendary",
+	AnnounceMax = 3,
+}
+
+-- Collection sets: discover every treasure native to a region (Wilds, Ruins, Coast, Falls) to
+-- complete its set; each completed set adds a permanent Vault income bonus.
+GameConfig.Collection = {
+	SetBonusPerSet = 0.10,
 }
 
 GameConfig.Carry = {
@@ -113,6 +123,8 @@ GameConfig.Treasure = {
 	-- first treasure. Everything else only spawns on the night wave.
 	StarterMaxRarity = "Uncommon",
 	CarriedLabelDistance = 60,
+	SwiftSpeedBonus = 1.15, -- SpecialEffect "Swift": carrier speed multiplier
+	NocturnalMultiplier = 2, -- SpecialEffect "Nocturnal": Vault income multiplier at night
 	VaultLabelDistance = 22,
 }
 

@@ -312,6 +312,9 @@ local function applyCarrierMovement(player: Player, record: Record?)
 	local data = PlayerData.Get(player)
 	local strength = data and data.Strength or 1
 	local speed = Carry.SpeedMultiplier(record.Def.Weight, strength, GameConfig.Carry)
+	if record.Def.SpecialEffect == "Swift" then
+		speed *= cfg.SwiftSpeedBonus -- the "getaway" treasure
+	end
 	Movement.SetSpeed(player, "Carry", speed)
 	Movement.SetJump(player, "Carry", Carry.JumpMultiplier(speed, GameConfig.Carry))
 	player:SetAttribute("CarrySpeed", speed)

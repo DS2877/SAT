@@ -157,6 +157,15 @@ awaiting the phase-1 mobile playtest.
   data.Settings.Music. Needs uploaded asset ids.
 - Onboarding (phase 3): intro card + just-in-time tips.
 
+## NIGHT LOCKDOWN + DAWN
+- Night: the gate is sealed by fog (tag NightGate, solid via DayCycle) with a "DAWN IN 0:23"
+  countdown on both sides; anyone outside the District at night is sent home.
+- Dawn: server banner "A NEW DAY BEGINS • All treasures reset", then up to 3 banners for
+  Legendary+ (and Diamond/Rainbow) spawns with their region.
+- Extraction points: shrine design (dais, glowing ring, obelisks with runes + crystals, soft
+  Beam light column, rising motes, sign with fee + mutation chance).
+- Vault marker: thin fading beam + small tag, hidden up close.
+
 ## KNOWN BUGS / RISKS
 - Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp
   slopes, IK arms on the bench, nightfall teleport, collect board placement on every plot.

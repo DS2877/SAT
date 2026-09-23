@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
+local GameConfig = require(Shared.Config.GameConfig)
 local Rarities = require(Shared.Config.Rarities)
 local Treasures = require(Shared.Config.Treasures)
 local Economy = require(Shared.Logic.Economy)
@@ -52,9 +53,20 @@ function Collection.Build(root: Frame)
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = root,
 	})
+	-- Region sets: complete one for a permanent Vault income bonus.
+	local setsLine = Kit.label({
+		Position = UDim2.fromOffset(0, 24),
+		Size = UDim2.new(1, 0, 0, 20),
+		Font = Theme.Font.Black,
+		TextSize = Theme.TextSize.Small,
+		TextColor3 = Theme.Color.Gold,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		RichText = true,
+		Parent = root,
+	})
 	local scroller = Kit.new("ScrollingFrame", {
-		Position = UDim2.fromOffset(0, 30),
-		Size = UDim2.new(1, 0, 1, -30),
+		Position = UDim2.fromOffset(0, 50),
+		Size = UDim2.new(1, 0, 1, -50),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollBarThickness = 6,
@@ -87,6 +99,16 @@ function Collection.Build(root: Frame)
 			table.insert(keyParts, entry and entry.Count or 0)
 		end
 		header.Text = ("DISCOVERED %d / %d  •  Extract a treasure to add it forever"):format(found, total)
+		local parts = {}
+		local sets = Economy.SetProgress(data.Collection, Treasures.List)
+		for _, area in { "Wilds", "Ruins", "Coast", "Falls" } do
+			local set = sets[area]
+			if set then
+				local done = set.Found >= set.Total
+				table.insert(parts, if done then ('<font color="#5ae65a">%s ✓</font>'):format(area:upper()) else ("%s %d/%d"):format(area:upper(), set.Found, set.Total))
+			end
+		end
+		setsLine.Text = ("SETS (+%d%% VAULT INCOME EACH):  %s"):format(math.floor(GameConfig.Collection.SetBonusPerSet * 100 + 0.5), table.concat(parts, "  •  "))
 		local key = table.concat(keyParts, ",")
 		if key == lastKey then
 			return

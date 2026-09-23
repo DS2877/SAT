@@ -52,7 +52,7 @@ function Vault.Build(root: Frame)
 
 	local refresh
 
-	local function card(slot: number, value: string?, ascension: number)
+	local function card(slot: number, value: string?, incomeMultiplier: number)
 		local id, mutation = Economy.DecodeSlot(value)
 		local def = id and Treasures.Get(id)
 		local frame = Kit.panel({ LayoutOrder = slot, BackgroundColor3 = Theme.Color.PanelLight, Parent = grid }, { Kit.padding(6) })
@@ -74,7 +74,7 @@ function Vault.Build(root: Frame)
 		})
 		Kit.label({ Text = def.Name, Position = UDim2.fromOffset(0, 14), Size = UDim2.new(1, 0, 0, 20), Font = Theme.Font.Display, TextSize = 16, TextScaled = true, Parent = frame })
 		Kit.label({ Text = def.Rarity, Position = UDim2.fromOffset(0, 34), Size = UDim2.new(1, 0, 0, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Small, TextColor3 = info.Color, Parent = frame })
-		local income = math.floor(Economy.Income(def, mutation) * GameConfig.GetAscensionMultiplier(ascension) + 0.5)
+		local income = math.floor(Economy.Income(def, mutation) * incomeMultiplier + 0.5)
 		Kit.label({ Text = ("%s/s"):format(Kit.shortCash(income)), Position = UDim2.fromOffset(0, 50), Size = UDim2.new(1, 0, 0, 18), Font = Theme.Font.Display, TextSize = 17, TextColor3 = Theme.Color.Cash, Parent = frame })
 		local price = Economy.SellPrice(def, mutation)
 		local confirming = confirmSlot == slot
@@ -115,7 +115,8 @@ function Vault.Build(root: Frame)
 			used += 1
 		end
 		local isNight = DayNight.IsNight(workspace:GetServerTimeNow())
-		local income = Economy.VaultIncome(data.Vault.Displays, Treasures.Get, GameConfig.GetAscensionMultiplier(data.Ascension), isNight)
+		local incomeMultiplier = Economy.IncomeMultiplier(data, Treasures.List, GameConfig.GetAscensionMultiplier(data.Ascension))
+		local income = Economy.VaultIncome(data.Vault.Displays, Treasures.Get, incomeMultiplier, isNight)
 		header.Text = ("EARNING %s/s%s"):format(Kit.shortCash(income), if isNight then '  <font color="#96aaff">🌙 NIGHT x3</font>' else "")
 		sub.Text = ("%d / %d PEDESTALS  •  COLLECT CASH ON THE GREEN PAD IN YOUR VAULT"):format(used, tier.Slots)
 		if nextTier and nextTier.Enabled then
@@ -131,7 +132,7 @@ function Vault.Build(root: Frame)
 			end
 		end
 		for slot = 1, tier.Slots do
-			card(slot, data.Vault.Displays[tostring(slot)], data.Ascension)
+			card(slot, data.Vault.Displays[tostring(slot)], incomeMultiplier)
 		end
 	end
 

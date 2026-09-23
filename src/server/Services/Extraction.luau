@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
 local Rarities = require(Shared.Config.Rarities)
+local Treasures = require(Shared.Config.Treasures)
 local Economy = require(Shared.Logic.Economy)
 local Zones = require(Shared.Util.Zones)
 local Net = require(Shared.Net)
@@ -97,6 +98,7 @@ local function complete(player: Player, session: Session)
 	local isNew = entry == nil or not entry.Discovered
 	local rank = Rarities.Rank(def.Rarity)
 	local tier = GameConfig.Vault.Tiers[data.Vault.Tier] or GameConfig.Vault.Tiers[1]
+	local setsBefore = Economy.CompletedSets(data.Collection, Treasures.List)
 	local placedSlot: number? = nil
 	local soldFor = 0
 
@@ -135,6 +137,17 @@ local function complete(player: Player, session: Session)
 	end)
 
 	send(player, { Active = false, Reason = "Complete" })
+	if Economy.CompletedSets(data.Collection, Treasures.List) > setsBefore then
+		task.delay(3, function()
+			Net.Fire("Notify", player, {
+				Kind = "Banner",
+				Title = ("🏆 %s SET COMPLETE!"):format(def.SpawnArea:upper()),
+				Text = ("+%d%% Vault income forever"):format(math.floor(GameConfig.Collection.SetBonusPerSet * 100 + 0.5)),
+				Tone = "Reward",
+			})
+		end)
+		Analytics.Event(player, "CollectionSetComplete", { Area = def.SpawnArea })
+	end
 	Net.Fire("Feedback", player, {
 		Type = "Extracted",
 		TreasureId = def.Id,

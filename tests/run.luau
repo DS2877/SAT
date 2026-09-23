@@ -353,6 +353,61 @@ test("music config is well-formed", function()
 	check(type(Music.CarryTheme) == "table" and type(Music.CarryTheme.Id) == "string", "carry theme slot exists")
 end)
 
+test("collection sets and special treasures have a purpose", function()
+	for _, def in Treasures.List do
+		if def.SpecialEffect then
+			check(Treasures.EffectLabels[def.SpecialEffect] ~= nil, "effect explained on the tag: " .. def.Id)
+		end
+	end
+	local byId = {}
+	for _, def in Treasures.List do
+		byId[def.Id] = def
+	end
+	local function lookup(id)
+		return byId[id]
+	end
+	-- Nocturnal earns extra only at night.
+	local displays = { ["1"] = "moon_pearl" }
+	local day = Economy.VaultIncome(displays, lookup, 1, false)
+	local night = Economy.VaultIncome(displays, lookup, 1, true)
+	check(night == day * GameConfig.DayNight.NightIncomeMultiplier * GameConfig.Treasure.NocturnalMultiplier, "moon pearl doubles again at night")
+	-- Sets.
+	local collection = {}
+	check(Economy.SetBonus(collection, Treasures.List) == 1, "no sets, no bonus")
+	for _, def in Treasures.List do
+		if def.SpawnArea == "Wilds" then
+			collection[def.Id] = { Discovered = true, Count = 1 }
+		end
+	end
+	local sets = Economy.SetProgress(collection, Treasures.List)
+	check(sets.Wilds.Found == sets.Wilds.Total, "wilds set complete")
+	check(sets.Coast.Found == 0 and sets.Coast.Total > 0, "coast untouched")
+	check(Economy.CompletedSets(collection, Treasures.List) == 1, "one set done")
+	check(near(Economy.SetBonus(collection, Treasures.List), 1 + GameConfig.Collection.SetBonusPerSet), "set bonus applies")
+	check(near(Economy.IncomeMultiplier({ Collection = collection }, Treasures.List, 2), 2 * (1 + GameConfig.Collection.SetBonusPerSet)), "ascension x sets")
+	for _, area in { "Wilds", "Ruins", "Coast", "Falls" } do
+		check(sets[area] ~= nil and sets[area].Total >= 5, area .. " set has enough treasures to chase")
+	end
+end)
+
+test("every treasure can actually spawn somewhere", function()
+	-- WorldLayout uses Vector3; borrow Roblox datatypes from Lune for this test.
+	local roblox = require("@lune/roblox") :: any
+	Vector3 = roblox.Vector3
+	local WorldLayout = require("../src/shared/Config/WorldLayout")
+	for _, def in Treasures.List do
+		local ok = false
+		for _, point in WorldLayout.TreasureSpawns do
+			local rank = table.find(RARITY_ORDER, def.Rarity) or 0
+			if point.Area == def.SpawnArea and rank >= (table.find(RARITY_ORDER, point.MinRarity) or 0) and rank <= (table.find(RARITY_ORDER, point.MaxRarity) or 0) then
+				ok = true
+				break
+			end
+		end
+		check(ok, "spawnable: " .. def.Id)
+	end
+end)
+
 -- DATA ----------------------------------------------------------------------------
 test("first join gets defaults", function()
 	local data = DataSchema.Migrate(nil)
@@ -392,7 +447,7 @@ end)
 
 -- CONTENT INVARIANTS -----------------------------------------------------------------
 test("30 treasures with unique ids and spec economy ranges", function()
-	check(#Treasures.List == 30, "exactly 30 treasures (MVP target)")
+	check(#Treasures.List >= 34, "30 MVP treasures + the purposeful phase-4 additions")
 	local ranges = {
 		Common = { 100, 500, 1, 5 },
 		Uncommon = { 500, 2000, 3, 10 },

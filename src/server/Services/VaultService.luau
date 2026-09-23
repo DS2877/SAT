@@ -210,6 +210,7 @@ local function render(player: Player)
 
 	-- Pedestals: filled slots, then ghost pedestals for the rest of the unlocked floors.
 	local shownNextSign = false
+	local incomeMultiplier = Economy.IncomeMultiplier(data, Treasures.List, GameConfig.GetAscensionMultiplier(data.Ascension))
 	for index = 1, floorsUnlocked * cfg.PerFloor do
 		local _, offset = slotPlacement(index)
 		local base = plot.CFrame * offset
@@ -217,7 +218,7 @@ local function render(player: Player)
 			local id, mutation = Economy.DecodeSlot(data.Vault.Displays[tostring(index)])
 			local def = id and Treasures.Get(id)
 			local income = if def
-				then math.floor(Economy.Income(def, mutation) * GameConfig.GetAscensionMultiplier(data.Ascension) + 0.5)
+				then math.floor(Economy.Income(def, mutation) * incomeMultiplier + 0.5)
 				else nil
 			buildPedestal(plot.Displays, base, def, false, mutation, player, index, income)
 		else
@@ -456,7 +457,7 @@ local function incomeOf(data): number
 	return Economy.VaultIncome(
 		data.Vault.Displays,
 		Treasures.Get,
-		GameConfig.GetAscensionMultiplier(data.Ascension),
+		Economy.IncomeMultiplier(data, Treasures.List, GameConfig.GetAscensionMultiplier(data.Ascension)),
 		DayNight.IsNight(workspace:GetServerTimeNow())
 	)
 end

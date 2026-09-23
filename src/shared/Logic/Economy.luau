@@ -87,11 +87,57 @@ function Economy.VaultIncome(displays, lookup, ascensionMultiplier: number, isNi
 		local id, mutation = Economy.DecodeSlot(value)
 		local def = id and lookup(id)
 		if def then
-			total += Economy.Income(def, mutation)
+			local income = Economy.Income(def, mutation)
+			if isNight and def.SpecialEffect == "Nocturnal" then
+				income *= GameConfig.Treasure.NocturnalMultiplier
+			end
+			total += income
 		end
 	end
 	local night = if isNight then GameConfig.DayNight.NightIncomeMultiplier else 1
 	return math.floor(total * ascensionMultiplier * night + 0.5)
+end
+
+-- COLLECTION SETS -------------------------------------------------------------------------
+
+-- { [area] = { Found = n, Total = m } } for every region's set. `list` = Treasures.List.
+function Economy.SetProgress(collection, list)
+	local sets = {}
+	for _, def in list do
+		local area = def.SpawnArea
+		local set = sets[area]
+		if not set then
+			set = { Found = 0, Total = 0 }
+			sets[area] = set
+		end
+		set.Total += 1
+		local entry = collection[def.Id]
+		if entry and entry.Discovered then
+			set.Found += 1
+		end
+	end
+	return sets
+end
+
+function Economy.CompletedSets(collection, list): number
+	local done = 0
+	for _, set in Economy.SetProgress(collection, list) do
+		if set.Found >= set.Total then
+			done += 1
+		end
+	end
+	return done
+end
+
+-- Everything that scales a player's Vault income except night: Ascension x collection sets.
+-- `ascensionMultiplier` comes from GameConfig.GetAscensionMultiplier(data.Ascension).
+function Economy.IncomeMultiplier(data, list, ascensionMultiplier: number): number
+	return ascensionMultiplier * Economy.SetBonus(data.Collection, list)
+end
+
+-- Permanent Vault income multiplier from completed collection sets.
+function Economy.SetBonus(collection, list): number
+	return 1 + Economy.CompletedSets(collection, list) * GameConfig.Collection.SetBonusPerSet
 end
 
 return Economy

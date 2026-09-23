@@ -9,6 +9,7 @@
 -- you are close (MaxDistance): the treasure's look is the first read, the tag confirms it.
 
 local Rarities = require(script.Parent.Config.Rarities)
+local Treasures = require(script.Parent.Config.Treasures)
 local Mutations = require(script.Parent.Config.Mutations)
 local Economy = require(script.Parent.Logic.Economy)
 
@@ -94,6 +95,11 @@ function TreasureLabel.Build(def, mutation: string?, opts): BillboardGui
 	end
 	local income = opts.Income or Economy.Income(def, mutation)
 	line(frame, 4, formatCash(income) .. "/s", CASH, BLACK, LINE - 2)
+	local effect = def.SpecialEffect and Treasures.EffectLabels[def.SpecialEffect]
+	if effect then
+		lines += 1
+		line(frame, 5, effect, Color3.fromRGB(255, 230, 150), BLACK, LINE - 6)
+	end
 
 	gui.Size = UDim2.fromOffset(240, lines * LINE)
 	return gui

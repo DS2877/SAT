@@ -5,6 +5,7 @@
 -- Swap-in path for real art: replace individual build* functions with cloned prefabs that
 -- keep the same returned anchors.
 
+local CollectionService = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -376,7 +377,9 @@ end
 
 -- Stone wall around the District: the north gatehouse is the ONLY way to the Wilds.
 -- An invisible barrier above the wall stops Balloons/Grapples from skipping the gate.
-local function buildWall(district: Folder)
+local nightGate: BasePart? = nil -- set by buildWall, handed to DayCycle
+
+local function buildWall(district: Folder): BasePart
 	local walls = folder("DistrictWall", district)
 	local d = WorldLayout.District
 	local center = Vector3.new(d.Center.X, d.Center.Y, d.Center.Z)
@@ -439,6 +442,20 @@ local function buildWall(district: Folder)
 		part({ Name = "GateDoor", Size = Vector3.new(d.GateHalfWidth - 1, height + 2, 1), CFrame = CFrame.new(gate + Vector3.new(x * (d.GateHalfWidth + 1), (height + 2) / 2, 5)) * CFrame.Angles(0, math.rad(x * 80), 0) * CFrame.new(x * (d.GateHalfWidth - 1) / 2, 0, 0), Color = C.Wood, Material = Enum.Material.WoodPlanks, Parent = walls })
 	end
 	billboardSign(arch, "THE WILDS", "Treasure awaits. Danger too.", C.Gold, 300, 5, 24)
+	-- Night fog: fills the gate opening. DayCycle makes it solid at night (the Wilds are closed
+	-- until dawn); clients draw the fog and the "DAWN IN" countdown (Ambience, tag NightGate).
+	local fog = part({
+		Name = "NightFog",
+		Size = Vector3.new(d.GateHalfWidth * 2, height + 6, 2),
+		CFrame = CFrame.new(gate + Vector3.new(0, (height + 6) / 2, 0)),
+		Transparency = 1,
+		CanCollide = false,
+		CanQuery = false,
+		CastShadow = false,
+		Parent = walls,
+	})
+	CollectionService:AddTag(fog, "NightGate")
+	return fog
 end
 
 local function buildDistrict()
@@ -488,7 +505,7 @@ local function buildDistrict()
 	coinLight.Parent = coin
 
 	buildSpawnPavilion(district)
-	buildWall(district)
+	nightGate = buildWall(district)
 
 	return district
 end
@@ -1041,22 +1058,75 @@ local function buildExtractionZones()
 		zone.ResolvedPosition = ground
 		local color = colors[zone.Category]
 		local zf = folder(zone.Id, zonesFolder)
-		cylinder(ground + Vector3.new(0, 0.15, 0), 0.3, zone.Radius * 2, { Name = "Pad", Color = color, Material = Enum.Material.Neon, Transparency = 0.55, CanCollide = false, CanQuery = false, Parent = zf })
-		cylinder(ground + Vector3.new(0, 0.2, 0), 0.3, zone.Radius * 2 - 3, { Name = "Inner", Color = Color3.fromRGB(30, 30, 40), Material = Enum.Material.SmoothPlastic, Transparency = 0.5, CanCollide = false, CanQuery = false, Parent = zf })
-		local beamHeight = if zone.Category == "Secret" then 16 else 140
-		local beam = cylinder(ground + Vector3.new(0, beamHeight / 2, 0), beamHeight, if zone.Category == "Secret" then 1 else 3, {
-			Name = "Beacon",
-			Color = color,
-			Material = Enum.Material.Neon,
-			Transparency = 0.55,
-			CanCollide = false,
-			CanQuery = false,
-			CastShadow = false,
-			Parent = zf,
-		})
-		local label = ("%s EXTRACTION"):format(GameConfig.Extraction.Categories[zone.Category].Label)
-		local bonus = GameConfig.Extraction.Categories[zone.Category].Bonus
-		billboardSign(beam, zone.Name:upper(), ("%s • x%.1f CASH"):format(label, bonus), color, if zone.Category == "Secret" then 60 else 600, beamHeight / 2 - 4)
+		local category = GameConfig.Extraction.Categories[zone.Category]
+		local secret = zone.Category == "Secret"
+		local stone = Color3.fromRGB(88, 84, 96)
+		-- Shrine platform: dark stone dais (sunk into the ground so it never floats) with a
+		-- glowing ring in the category colour and a bright emblem in the middle.
+		local top = ground + Vector3.new(0, 0.9, 0)
+		cylinder(ground + Vector3.new(0, -1.1, 0), 4, zone.Radius * 2 + 2, { Name = "Dais", Color = stone, Material = Enum.Material.Slate, Parent = zf })
+		cylinder(top + Vector3.new(0, 0.05, 0), 0.1, zone.Radius * 2 - 0.5, { Name = "Ring", Color = color, Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = zf })
+		cylinder(top + Vector3.new(0, 0.15, 0), 0.1, zone.Radius * 2 - 2.5, { Name = "InnerFloor", Color = Color3.fromRGB(52, 50, 62), Material = Enum.Material.Slate, CanCollide = false, CanQuery = false, Parent = zf })
+		cylinder(top + Vector3.new(0, 0.25, 0), 0.1, 5, { Name = "Emblem", Color = color, Material = Enum.Material.Neon, Transparency = 0.15, CanCollide = false, CanQuery = false, Parent = zf })
+		-- Four obelisks with a rune strip and a floating crystal.
+		for i = 0, 3 do
+			local a = math.rad(45 + i * 90)
+			local r = zone.Radius - 0.2
+			local base = top + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)
+			local facing = CFrame.lookAt(base, Vector3.new(top.X, base.Y, top.Z))
+			part({ Name = "Obelisk", Size = Vector3.new(1.6, 7, 1.6), CFrame = facing * CFrame.new(0, 3.5, 0), Color = stone, Material = Enum.Material.Slate, Parent = zf })
+			part({ Name = "Runes", Size = Vector3.new(0.35, 5, 0.1), CFrame = facing * CFrame.new(0, 3.6, -0.82), Color = color, Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = zf })
+			local crystal = part({ Name = "Crystal", Size = Vector3.new(0.9, 0.9, 0.9), CFrame = facing * CFrame.new(0, 8.2, 0) * CFrame.Angles(math.rad(45), 0, math.rad(45)), Color = color, Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = zf })
+			crystal:SetAttribute("Spin", 1)
+		end
+		-- Soft light column (a Beam, not a solid tube) fading out as it rises + rising motes.
+		local beamHeight = if secret then 18 else 90
+		local anchor = part({ Name = "BeamAnchor", Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(top), Transparency = 1, CanCollide = false, CanQuery = false, CastShadow = false, Parent = zf })
+		local bottom = Instance.new("Attachment")
+		bottom.Parent = anchor
+		local upper = Instance.new("Attachment")
+		upper.Position = Vector3.new(0, beamHeight, 0)
+		upper.Parent = anchor
+		for _, spec in { { 7, 0.55 }, { 2.5, 0.25 } } do
+			local beam = Instance.new("Beam")
+			beam.Attachment0 = bottom
+			beam.Attachment1 = upper
+			beam.Color = ColorSequence.new(color)
+			beam.LightEmission = 1
+			beam.LightInfluence = 0
+			beam.FaceCamera = true
+			beam.Width0 = spec[1]
+			beam.Width1 = spec[1] * 0.6
+			beam.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, spec[2]), NumberSequenceKeypoint.new(0.7, 0.85), NumberSequenceKeypoint.new(1, 1) })
+			beam.Segments = 1
+			beam.Parent = anchor
+		end
+		local motes = Instance.new("ParticleEmitter")
+		motes.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		motes.Color = ColorSequence.new(color)
+		motes.LightEmission = 1
+		motes.LightInfluence = 0
+		motes.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 0) })
+		motes.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
+		motes.Lifetime = NumberRange.new(2, 3.5)
+		motes.Rate = 14
+		motes.Speed = NumberRange.new(3, 6)
+		motes.SpreadAngle = Vector2.new(8, 8)
+		motes.Shape = Enum.ParticleEmitterShape.Cylinder
+		motes.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+		motes.EmissionDirection = Enum.NormalId.Top
+		motes.Parent = anchor
+		anchor.Size = Vector3.new(zone.Radius * 1.4, 0.2, zone.Radius * 1.4)
+		local light = Instance.new("PointLight")
+		light.Color = color
+		light.Range = zone.Radius * 1.6
+		light.Brightness = 1.4
+		light.Shadows = false
+		light.Parent = anchor
+		-- Sign above the shrine: what you get for extracting here.
+		local blessing = if (category.MutationChance or 0) > 0 then (" • %d%% MUTATION"):format(math.floor(category.MutationChance * 100 + 0.5)) else ""
+		local signAnchor = part({ Name = "SignAnchor", Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(top + Vector3.new(0, 11, 0)), Transparency = 1, CanCollide = false, CanQuery = false, CastShadow = false, Parent = zf })
+		billboardSign(signAnchor, ("⬆ %s"):format(zone.Name:upper()), ("%s EXTRACTION • x%.1f FEE%s"):format(category.Label, category.Bonus, blessing), color, if secret then 60 else 600, 0)
 
 		if zone.Id == "expedition_camp" then
 			for i, off in { Vector3.new(-16, 0, -6), Vector3.new(16, 0, -4), Vector3.new(-12, 0, 14) } do
@@ -1355,6 +1425,7 @@ function WorldBuilder.Build()
 		AltarPrompt = altarPrompt,
 		VaultPlots = plots,
 		Leaderboards = leaderboards,
+		NightGate = nightGate,
 	}
 end
 

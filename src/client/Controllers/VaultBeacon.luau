@@ -1,5 +1,6 @@
--- Local-only beacon over the player's own Vault: a tall gold light beam plus an always-on-top
--- "YOUR VAULT" marker with distance, so home is easy to find from anywhere on the island.
+-- Local-only marker for the player's own Vault, deliberately subtle: a thin soft light beam
+-- that fades out as it rises, plus a small "🏆 YOUR VAULT • 48m" tag. Both fade away as you
+-- get close (you can see the Vault itself by then).
 
 local Players = game:GetService("Players")
 
@@ -15,27 +16,42 @@ local function clear()
 	end
 end
 
-local function build(center: Vector3): (Model, TextLabel)
+local GOLD = Color3.fromRGB(255, 205, 90)
+
+local function build(center: Vector3): (Model, TextLabel, { Beam })
 	local model = Instance.new("Model")
 	model.Name = "MyVaultBeacon"
-	local beam = Instance.new("Part")
-	beam.Name = "Beam"
-	beam.Anchored = true
-	beam.CanCollide = false
-	beam.CanQuery = false
-	beam.CanTouch = false
-	beam.CastShadow = false
-	beam.Shape = Enum.PartType.Cylinder
-	beam.Material = Enum.Material.Neon
-	beam.Color = Color3.fromRGB(255, 200, 60)
-	beam.Transparency = 0.55
-	beam.Size = Vector3.new(90, 1.4, 1.4)
-	beam.CFrame = CFrame.new(center + Vector3.new(0, 45, 0)) * CFrame.Angles(0, 0, math.rad(90))
-	beam.Parent = model
+	local anchor = Instance.new("Part")
+	anchor.Name = "Anchor"
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.CanQuery = false
+	anchor.CanTouch = false
+	anchor.CastShadow = false
+	anchor.Transparency = 1
+	anchor.Size = Vector3.new(1, 1, 1)
+	anchor.CFrame = CFrame.new(center)
+	anchor.Parent = model
+	local bottom = Instance.new("Attachment")
+	bottom.Parent = anchor
+	local top = Instance.new("Attachment")
+	top.Position = Vector3.new(0, 55, 0)
+	top.Parent = anchor
+	local beam = Instance.new("Beam")
+	beam.Attachment0 = bottom
+	beam.Attachment1 = top
+	beam.Color = ColorSequence.new(GOLD)
+	beam.LightEmission = 0.8
+	beam.LightInfluence = 0
+	beam.FaceCamera = true
+	beam.Width0 = 1.1
+	beam.Width1 = 0.4
+	beam.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.55), NumberSequenceKeypoint.new(1, 1) })
+	beam.Parent = anchor
 
 	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(150, 40)
-	gui.StudsOffsetWorldSpace = Vector3.new(0, 48, 0)
+	gui.Size = UDim2.fromOffset(120, 22)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, 22, 0)
 	gui.AlwaysOnTop = true
 	gui.LightInfluence = 0
 	gui.MaxDistance = 5000
@@ -44,14 +60,15 @@ local function build(center: Vector3): (Model, TextLabel)
 	label.Size = UDim2.fromScale(1, 1)
 	label.Font = Enum.Font.FredokaOne
 	label.TextScaled = true
-	label.TextColor3 = Color3.fromRGB(255, 210, 80)
-	label.TextStrokeTransparency = 0.2
+	label.TextColor3 = GOLD
+	label.TextTransparency = 0.15
+	label.TextStrokeTransparency = 0.5
 	label.Text = "🏆 YOUR VAULT"
 	label.Parent = gui
-	gui.Adornee = beam
-	gui.Parent = beam
+	gui.Adornee = anchor
+	gui.Parent = anchor
 	model.Parent = workspace
-	return model, label
+	return model, label, { beam }
 end
 
 local function refresh()
@@ -68,16 +85,19 @@ local function refresh()
 	if typeof(center) ~= "Vector3" then
 		return
 	end
-	local model, label = build(center)
+	local model, label, beams = build(center)
 	beacon = model
 	task.spawn(function()
 		while beacon == model do
 			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 			if root then
 				local distance = (root.Position - center).Magnitude
-				-- Fade the marker out once you are standing at home.
-				label.Visible = distance > 30
+				-- Gone when you're at home; the beam only really shows from afar.
+				label.Visible = distance > 45
 				label.Text = ("🏆 YOUR VAULT • %dm"):format(math.floor(distance / 3.5 + 0.5))
+				for _, beam in beams do
+					beam.Enabled = distance > 30
+				end
 			end
 			task.wait(0.5)
 		end
