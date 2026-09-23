@@ -52,7 +52,11 @@ test("carry bands match spec", function()
 	check(Carry.SpeedMultiplier(151, 100, cfg) == 0.3, "ratio >1.50 -> 30%")
 	check(Carry.SpeedMultiplier(1, 1, cfg) == 0.6, "strength 1 carrying weight 1")
 	check(Carry.SpeedMultiplier(80, 0, cfg) == 0.3, "zero strength treated as 1, never errors")
-	check(Carry.SpeedMultiplier(5, GameConfig.Strength.Start, cfg) >= 0.9, "a new player carries a Common at 90%+")
+	for _, def in Treasures.List do
+		if def.Rarity == "Common" then
+			check(Carry.SpeedMultiplier(def.Weight, GameConfig.Strength.Start, cfg) >= 0.9, "a new player carries " .. def.Id .. " at 90%+")
+		end
+	end
 end)
 
 test("carry never hard-locks and jump has a floor", function()
@@ -60,7 +64,7 @@ test("carry never hard-locks and jump has a floor", function()
 	check(Carry.SpeedMultiplier(10000, 1, cfg) > 0, "absurd weight is still movable")
 	check(Carry.JumpMultiplier(0.3, cfg) == cfg.JumpMultiplierFloor, "jump floor applies")
 	check(Carry.JumpMultiplier(1, cfg) == 1, "light carry keeps full jump")
-	check(Carry.RecommendedStrength(50, cfg) == 60, "dragon-egg example: weight 50 -> recommended 60")
+	check(Carry.RecommendedStrength(5000, cfg) == 6000, "weight 5,000 -> recommended 6,000")
 end)
 
 -- STABILITY ---------------------------------------------------------------------
@@ -138,9 +142,9 @@ test("bench tiers: ordered, ascension-gated, and every ascension climb takes a s
 	local tiers = GameConfig.Training.Benches
 	check(#tiers >= 4, "at least four bench tiers")
 	for i, tier in tiers do
-		check(tier.Rate > 0 and tier.Count > 0, "valid tier " .. tier.Id)
+		check(tier.RepGain >= 1 and tier.Count > 0, "valid tier " .. tier.Id)
 		if i > 1 then
-			check(tier.Rate > tiers[i - 1].Rate, "rate increases " .. tier.Id)
+			check(tier.RepGain > tiers[i - 1].RepGain, "rep gain increases " .. tier.Id)
 			check(tier.Price > tiers[i - 1].Price, "price increases " .. tier.Id)
 			check(tier.RequiredAscension >= tiers[i - 1].RequiredAscension, "gate never goes down " .. tier.Id)
 		end
@@ -151,17 +155,18 @@ test("bench tiers: ordered, ascension-gated, and every ascension climb takes a s
 		local best = 0
 		for _, tier in tiers do
 			if tier.RequiredAscension <= level then
-				best = math.max(best, tier.Rate)
+				best = math.max(best, GameConfig.GetRepGain(tier, level) / GameConfig.Training.RepPeriod)
 			end
 		end
 		local requirement = GameConfig.GetAscensionRequirement(level)
-		local minutes = (requirement - GameConfig.Strength.Start) / (best * GameConfig.GetTrainingMultiplier(level)) / 60
+		local minutes = (requirement - GameConfig.Strength.Start) / best / 60
 		check(requirement > previousRequirement, ("requirement grows at ascension %d"):format(level))
 		check(minutes >= 8 and minutes <= 50, ("ascension %d climb takes %.1f min (8-50)"):format(level, minutes))
 		previousRequirement = requirement
 	end
 	check(GameConfig.GetTrainingMultiplier(3) > GameConfig.GetTrainingMultiplier(2), "training speeds up every ascension")
-	check(GameConfig.Strength.Start >= 5, "starting strength lets a new player carry a Common")
+	check(GameConfig.GetRepGain(tiers[1], 0) >= 5, "even the first rep pays out a satisfying number")
+	check(GameConfig.Training.CritChance > 0 and GameConfig.Training.CritMultiplier > 1, "MEGA REP jackpot exists")
 end)
 
 test("uncapped strength keeps making carrying easier (within limits)", function()
@@ -176,7 +181,7 @@ end)
 test("first join gets defaults", function()
 	local data = DataSchema.Migrate(nil)
 	check(data.Version == DataSchema.Version, "version set")
-	check(data.Cash == 0 and data.Strength == 10 and data.Ascension == 0, "starting stats")
+	check(data.Cash == 0 and data.Strength == GameConfig.Strength.Start and data.Ascension == 0, "starting stats")
 	check(data.Vault.Tier == 1, "vault tier 1")
 	check(#data.EquippedGadgets == 3, "three gadget slots")
 end)
@@ -191,7 +196,7 @@ test("partial / old saves are reconciled, never wiped", function()
 	}
 	local data = DataSchema.Migrate(old)
 	check(data.Cash == 5000, "cash kept")
-	check(data.Strength == 42, "strength kept")
+	check(data.Strength == 4200, "strength kept (rescaled x100)")
 	check(data.Collection.golden_crown.Count == 2, "collection kept")
 	check(data.Vault.Displays["1"] == "golden_crown", "vault displays kept")
 	check(data.Vault.Tier == 1, "missing vault tier filled")
@@ -203,7 +208,7 @@ end)
 test("corrupt values are sanitised", function()
 	local data = DataSchema.Migrate({ Cash = -50, Strength = "abc", Ascension = 2.7, EquippedGadgets = { 5, nil, "balloon" } })
 	check(data.Cash == 0, "negative cash clamped")
-	check(data.Strength == 10, "invalid strength reset to the v2 starting value")
+	check(data.Strength == 1000, "invalid strength reset to the starting value")
 	check(data.Ascension == 2, "ascension floored")
 	check(data.EquippedGadgets[1] == "" and data.EquippedGadgets[3] == "balloon", "slots sanitised")
 end)
@@ -219,6 +224,10 @@ test("30 treasures with unique ids and spec economy ranges", function()
 		Legendary = { 50000, 250000, 20, 50 },
 		Mythic = { 250000, 1000000, 35, 80 },
 	}
+	for _, r in ranges do
+		r[3] *= 100 -- weights live on the x100 Strength scale
+		r[4] *= 100
+	end
 	local seen = {}
 	for _, def in Treasures.List do
 		check(not seen[def.Id], "unique id " .. def.Id)
@@ -247,6 +256,12 @@ test("first gadget is cheap, the rest stay expensive", function()
 	end
 	check(cheapest <= 1000, "first gadget within reach of a couple of early extractions")
 	check(second >= 10000, "later gadgets stay a real goal")
+end)
+
+test("save v4 rescales strength x100 exactly once", function()
+	local data = DataSchema.Migrate({ Version = 3, Strength = 57.5 })
+	check(data.Strength == 5750, "old strength x100")
+	check(DataSchema.Migrate(data).Strength == 5750, "already-migrated save untouched")
 end)
 
 test("save v3 keeps unlocked treadmills as benches", function()

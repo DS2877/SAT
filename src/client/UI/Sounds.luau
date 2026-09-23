@@ -24,6 +24,8 @@ local LIBRARY = {
 	GuardianAlert = { Id = "rbxasset://sounds/unsheath.wav", Volume = 0.7, Speed = 0.8 },
 	TrainPerfect = { Id = "rbxasset://sounds/electronicpingshort.wav", Volume = 0.6, Speed = 1.6 },
 	TrainGood = { Id = "rbxasset://sounds/clickfast.wav", Volume = 0.6, Speed = 1 },
+	Rep = { Id = "rbxasset://sounds/electronicpingshort.wav", Volume = 0.35, Speed = 1.5 },
+	MegaRep = { Id = "rbxasset://sounds/electronicpingshort.wav", Volume = 1, Speed = 0.9 },
 	TrainMiss = { Id = "rbxasset://sounds/action_get_up.mp3", Volume = 0.4, Speed = 1.5 },
 	Gadget = { Id = "rbxasset://sounds/action_jump.mp3", Volume = 0.6, Speed = 1.3 },
 	Error = { Id = "rbxasset://sounds/clickfast.wav", Volume = 0.5, Speed = 0.6 },
@@ -32,7 +34,8 @@ local LIBRARY = {
 
 local cache: { [string]: Sound } = {}
 
-function Sounds.Play(name: string, volumeScale: number?)
+-- speedScale shifts the pitch (e.g. rising pitch as a combo grows).
+function Sounds.Play(name: string, volumeScale: number?, speedScale: number?)
 	local def = LIBRARY[name]
 	if not def then
 		return
@@ -47,7 +50,8 @@ function Sounds.Play(name: string, volumeScale: number?)
 		sound.Parent = SoundService
 		cache[name] = sound
 	end
-	(sound :: Sound).Volume = def.Volume * (volumeScale or 1)
+	(sound :: Sound).Volume = def.Volume * (volumeScale or 1);
+	(sound :: Sound).PlaybackSpeed = def.Speed * (speedScale or 1)
 	SoundService:PlayLocalSound(sound :: Sound)
 end
 

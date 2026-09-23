@@ -174,6 +174,17 @@ function Kit.shortNumber(n: number): string
 	return tostring(n)
 end
 
+-- Full number with thousands separators below a million ("12,345"), short above ("3.4M"), so
+-- steadily growing stats visibly tick up on every gain.
+function Kit.bigNumber(n: number): string
+	n = math.floor(n)
+	if n >= 1e6 then
+		return Kit.shortNumber(n)
+	end
+	local s = tostring(n):reverse():gsub("(%d%d%d)", "%1,"):reverse()
+	return (s:gsub("^,", ""))
+end
+
 -- Temporarily pops an element (scale bump) to draw the eye to a change.
 function Kit.pulse(guiObject: GuiObject)
 	local scale = guiObject:FindFirstChild("PulseScale") :: UIScale?

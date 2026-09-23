@@ -13,10 +13,12 @@ GameConfig.Player = {
 	MaxHealth = 100,
 }
 
+-- Strength and treasure Weight share one scale (x100 of the original design) so every rep and
+-- extraction pays out numbers that feel big: a Common weighs 100-500, a new player has 1,000.
 GameConfig.Strength = {
-	Start = 10, -- enough to carry a Common comfortably on the very first run
+	Start = 1000, -- enough to carry a Common comfortably on the very first run
 	Max = math.huge, -- uncapped: Ascension requirements keep growing instead
-	-- Strength earned when extracting: ceil(weight * factor)
+	-- Strength earned when extracting: ceil(weight * factor) (Pirate Chest 2,000 -> +200)
 	ExtractionGainPerWeight = 0.1,
 }
 
@@ -36,9 +38,11 @@ GameConfig.Carry = {
 	},
 	JumpMultiplierFloor = 0.55, -- jump power scales with speed but never below this
 	RecommendedStrengthFactor = 1.2, -- UI: recommended strength = ceil(weight * factor)
+	-- Weight/Strength ratio that counts as "carries it easily" (full walk speed) for unlock toasts.
+	EasyRatio = 0.25,
 	PickupRange = 12,
 	PickupHoldBase = 0.25,
-	PickupHoldPerWeight = 0.01,
+	PickupHoldPerWeight = 0.0001,
 	PickupHoldMax = 1.0,
 }
 
@@ -104,26 +108,30 @@ GameConfig.SafeZone = {
 	Radius = 150, -- matches the District wall
 }
 
--- Bench-press training (AFK-friendly). Lie on a bench to gain Strength over time; tap PUSH
--- for a short boost. Higher tiers are unlocked with Cash + a Strength requirement.
+-- Bench-press training (AFK-friendly). Lie on a bench and every rep pays out Strength. Tapping
+-- PUSH makes reps twice as fast and builds a combo; any rep can crit as a MEGA REP.
 GameConfig.Training = {
-	TickRate = 1, -- seconds between server strength ticks
-	SprintMultiplier = 2,
+	RepPeriod = 1.6, -- seconds per rep (halved while boosting)
 	SprintDuration = 1.5, -- seconds of boost per tap
 	MaxTapsPerSecond = 4,
-	LeaveDistance = 6, -- studs from the belt centre before the session ends
-	PressPeriod = 1.6, -- seconds per rep (visual), halved while boosting
+	LeaveDistance = 6, -- studs from the bench before the session ends
+	-- Combo: every boosted rep in a row adds a stack (+ComboBonusPerStack each); a slow rep resets it.
+	ComboMax = 10,
+	ComboBonusPerStack = 0.1,
+	-- MEGA REP: random jackpot rep.
+	CritChance = 0.08,
+	CritMultiplier = 5,
 	-- Placeholder for a "2x Strength" game pass (0 = disabled). Multiplies all bench gains.
 	StrengthPassId = 0,
 	StrengthPassMultiplier = 2,
 	-- Benches are gated by ASCENSION (permanent), not Strength (which resets on every Ascension).
-	-- Actual gain = Rate x TrainingMultiplier(ascension) x boosts.
+	-- Strength per rep = RepGain x TrainingMultiplier(ascension) x combo x crit x pass.
 	Benches = {
-		{ Id = "wooden", Name = "Wooden Bench", Price = 0, RequiredAscension = 0, Rate = 0.02, Color = { 170, 120, 70 }, Count = 4 },
-		{ Id = "iron", Name = "Iron Bench", Price = 5000, RequiredAscension = 0, Rate = 0.05, Color = { 150, 155, 170 }, Count = 4 },
-		{ Id = "golden", Name = "Golden Bench", Price = 75000, RequiredAscension = 1, Rate = 0.12, Color = { 255, 196, 50 }, Count = 4 },
-		{ Id = "diamond", Name = "Diamond Bench", Price = 500000, RequiredAscension = 2, Rate = 0.3, Color = { 120, 220, 255 }, Count = 4 },
-		{ Id = "mythic", Name = "Mythic Bench", Price = 5000000, RequiredAscension = 4, Rate = 0.8, Color = { 255, 70, 110 }, Count = 3 },
+		{ Id = "wooden", Name = "Wooden Bench", Price = 0, RequiredAscension = 0, RepGain = 5, Color = { 170, 120, 70 }, Count = 4 },
+		{ Id = "iron", Name = "Iron Bench", Price = 5000, RequiredAscension = 0, RepGain = 12, Color = { 150, 155, 170 }, Count = 4 },
+		{ Id = "golden", Name = "Golden Bench", Price = 75000, RequiredAscension = 1, RepGain = 30, Color = { 255, 196, 50 }, Count = 4 },
+		{ Id = "diamond", Name = "Diamond Bench", Price = 500000, RequiredAscension = 2, RepGain = 75, Color = { 120, 220, 255 }, Count = 4 },
+		{ Id = "mythic", Name = "Mythic Bench", Price = 5000000, RequiredAscension = 4, RepGain = 180, Color = { 255, 70, 110 }, Count = 3 },
 	},
 }
 
@@ -150,8 +158,8 @@ GameConfig.Vault = {
 }
 
 GameConfig.Ascension = {
-	-- Strength needed to Ascend grows every time: Base x Growth^ascension (100, 250, 625, 1.6K...)
-	BaseRequirement = 100,
+	-- Strength needed to Ascend grows every time: Base x Growth^ascension (10K, 25K, 62.5K, 156K...)
+	BaseRequirement = 10000,
 	RequirementGrowth = 2.5,
 	-- ...but training speeds up every time too (compounding), so each climb stays reachable.
 	TrainingMultiplierPerLevel = 1.6,
@@ -231,6 +239,11 @@ GameConfig.Remotes = {
 function GameConfig.GetAscensionRequirement(level: number): number
 	local a = GameConfig.Ascension
 	return math.floor(a.BaseRequirement * a.RequirementGrowth ^ level)
+end
+
+-- Strength per rep for a bench at an ascension level (before combo / crit / pass).
+function GameConfig.GetRepGain(tier, level: number): number
+	return math.floor(tier.RepGain * GameConfig.GetTrainingMultiplier(level) + 0.5)
 end
 
 -- Training (bench) speed multiplier at a given ascension level.

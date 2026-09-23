@@ -75,11 +75,21 @@ M0–M7 implemented in code; awaiting first Roblox runtime playtest (M8 multipla
 ## PROGRESSION REDESIGN (uncapped Strength)
 - Strength has no cap. Past 1x weight a carry is "OVERPOWERED" (up to +10% speed) - capped so
   whales can't outrun guardians forever. HUD shows big numbers as K/M/B.
-- Ascension requirement grows x2.5 per level (100, 250, 625, 1.6K, 3.9K, 9.8K...).
+- Ascension requirement grows x2.5 per level (10K, 25K, 62.5K, 156K, 391K...).
 - Each Ascension multiplies training speed x1.6 forever, so every climb stays ~8-50 AFK minutes
   (unit test enforces this for levels 0-6).
 - Benches are gated by ASCENSION (not Strength, which resets): Wooden free, Iron $5K, Golden
   Asc 1, Diamond Asc 2, Mythic Asc 4 (5th gym row).
+
+## REWARDING TRAINING (rep-based)
+- Strength + treasure Weight moved to a x100 scale (start 1,000; Commons weigh 100-500). Save v4
+  migrates old Strength x100.
+- Benches pay out per REP (1.6s, 2x faster while PUSH-boosting): +5 / +12 / +30 / +75 / +180 base.
+- Boosted reps build a COMBO (+10% per stack, max x10 = +100%); 8% of reps are MEGA REPs (x5).
+- Panel: floating +N pops (pitch rises with combo), combo meter, "NEXT LIFT" goal bar.
+- "NEW LIFT!" banner whenever Strength lets you carry a heavier treasure at full speed.
+- All prompts hidden while lying on a bench; occupied benches hide their prompt for everyone.
+- Strength pill shows full numbers with separators below 1M so it visibly ticks every rep.
 
 ## KNOWN BUGS / RISKS
 - Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp slopes.

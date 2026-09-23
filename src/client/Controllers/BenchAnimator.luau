@@ -1,6 +1,8 @@
 -- Animates EVERY player who is on a bench press (player attribute "Bench" ~= ""), locally on
 -- each client: shoulder/elbow motors press up and down and a barbell follows the hands.
--- Motor C0 edits are visual only and restored when the player gets up. R6 rigs just get the bar.
+-- Every server rep ("BenchRep" attribute) pulls the press toward lockout so the arms hit the
+-- top exactly when the Strength pops. Motor C0 edits are visual only and restored when the
+-- player gets up. R6 rigs just get the bar.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -109,6 +111,14 @@ local function watch(player: Player)
 	player:GetAttributeChangedSignal("Bench"):Connect(function()
 		refresh(player)
 	end)
+	player:GetAttributeChangedSignal("BenchRep"):Connect(function()
+		local lifter = lifters[player]
+		if lifter then
+			-- Lockout is phase 0.5: take most of the way there now, the rest shows as a snappy push.
+			local err = ((0.5 - lifter.Phase + 0.5) % 1) - 0.5
+			lifter.Phase = (lifter.Phase + err * 0.7) % 1
+		end
+	end)
 	player.CharacterRemoving:Connect(function()
 		stop(player)
 	end)
@@ -122,7 +132,7 @@ function BenchAnimator.Init()
 	Players.PlayerAdded:Connect(watch)
 	Players.PlayerRemoving:Connect(stop)
 
-	local period = GameConfig.Training.PressPeriod
+	local period = GameConfig.Training.RepPeriod
 	RunService.RenderStepped:Connect(function(dt)
 		for player, lifter in lifters do
 			if not lifter.Character.Parent then

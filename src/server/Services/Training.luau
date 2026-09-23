@@ -1,8 +1,9 @@
 -- Bench-press training: AFK-friendly Strength gain. A player lies down on a bench (prompt), is
--- held in place, and earns Strength every tick. Tapping PUSH briefly multiplies the rate.
+-- held in place, and every rep pays out a chunk of Strength. Tapping PUSH doubles the rep speed
+-- and builds a combo (bonus per rep); any rep can crit as a MEGA REP.
 -- Higher tiers are unlocked with Cash + an Ascension level; every Ascension multiplies training
--- speed (GameConfig.GetTrainingMultiplier). All gains are server-side.
--- Every client animates bench users from the "Bench"/"BenchBoost" player attributes.
+-- speed (GameConfig.GetTrainingMultiplier). All gains and rolls are server-side.
+-- Every client animates bench users from the "Bench"/"BenchBoost"/"BenchRep" player attributes.
 
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
@@ -25,9 +26,12 @@ local cfg = GameConfig.Training
 -- LieCFrame: root pose lying on the bench (looking at the sky, head toward the rack).
 -- StandCFrame: where the player is put back on their feet afterwards.
 type Machine = { Tier: any, LieCFrame: CFrame, StandCFrame: CFrame, Prompt: ProximityPrompt, Occupant: Player? }
-type Session = { Machine: Machine, Pending: number, SprintUntil: number, Gained: number }
+type Session = { Machine: Machine, Progress: number, SprintUntil: number, Gained: number, Combo: number, Reps: number }
+
+local TICK = 0.1
 
 local sessions: { [Player]: Session } = {}
+local random = Random.new()
 local passMultiplier: { [Player]: number } = {}
 
 local function tierIndex(id: string): number
@@ -39,27 +43,15 @@ local function tierIndex(id: string): number
 	return 0
 end
 
-local function commit(player: Player, session: Session)
-	if session.Pending <= 0 then
-		return
-	end
-	local amount = session.Pending
-	session.Pending = 0
-	PlayerData.Update(player, function(d)
-		d.Strength = math.min(GameConfig.Strength.Max, d.Strength + amount)
-	end)
-	TreasureService.RefreshCarrier(player)
-end
-
 local function stop(player: Player, reason: string)
 	local session = sessions[player]
 	if not session then
 		return
 	end
 	sessions[player] = nil
-	commit(player, session)
 	if session.Machine.Occupant == player then
 		session.Machine.Occupant = nil
+		session.Machine.Prompt.Enabled = true
 	end
 	Movement.SetLock(player, "Bench", false)
 	player:SetAttribute("Bench", "")
@@ -71,13 +63,14 @@ local function stop(player: Player, reason: string)
 			(root.Parent :: Model):PivotTo(session.Machine.StandCFrame)
 		end
 	end
-	Net.Fire("TrainingState", player, { Active = false, Reason = reason, Gained = session.Gained })
+	Net.Fire("TrainingState", player, { Active = false, Reason = reason, Gained = session.Gained, Reps = session.Reps })
 end
 
-local function rateFor(player: Player, tier): number
+-- Base Strength per rep for this player on this bench (before combo / crit).
+local function repGainFor(player: Player, tier): number
 	local data = PlayerData.Get(player)
 	local ascension = if data then data.Ascension else 0
-	return tier.Rate * GameConfig.GetTrainingMultiplier(ascension) * (passMultiplier[player] or 1)
+	return GameConfig.GetRepGain(tier, ascension) * (passMultiplier[player] or 1)
 end
 
 local function owns(data, tier): boolean
@@ -125,7 +118,8 @@ local function start(player: Player, machine: Machine)
 
 	stop(player, "Switched")
 	machine.Occupant = player
-	sessions[player] = { Machine = machine, Pending = 0, SprintUntil = 0, Gained = 0 }
+	machine.Prompt.Enabled = false -- nobody sees "Lift" on a bench that's in use
+	sessions[player] = { Machine = machine, Progress = 0, SprintUntil = 0, Gained = 0, Combo = 0, Reps = 0 }
 	local character = root.Parent :: Model
 	root.AssemblyLinearVelocity = Vector3.zero
 	character:PivotTo(machine.LieCFrame)
@@ -136,14 +130,32 @@ local function start(player: Player, machine: Machine)
 		Active = true,
 		TierId = tier.Id,
 		Name = tier.Name,
-		Rate = rateFor(player, tier),
-		SprintMultiplier = cfg.SprintMultiplier,
-		Position = machine.LieCFrame.Position,
-		LeaveDistance = cfg.LeaveDistance,
+		RepGain = repGainFor(player, tier),
+		RepPeriod = cfg.RepPeriod,
+		ComboMax = cfg.ComboMax,
+		ComboBonusPerStack = cfg.ComboBonusPerStack,
 	})
 	if PlayerData.Milestone(player, "FirstTraining") then
 		Analytics.Funnel(player, "FirstTraining")
 	end
+end
+
+local function rep(player: Player, session: Session, boosted: boolean)
+	-- Boosted reps build the combo; a slow (AFK) rep lets it drop.
+	session.Combo = if boosted then math.min(cfg.ComboMax, session.Combo + 1) else 0
+	local crit = random:NextNumber() < cfg.CritChance
+	local amount = repGainFor(player, session.Machine.Tier)
+		* (1 + session.Combo * cfg.ComboBonusPerStack)
+		* (if crit then cfg.CritMultiplier else 1)
+	amount = math.max(1, math.floor(amount + 0.5))
+	session.Gained += amount
+	session.Reps += 1
+	PlayerData.Update(player, function(d)
+		d.Strength = math.min(GameConfig.Strength.Max, d.Strength + amount)
+	end)
+	TreasureService.RefreshCarrier(player)
+	player:SetAttribute("BenchRep", session.Reps) -- every client syncs the lift animation to this
+	Net.Fire("TrainingRep", player, { Amount = amount, Crit = crit, Combo = session.Combo, Total = session.Gained })
 end
 
 local function tick(dt: number)
@@ -151,21 +163,18 @@ local function tick(dt: number)
 	for player, session in sessions do
 		local root = Combat.RootOf(player)
 		local data = PlayerData.Get(player)
-		local belt = session.Machine.LieCFrame.Position
-		local offBelt = not root
-			or (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(belt.X, 0, belt.Z)).Magnitude
+		local bench = session.Machine.LieCFrame.Position
+		local offBench = not root
+			or (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(bench.X, 0, bench.Z)).Magnitude
 				> cfg.LeaveDistance
-		if offBelt or not data then
+		if offBench or not data then
 			stop(player, "Left")
 		else
-			local sprinting = now < session.SprintUntil
-			local gain = rateFor(player, session.Machine.Tier) * dt * (if sprinting then cfg.SprintMultiplier else 1)
-			session.Pending += gain
-			session.Gained += gain
-			-- Commit whenever the displayed (whole) Strength would change, so the HUD ticks up
-			-- without a data sync every second.
-			if math.floor(data.Strength + session.Pending) > math.floor(data.Strength) then
-				commit(player, session)
+			local boosted = now < session.SprintUntil
+			session.Progress += dt / (if boosted then cfg.RepPeriod / 2 else cfg.RepPeriod)
+			if session.Progress >= 1 then
+				session.Progress -= 1
+				rep(player, session, boosted)
 			end
 		end
 	end
@@ -231,7 +240,7 @@ function Training.Init(machines: { Machine })
 	task.spawn(function()
 		local last = os.clock()
 		while true do
-			task.wait(cfg.TickRate)
+			task.wait(TICK)
 			local now = os.clock()
 			local ok, err = pcall(tick, now - last)
 			last = now

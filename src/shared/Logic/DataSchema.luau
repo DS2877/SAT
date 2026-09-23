@@ -3,13 +3,13 @@
 
 local DataSchema = {}
 
-DataSchema.Version = 3
+DataSchema.Version = 4
 
 function DataSchema.Default()
 	return {
 		Version = DataSchema.Version,
 		Cash = 0,
-		Strength = 10,
+		Strength = 1000,
 		Ascension = 0,
 		Collection = {}, -- [treasureId] = { Discovered = true, Count = n }
 		Vault = {
@@ -72,6 +72,10 @@ DataSchema.Migrations = {
 			data.OwnedTreadmills = nil
 		end
 	end,
+	-- v4: Strength and treasure Weight moved to a x100 scale (bigger, more rewarding numbers).
+	[4] = function(data)
+		data.Strength = (tonumber(data.Strength) or 10) * 100
+	end,
 }
 
 function DataSchema.Migrate(data)
@@ -90,7 +94,7 @@ function DataSchema.Migrate(data)
 
 	-- Sanitise values that must never be invalid.
 	data.Cash = math.max(0, math.floor(tonumber(data.Cash) or 0))
-	data.Strength = math.max(1, tonumber(data.Strength) or 10)
+	data.Strength = math.max(1, tonumber(data.Strength) or 1000)
 	data.Ascension = math.max(0, math.floor(tonumber(data.Ascension) or 0))
 	for i = 1, 3 do
 		if type(data.EquippedGadgets[i]) ~= "string" then

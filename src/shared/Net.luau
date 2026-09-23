@@ -16,6 +16,7 @@ Net.ServerToClient = {
 	"Feedback", -- gameplay feedback events: { Type = "...", ... }
 	"Notify", -- toast / banner / social feed messages
 	"TrainingState", -- training set start/stop
+	"TrainingRep", -- one bench rep paid out (amount, crit, combo)
 	"ExtractionState",
 	"GadgetState", -- cooldowns / effects
 	"OpenMenu",

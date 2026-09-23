@@ -556,7 +556,7 @@ local function buildGym(district: Folder)
 		local priceText = tostring(tier.Price):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
 		local gate = if tier.RequiredAscension > 0 then (" • ASC %d"):format(tier.RequiredAscension) else ""
 		local unlock = if tier.Price > 0 then ("$%s%s"):format(priceText, gate) else "FREE"
-		billboardSign(signPost, tier.Name:upper(), ("+%.2f 💪/s  •  %s"):format(tier.Rate, unlock), color, 90, 4, 10)
+		billboardSign(signPost, tier.Name:upper(), ("+%d 💪 per rep  •  %s"):format(tier.RepGain, unlock), color, 90, 4, 10)
 	end
 	local header = part({
 		Name = "GymHeader",
@@ -567,7 +567,7 @@ local function buildGym(district: Folder)
 		CanQuery = false,
 		Parent = gym,
 	})
-	billboardSign(header, "🏋 STRENGTH GYM", "Lie on a bench • Tap PUSH to boost", C.Gold, 200, 0, 26)
+	billboardSign(header, "🏋 STRENGTH GYM", "Lie down • Every rep = 💪 • Tap PUSH for combos", C.Gold, 200, 0, 26)
 	return machines
 end
 

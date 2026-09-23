@@ -27,7 +27,7 @@ function Ascension.Build(root: Frame, controller)
 		Font = Theme.Font.Bold,
 		TextSize = Theme.TextSize.Body,
 		TextColor3 = Theme.Color.TextDim,
-		Text = "Strength resets to 10, but you train faster forever. You KEEP your Collection, Vault, gadgets, benches and titles.",
+		Text = ("Strength resets to %s, but you train faster forever. You KEEP your Collection, Vault, gadgets, benches and titles."):format(Kit.bigNumber(GameConfig.Strength.Start)),
 		Parent = column,
 	})
 	local ascend = Kit.button({ LayoutOrder = 6, Size = UDim2.fromOffset(260, 60), Text = "ASCEND", Font = Theme.Font.Display, TextSize = 30, BackgroundColor3 = Theme.Color.Secret, TextColor3 = Theme.Color.Text }, function()
@@ -53,8 +53,8 @@ function Ascension.Build(root: Frame, controller)
 			GameConfig.GetTrainingMultiplier(nextLevel)
 		)
 		progress.Text = ("STRENGTH %s / %s  •  COST %s"):format(
-			Kit.shortNumber(data.Strength),
-			Kit.shortNumber(required),
+			Kit.bigNumber(data.Strength),
+			Kit.bigNumber(required),
 			Kit.shortCash(cost)
 		)
 		progress.TextColor3 = if ready then Theme.Color.Safe else Theme.Color.Strength

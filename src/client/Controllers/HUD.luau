@@ -514,7 +514,7 @@ local function refreshObjective()
 			("%s %s • CARRYING"):format(info.Glyph, carrying.Rarity:upper()),
 			carrying.Name:upper(),
 			info.Color,
-			("<font color=\"#78eb78\">%s</font>  •  WEIGHT %d"):format(Kit.formatCash(carrying.Value), carrying.Weight),
+			("<font color=\"#78eb78\">%s</font>  •  WEIGHT %s"):format(Kit.formatCash(carrying.Value), Kit.bigNumber(carrying.Weight)),
 			line2,
 			speed,
 			if speed >= 0.75 then Theme.Color.Safe elseif speed >= 0.45 then Theme.Color.Warn else Theme.Color.Danger
@@ -581,8 +581,8 @@ local function refreshObjective()
 		goal.Name:upper(),
 		rarityColor(goal.Rarity),
 		if needsTraining
-			then ("<font color=\"#78eb78\">%s</font>  •  STRENGTH %d / %d"):format(Kit.formatCash(goal.Value), strength, recommended)
-			else ("<font color=\"#78eb78\">%s</font>  •  WEIGHT %d"):format(Kit.formatCash(goal.Value), goal.Weight),
+			then ("<font color=\"#78eb78\">%s</font>  •  STRENGTH %s / %s"):format(Kit.formatCash(goal.Value), Kit.bigNumber(strength), Kit.bigNumber(recommended))
+			else ("<font color=\"#78eb78\">%s</font>  •  WEIGHT %s"):format(Kit.formatCash(goal.Value), Kit.bigNumber(goal.Weight)),
 		if needsTraining then "▶ TRAIN" else ("▶ FIND IT IN %s"):format(AREA_NAMES[goal.SpawnArea] or goal.SpawnArea:upper()),
 		if needsTraining then strength / recommended else nil,
 		if needsTraining then Theme.Color.Strength else Theme.Color.Safe
@@ -592,7 +592,7 @@ end
 HUD.RefreshObjective = refreshObjective
 
 local function refreshStats(data, previous)
-	refs.Strength.Text = Kit.shortNumber(data.Strength)
+	refs.Strength.Text = Kit.bigNumber(data.Strength)
 	refs.Cash.Text = Kit.formatCash(data.Cash)
 	if previous then
 		if data.Cash ~= previous.Cash then
