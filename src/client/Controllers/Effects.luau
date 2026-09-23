@@ -398,7 +398,26 @@ local function scanTreasures()
 	end
 end
 
+-- Cursed Hour: the world turns purple and gloomy (local post-processing only).
+local function watchCurse()
+	local Lighting = game:GetService("Lighting")
+	local tint = Instance.new("ColorCorrectionEffect")
+	tint.Name = "SAT_CurseTint"
+	tint.Parent = Lighting
+	local function apply()
+		local cursed = workspace:GetAttribute("EventId") == "CursedHour"
+		Kit.tween(tint, TweenInfo.new(2), {
+			TintColor = if cursed then Color3.fromRGB(200, 170, 255) else Color3.new(1, 1, 1),
+			Brightness = if cursed then -0.08 else 0,
+			Saturation = if cursed then -0.2 else 0,
+		})
+	end
+	workspace:GetAttributeChangedSignal("EventId"):Connect(apply)
+	apply()
+end
+
 function Effects.Init()
+	watchCurse()
 	Net.Get("Feedback").OnClientEvent:Connect(function(payload)
 		if type(payload) ~= "table" then
 			return

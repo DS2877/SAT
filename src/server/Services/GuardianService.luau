@@ -160,12 +160,18 @@ local function attractsGuardians(player: Player): boolean
 	return record ~= nil and record.Def.SpecialEffect == "AttractsGuardians"
 end
 
+-- Events (Cursed Hour) enrage guardians via a workspace attribute.
+local function rage(): number
+	local value = workspace:GetAttribute("GuardianRage")
+	return if type(value) == "number" and value > 0 then value else 1
+end
+
 local function findTarget(g: Guardian): (Player?, BasePart?)
 	local best, bestRoot, bestScore = nil, nil, math.huge
 	for _, player in Players:GetPlayers() do
 		local root = Combat.RootOf(player)
 		if root and not player.Character:FindFirstChildOfClass("ForceField") and not Zones.InSafeZone(root.Position) then
-			local detect = g.Def.DetectRange * (if attractsGuardians(player) then 2.5 else 1)
+			local detect = g.Def.DetectRange * rage() * (if attractsGuardians(player) then 2.5 else 1)
 			if player:GetAttribute("Disguised") then
 				detect *= Gadgets.Get("disguise").GuardianDetectMultiplier
 			end
@@ -227,12 +233,12 @@ local function step(g: Guardian, now: number)
 	local target, targetRoot = findTarget(g)
 	if target and targetRoot then
 		setState(g, "Chase", target)
-		g.Humanoid.WalkSpeed = g.Def.ChaseSpeed
+		g.Humanoid.WalkSpeed = g.Def.ChaseSpeed * rage()
 		g.Humanoid:MoveTo(targetRoot.Position)
 		local reach = g.Def.AttackRange + g.Root.Size.Z / 2
 		if (targetRoot.Position - g.Root.Position).Magnitude <= reach and now - g.LastAttack >= g.Def.AttackCooldown then
 			g.LastAttack = now
-			local result = Combat.ApplyHit(target, { Guardian = g.Type, Damage = g.Def.Damage, From = g.Root.Position })
+			local result = Combat.ApplyHit(target, { Guardian = g.Type, Damage = g.Def.Damage * rage(), From = g.Root.Position })
 			Net.FireAll("Feedback", { Type = "GuardianAttack", Position = g.Root.Position })
 			if result == "Knocked" then
 				-- Back off so the victim gets a fair chance to reclaim.

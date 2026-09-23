@@ -203,6 +203,16 @@ GameConfig.Events = {
 		RarityWeights = { Common = 55, Uncommon = 40, Rare = 22, Epic = 7, Legendary = 1 },
 		-- Landing sites: WorldLayout.EventSites
 	},
+	CursedHour = {
+		Name = "CURSED HOUR",
+		Icon = "☠",
+		Duration = 120,
+		-- Multiplies spawn weights of these rarities while the curse lasts.
+		RarityBoost = { Rare = 2, Epic = 3, Legendary = 3, Mythic = 3 },
+		GuardianRage = 1.3, -- guardian detect range, chase speed and damage multiplier
+	},
+	-- Relative chance the scheduler picks each event.
+	Weights = { TreasureRain = 2, CursedHour = 1 },
 }
 
 GameConfig.Gadgets = {

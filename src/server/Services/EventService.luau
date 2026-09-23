@@ -116,6 +116,47 @@ function Runners.TreasureRain()
 	end
 end
 
+function Runners.CursedHour()
+	local curse = cfg.CursedHour
+	local endsAt = workspace:GetServerTimeNow() + curse.Duration
+	publish("CursedHour", curse.Name, "THE WHOLE ISLAND", nil, endsAt)
+	workspace:SetAttribute("GuardianRage", curse.GuardianRage)
+	TreasureService.SetRarityBoost(curse.RarityBoost)
+	Net.FireAll("Notify", {
+		Kind = "Banner",
+		Title = ("%s %s!"):format(curse.Icon, curse.Name),
+		Text = "Rare treasure everywhere. Guardians are furious.",
+		Tone = "Danger",
+	})
+	Net.FireAll("Feedback", { Type = "EventStarted", EventId = "CursedHour" })
+	local ok, err = pcall(task.wait, curse.Duration)
+	workspace:SetAttribute("GuardianRage", 1)
+	TreasureService.SetRarityBoost(nil)
+	Net.FireAll("Notify", { Kind = "Toast", Text = "The curse has lifted.", Tone = "Info" })
+	if not ok then
+		error(err)
+	end
+end
+
+local function pickEvent(): string
+	local total = 0
+	for id, weight in cfg.Weights do
+		if Runners[id] then
+			total += weight
+		end
+	end
+	local roll = rng:NextNumber() * total
+	for id, weight in cfg.Weights do
+		if Runners[id] then
+			roll -= weight
+			if roll <= 0 then
+				return id
+			end
+		end
+	end
+	return "TreasureRain"
+end
+
 function EventService.IsActive(): boolean
 	return active ~= nil
 end
@@ -142,7 +183,7 @@ end
 
 -- ADMIN COMMANDS --------------------------------------------------------------------
 
-local ALIASES = { rain = "TreasureRain", treasurerain = "TreasureRain" }
+local ALIASES = { rain = "TreasureRain", treasurerain = "TreasureRain", cursed = "CursedHour", curse = "CursedHour" }
 
 local function isAdmin(player: Player): boolean
 	if RunService:IsStudio() or table.find(cfg.AdminUserIds, player.UserId) then
@@ -167,13 +208,14 @@ local function handleCommand(player: Player, message: string)
 	local started = eventId ~= nil and EventService.Start(eventId)
 	Net.Fire("Notify", player, {
 		Kind = "Toast",
-		Text = if started then "Event started: " .. eventId elseif active then "An event is already running" else "Unknown event (try /event rain)",
+		Text = if started then "Event started: " .. eventId elseif active then "An event is already running" else "Unknown event (try /event rain or /event cursed)",
 		Tone = if started then "Info" else "Warn",
 	})
 end
 
 function EventService.Init()
 	publish(nil)
+	workspace:SetAttribute("GuardianRage", 1)
 	Players.PlayerAdded:Connect(function(player)
 		player.Chatted:Connect(function(message)
 			handleCommand(player, message)
@@ -204,7 +246,7 @@ function EventService.StartScheduler()
 		task.wait(cfg.FirstDelay)
 		while true do
 			if #Players:GetPlayers() > 0 then
-				EventService.Start("TreasureRain")
+				EventService.Start(pickEvent())
 			end
 			task.wait(rng:NextNumber(cfg.IntervalMin, cfg.IntervalMax))
 		end

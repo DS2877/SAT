@@ -184,6 +184,34 @@ local function spawnAt(point, def, ground: Vector3?)
 	return record
 end
 
+-- Events can temporarily multiply rarity weights (e.g. Cursed Hour).
+local rarityBoost: { [string]: number }? = nil
+
+function TreasureService.SetRarityBoost(boost: { [string]: number }?)
+	rarityBoost = boost
+	if boost then
+		-- Let empty spawn points refill right away so the boost is felt immediately.
+		for _, point in spawnPoints do
+			if not point.Occupied then
+				point.NextSpawnAt = 0
+			end
+		end
+	end
+end
+
+local function currentWeights()
+	if not rarityBoost then
+		return cfg.RarityWeights
+	end
+	local weights = table.clone(cfg.RarityWeights)
+	for rarity, mult in rarityBoost do
+		if weights[rarity] then
+			weights[rarity] *= mult
+		end
+	end
+	return weights
+end
+
 local function trySpawnOne(): boolean
 	local now = os.clock()
 	local free = {}
@@ -200,7 +228,7 @@ local function trySpawnOne(): boolean
 	for _ = 1, math.min(#free, 6) do
 		local point = table.remove(free, rng:NextInteger(1, #free))
 		local candidates =
-			TreasureRoll.Candidates(Treasures.List, point, Rarities.Order, cfg.RarityWeights, cfg.RarityCaps, counts)
+			TreasureRoll.Candidates(Treasures.List, point, Rarities.Order, currentWeights(), cfg.RarityCaps, counts)
 		local def = TreasureRoll.Pick(candidates, function()
 			return rng:NextNumber()
 		end)

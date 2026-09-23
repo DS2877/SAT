@@ -522,8 +522,9 @@ local function refreshObjective()
 
 	local eventEnds = workspace:GetAttribute("EventEndsAt") or 0
 	local eventActive = eventEnds > workspace:GetServerTimeNow()
-	local eventTarget = if eventActive
-		then { Name = tostring(workspace:GetAttribute("EventSite")), Position = workspace:GetAttribute("EventPosition") }
+	local eventPosition = workspace:GetAttribute("EventPosition")
+	local eventTarget = if eventActive and typeof(eventPosition) == "Vector3" and eventPosition.Magnitude > 1
+		then { Name = tostring(workspace:GetAttribute("EventSite")), Position = eventPosition }
 		else nil
 
 	local goal = nextTreasureGoal(data)
