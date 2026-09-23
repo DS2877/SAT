@@ -2,6 +2,7 @@
 -- exactly what the server will grade. Tap: big button (touch), Space/click (PC), A (gamepad).
 
 local ContextActionService = game:GetService("ContextActionService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -66,6 +67,13 @@ local function start(payload)
 		if session then
 			local position = TrainingTiming.MarkerPosition(workspace:GetServerTimeNow() - session.StartedAt, session.Period)
 			marker.Position = UDim2.fromScale(position, 0.5)
+			-- Close immediately when the player walks away (server confirms independently).
+			local character = Players.LocalPlayer.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+			if root and typeof(session.Position) == "Vector3" and (root.Position - session.Position).Magnitude > (session.MaxDistance or 16) then
+				Net.Get("StopTraining"):FireServer()
+				stop()
+			end
 		end
 	end)
 	ContextActionService:BindActionAtPriority(ACTION, function(_, inputState)

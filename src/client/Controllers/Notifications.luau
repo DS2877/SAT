@@ -1,6 +1,6 @@
 -- Rare, meaningful notifications. Three channels:
---   Toast  – short hint under the objective (queued, max 3 visible)
---   Banner – big centre-top message (danger/reward), priority-aware
+--   Toast  – short hint in the top stack under the objective (max 3 visible)
+--   Banner – headline in the top stack (danger/reward), priority-aware
 --   Social – small server feed on the left ("X STOLE THE GOLDEN CROWN")
 -- Plus the extraction reward popup, scaled by how big the reward is.
 
@@ -35,7 +35,7 @@ function Notifications.Toast(text: string, tone: string?)
 	local color = Theme.ToneColor[tone or "Info"] or Theme.Color.Info
 	toastOrder += 1
 	local toast = Kit.panel({
-		Size = UDim2.fromOffset(0, 34),
+		Size = UDim2.fromOffset(0, 28),
 		AutomaticSize = Enum.AutomaticSize.X,
 		Radius = Theme.Radius.Round,
 		LayoutOrder = toastOrder,
@@ -43,11 +43,11 @@ function Notifications.Toast(text: string, tone: string?)
 	}, { Kit.padding(0, 16) })
 	Kit.label({
 		Text = text,
-		Size = UDim2.fromOffset(0, 34),
+		Size = UDim2.fromOffset(0, 28),
 		AutomaticSize = Enum.AutomaticSize.X,
 		TextWrapped = false,
 		Font = Theme.Font.Black,
-		TextSize = Theme.TextSize.Small,
+		TextSize = Theme.TextSize.Tiny,
 		TextColor3 = color,
 		Parent = toast,
 	})
@@ -147,21 +147,21 @@ function Notifications.Reward(payload)
 	local big = info.Rank >= 4
 	local frame = Kit.panel({
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.42),
-		Size = UDim2.fromOffset(if big then 460 else 380, if big then 190 else 150),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(if big then 360 else 300, if big then 150 else 124),
 		Parent = gui,
 	}, { Kit.list(Enum.FillDirection.Vertical, 2, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center), Kit.padding(10) })
 	Kit.stroke(info.Color, 3, 0.1).Parent = frame
-	Kit.label({ Text = "EXTRACTION COMPLETE", LayoutOrder = 1, Size = UDim2.new(1, 0, 0, 22), Font = Theme.Font.Black, TextSize = Theme.TextSize.Body, TextColor3 = Theme.Color.TextDim, Parent = frame })
-	local amount = Kit.label({ Text = "+$0", LayoutOrder = 2, Size = UDim2.new(1, 0, 0, if big then 60 else 48), Font = Theme.Font.Display, TextSize = if big then 56 else 44, TextColor3 = Theme.Color.Cash, TextStrokeTransparency = 0.4, Parent = frame })
-	Kit.label({ Text = ("%s %s"):format(info.Glyph, def.Name:upper()), LayoutOrder = 3, Size = UDim2.new(1, 0, 0, 26), Font = Theme.Font.Display, TextSize = 24, TextColor3 = info.Color, Parent = frame })
+	Kit.label({ Text = "EXTRACTION COMPLETE", LayoutOrder = 1, Size = UDim2.new(1, 0, 0, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.TextDim, Parent = frame })
+	local amount = Kit.label({ Text = "+$0", LayoutOrder = 2, Size = UDim2.new(1, 0, 0, if big then 46 else 38), Font = Theme.Font.Display, TextSize = if big then 42 else 34, TextColor3 = Theme.Color.Cash, TextStrokeTransparency = 0.4, Parent = frame })
+	Kit.label({ Text = ("%s %s"):format(info.Glyph, def.Name:upper()), LayoutOrder = 3, Size = UDim2.new(1, 0, 0, 20), Font = Theme.Font.Display, TextSize = 18, TextColor3 = info.Color, Parent = frame })
 	local detail = if payload.NewDiscovery then "NEW! ADDED TO COLLECTION" else "ADDED TO COLLECTION"
 	if payload.Bonus and payload.Bonus > 1 then
 		detail ..= (" • x%.1f %s BONUS"):format(payload.Bonus, (payload.Category or ""):upper())
 	end
-	Kit.label({ Text = detail, LayoutOrder = 4, Size = UDim2.new(1, 0, 0, 18), Font = Theme.Font.Black, TextSize = Theme.TextSize.Small, TextColor3 = if payload.NewDiscovery then Theme.Color.Gold else Theme.Color.TextDim, Parent = frame })
+	Kit.label({ Text = detail, LayoutOrder = 4, Size = UDim2.new(1, 0, 0, 14), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = if payload.NewDiscovery then Theme.Color.Gold else Theme.Color.TextDim, Parent = frame })
 	if payload.StrengthGain and payload.StrengthGain > 0 then
-		Kit.label({ Text = ("+%d STRENGTH"):format(payload.StrengthGain), LayoutOrder = 5, Size = UDim2.new(1, 0, 0, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.Strength, Parent = frame })
+		Kit.label({ Text = ("+%d STRENGTH"):format(payload.StrengthGain), LayoutOrder = 5, Size = UDim2.new(1, 0, 0, 14), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.Strength, Parent = frame })
 	end
 	Kit.pulse(frame)
 	Sounds.Play(if big then "BigReward" else "ExtractSuccess")
@@ -189,16 +189,18 @@ function Notifications.Reward(payload)
 	end)
 end
 
-function Notifications.Init(screenGui: ScreenGui)
+-- topStack: the HUD's top-centre layout (objective card, nav hint). Banner and toasts are
+-- appended beneath it so nothing can ever overlap the objective.
+function Notifications.Init(screenGui: ScreenGui, topStack: Frame)
 	gui = screenGui
 	toastStack = Kit.new("Frame", {
 		Name = "Toasts",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 200),
-		Size = UDim2.fromOffset(500, 130),
+		LayoutOrder = 4,
+		Size = UDim2.fromOffset(330, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
-		Parent = gui,
-	}, { Kit.list(Enum.FillDirection.Vertical, 6) })
+		Parent = topStack,
+	}, { Kit.list(Enum.FillDirection.Vertical, 4) })
 	feed = Kit.new("Frame", {
 		Name = "SocialFeed",
 		AnchorPoint = Vector2.new(0, 1),
@@ -209,14 +211,26 @@ function Notifications.Init(screenGui: ScreenGui)
 	}, { Kit.list(Enum.FillDirection.Vertical, 4, Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Bottom) })
 	banner = Kit.panel({
 		Name = "Banner",
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.24),
-		Size = UDim2.fromOffset(520, 92),
+		LayoutOrder = 3,
+		Size = UDim2.fromOffset(330, 54),
 		Visible = false,
-		Parent = gui,
+		Parent = topStack,
 	})
-	bannerTitle = Kit.label({ Size = UDim2.new(1, 0, 0, 50), Position = UDim2.fromOffset(0, 8), Font = Theme.Font.Display, TextSize = 40, TextStrokeTransparency = 0.3, Parent = banner })
-	bannerText = Kit.label({ Size = UDim2.new(1, -20, 0, 24), Position = UDim2.fromOffset(10, 58), Font = Theme.Font.Black, TextSize = Theme.TextSize.Body, Parent = banner })
+	bannerTitle = Kit.label({
+		Size = UDim2.new(1, -16, 0, 26),
+		Position = UDim2.fromOffset(8, 5),
+		Font = Theme.Font.Display,
+		TextScaled = true,
+		Parent = banner,
+	})
+	Kit.new("UITextSizeConstraint", { MaxTextSize = 22, Parent = bannerTitle })
+	bannerText = Kit.label({
+		Size = UDim2.new(1, -16, 0, 16),
+		Position = UDim2.fromOffset(8, 32),
+		Font = Theme.Font.Black,
+		TextSize = Theme.TextSize.Small,
+		Parent = banner,
+	})
 
 	Net.Get("Notify").OnClientEvent:Connect(function(payload)
 		if type(payload) ~= "table" then

@@ -60,24 +60,24 @@ local function buildStats()
 	local function pill(name: string, icon: string, color: Color3, order: number)
 		local frame = Kit.panel({
 			Name = name,
-			Size = UDim2.fromOffset(190, 40),
+			Size = UDim2.fromOffset(160, 34),
 			LayoutOrder = order,
 			Radius = Theme.Radius.Round,
 			Parent = stack,
 		})
 		Kit.label({
 			Text = icon,
-			Size = UDim2.fromOffset(40, 40),
-			TextSize = 22,
+			Size = UDim2.fromOffset(34, 34),
+			TextSize = 18,
 			Parent = frame,
 		})
 		local value = Kit.label({
 			Name = "Value",
 			Text = "0",
-			Position = UDim2.fromOffset(40, 0),
-			Size = UDim2.new(1, -50, 1, 0),
+			Position = UDim2.fromOffset(34, 0),
+			Size = UDim2.new(1, -42, 1, 0),
 			Font = Theme.Font.Display,
-			TextSize = 24,
+			TextSize = 20,
 			TextColor3 = color,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Parent = frame,
@@ -94,7 +94,7 @@ local function buildStats()
 		Font = Theme.Font.Black,
 		TextSize = Theme.TextSize.Small,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		TextStrokeTransparency = 0.5,
+		TextStrokeTransparency = 0.75,
 		Parent = stack,
 	})
 	refs.Ascension = Kit.label({
@@ -138,15 +138,16 @@ local function buildMenuButtons()
 		end)
 		Kit.stroke().Parent = button
 		Kit.label({ Text = entry[2], Size = UDim2.new(1, 0, 0, 34), Position = UDim2.fromOffset(0, 4), TextSize = 26, Parent = button })
-		Kit.label({
+		local caption = Kit.label({
 			Text = entry[1]:upper(),
-			Size = UDim2.new(1, 0, 0, 14),
-			Position = UDim2.new(0, 0, 1, -18),
-			TextSize = 10,
+			Size = UDim2.new(1, -6, 0, 12),
+			Position = UDim2.new(0, 3, 1, -16),
+			TextScaled = true,
 			Font = Theme.Font.Black,
 			TextColor3 = Theme.Color.TextDim,
 			Parent = button,
 		})
+		Kit.new("UITextSizeConstraint", { MaxTextSize = 10, Parent = caption })
 		refs["Menu" .. entry[1]] = button
 	end
 end
@@ -157,26 +158,27 @@ local function buildObjective()
 		Name = "TopCenter",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 8),
-		Size = UDim2.fromOffset(380, 0),
+		Size = UDim2.fromOffset(330, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
 		Parent = gui,
-	}, { Kit.list(Enum.FillDirection.Vertical, 8) })
+	}, { Kit.list(Enum.FillDirection.Vertical, 6) })
+	HUD.TopStack = topStack
 	local card = Kit.panel({
 		Name = "Objective",
 		LayoutOrder = 1,
-		Size = UDim2.fromOffset(380, 0),
+		Size = UDim2.fromOffset(330, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		Parent = topStack,
-	}, { Kit.list(Enum.FillDirection.Vertical, 2), Kit.padding(8, 14) })
+	}, { Kit.list(Enum.FillDirection.Vertical, 3), Kit.padding(6, 12) })
 	refs.ObjectiveCard = card
 	refs.ObjHeader = Kit.label({ Name = "Header", LayoutOrder = 1, Size = UDim2.new(1, 0, 0, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.TextDim, Parent = card })
-	refs.ObjTitle = Kit.label({ Name = "Title", LayoutOrder = 2, Size = UDim2.new(1, 0, 0, 28), Font = Theme.Font.Display, TextSize = 26, Parent = card })
-	refs.ObjLine1 = Kit.label({ Name = "Line1", LayoutOrder = 3, Size = UDim2.new(1, 0, 0, 20), Font = Theme.Font.Bold, TextSize = Theme.TextSize.Body, TextColor3 = Theme.Color.TextDim, RichText = true, Parent = card })
+	refs.ObjTitle = Kit.label({ Name = "Title", LayoutOrder = 2, Size = UDim2.new(1, 0, 0, 24), Font = Theme.Font.Display, TextSize = 21, Parent = card })
+	refs.ObjLine1 = Kit.label({ Name = "Line1", LayoutOrder = 3, Size = UDim2.new(1, 0, 0, 18), Font = Theme.Font.Bold, TextSize = Theme.TextSize.Small, TextColor3 = Theme.Color.TextDim, RichText = true, Parent = card })
 	local barBack = Kit.new("Frame", {
 		Name = "Bar",
 		LayoutOrder = 4,
-		Size = UDim2.new(1, 0, 0, 10),
+		Size = UDim2.new(1, 0, 0, 6),
 		BackgroundColor3 = Theme.Color.PanelLight,
 		BorderSizePixel = 0,
 		Parent = card,
@@ -189,7 +191,7 @@ local function buildObjective()
 		BorderSizePixel = 0,
 		Parent = barBack,
 	}, { Kit.corner(Theme.Radius.Round) })
-	refs.ObjLine2 = Kit.label({ Name = "Line2", LayoutOrder = 5, Size = UDim2.new(1, 0, 0, 20), Font = Theme.Font.Black, TextSize = Theme.TextSize.Body, TextColor3 = Theme.Color.Gold, RichText = true, Parent = card })
+	refs.ObjLine2 = Kit.label({ Name = "Line2", LayoutOrder = 5, Size = UDim2.new(1, 0, 0, 18), Font = Theme.Font.Black, TextSize = Theme.TextSize.Small, TextColor3 = Theme.Color.Gold, RichText = true, Parent = card })
 
 	refs.Nav = Kit.panel({
 		Name = "Nav",
@@ -208,8 +210,8 @@ local function buildStatus()
 	refs.Status = Kit.label({
 		Name = "Status",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.36),
-		Size = UDim2.fromOffset(600, 60),
+		Position = UDim2.fromScale(0.5, 0.44),
+		Size = UDim2.fromOffset(560, 44),
 		Font = Theme.Font.Display,
 		TextSize = Theme.TextSize.Hero,
 		TextColor3 = Theme.Color.Danger,
@@ -221,10 +223,10 @@ local function buildStatus()
 	refs.StatusSub = Kit.label({
 		Name = "StatusSub",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0.36, 40),
-		Size = UDim2.fromOffset(600, 26),
+		Position = UDim2.new(0.5, 0, 0.44, 32),
+		Size = UDim2.fromOffset(560, 22),
 		Font = Theme.Font.Black,
-		TextSize = Theme.TextSize.Heading,
+		TextSize = Theme.TextSize.Body,
 		TextStrokeTransparency = 0.3,
 		Text = "",
 		Visible = false,
@@ -321,15 +323,15 @@ local function buildActions()
 		local icon = Kit.label({ Name = "Icon", Text = "+", Size = UDim2.fromScale(1, 1), TextSize = 32, Parent = button })
 		local cooldown = Kit.new("Frame", {
 			Name = "Cooldown",
-			AnchorPoint = Vector2.new(0, 1),
-			Position = UDim2.fromScale(0, 1),
-			Size = UDim2.fromScale(1, 0),
+			Size = UDim2.fromScale(1, 1),
 			BackgroundColor3 = Color3.new(0, 0, 0),
 			BackgroundTransparency = 0.35,
 			BorderSizePixel = 0,
+			Visible = false,
 			ZIndex = 2,
 			Parent = button,
-		})
+		}, { Kit.corner(Theme.Radius.Round) })
+		local cooldownGradient = Kit.new("UIGradient", { Rotation = 90, Parent = cooldown })
 		local timer = Kit.label({ Name = "Timer", Text = "", Size = UDim2.fromScale(1, 1), Font = Theme.Font.Display, TextSize = 24, ZIndex = 3, Parent = button })
 		local key = Kit.label({
 			Name = "Key",
@@ -343,7 +345,8 @@ local function buildActions()
 			ZIndex = 3,
 			Parent = button,
 		})
-		refs.Slots[slot] = { Button = button, Icon = icon, Cooldown = cooldown, Timer = timer, Key = key }
+		refs.Slots[slot] =
+			{ Button = button, Icon = icon, Cooldown = cooldown, Gradient = cooldownGradient, Timer = timer, Key = key }
 	end
 end
 
@@ -495,9 +498,11 @@ local function refreshObjective()
 		"NEXT TREASURE",
 		goal.Name:upper(),
 		rarityColor(goal.Rarity),
-		("<font color=\"#78eb78\">%s</font>  •  WEIGHT %d  •  STRENGTH %d / %d"):format(Kit.formatCash(goal.Value), goal.Weight, strength, recommended),
+		if needsTraining
+			then ("<font color=\"#78eb78\">%s</font>  •  STRENGTH %d / %d"):format(Kit.formatCash(goal.Value), strength, recommended)
+			else ("<font color=\"#78eb78\">%s</font>  •  WEIGHT %d"):format(Kit.formatCash(goal.Value), goal.Weight),
 		if needsTraining then "▶ TRAIN" else ("▶ FIND IT IN %s"):format(AREA_NAMES[goal.SpawnArea] or goal.SpawnArea:upper()),
-		strength / recommended,
+		if needsTraining then strength / recommended else nil,
 		if needsTraining then Theme.Color.Strength else Theme.Color.Safe
 	)
 	navTarget = nil
@@ -554,10 +559,18 @@ local function updateCooldowns(serverNow: number)
 		local ready = def and ClientState.Cooldowns[id] or 0
 		local remaining = if def then ready - serverNow else 0
 		if remaining > 0 then
-			ui.Cooldown.Size = UDim2.fromScale(1, math.clamp(remaining / def.Cooldown, 0, 1))
+			-- Dark fill drains from the top as the cooldown runs out (hard edge at `cut`).
+			local cut = math.clamp(1 - remaining / def.Cooldown, 0.001, 0.998)
+			ui.Gradient.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1),
+				NumberSequenceKeypoint.new(cut, 1),
+				NumberSequenceKeypoint.new(cut + 0.001, 0),
+				NumberSequenceKeypoint.new(1, 0),
+			})
+			ui.Cooldown.Visible = true
 			ui.Timer.Text = tostring(math.ceil(remaining))
 		else
-			ui.Cooldown.Size = UDim2.fromScale(1, 0)
+			ui.Cooldown.Visible = false
 			ui.Timer.Text = ""
 		end
 	end

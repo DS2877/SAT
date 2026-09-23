@@ -132,7 +132,7 @@ local function build(typeName: string, def, position: Vector3): (Model, BasePart
 	humanoid.Parent = model
 
 	local tag = Instance.new("BillboardGui")
-	tag.Size = UDim2.fromOffset(120, 26)
+	tag.Size = UDim2.fromOffset(96, 20)
 	tag.StudsOffset = Vector3.new(0, size.Y + 2.5, 0)
 	tag.MaxDistance = 70
 	tag.LightInfluence = 0

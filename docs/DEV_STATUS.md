@@ -29,6 +29,13 @@ M0–M7 implemented in code; awaiting first Roblox runtime playtest (M8 multipla
 - Deployment: CI published the build to test place 75735389926017 (Open Cloud HTTP 200, version 4).
 - NOT yet validated in a live Roblox server (no Studio in the dev environment). Needs a manual playtest.
 
+## PLAYTEST 1 FIXES (mobile)
+- HUD: objective, nav hint, banners and toasts share one top-centre stack (no overlap); smaller
+  phone scale; reward popup smaller; round gadget cooldowns; strength requirement only when relevant.
+- World signs near the District are sized in studs (shrink with distance) instead of fixed pixels.
+- Training set closes as soon as the player walks away (client + server check).
+- Successful extraction teleports the player to their Vault holding the treasure overhead.
+
 ## KNOWN BUGS / RISKS
 - Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp slopes.
 - No server-side speed-hack detection yet (movement is client-authoritative in Roblox).
@@ -38,6 +45,9 @@ M0–M7 implemented in code; awaiting first Roblox runtime playtest (M8 multipla
 1. Playtest the vertical slice in Studio / test place; fix runtime issues.
 2. Tune first-10-minutes pacing (training gains, first treasure distance, prices).
 3. Remaining gadgets, leaderboards, events (Phase 7) only after the loop is fun.
+
+## OPEN DESIGN QUESTIONS
+- Training style (timing bar) kept for now; revisit after more playtests.
 
 ## IMPORTANT ARCHITECTURE DECISIONS
 - World is built procedurally at server start (code-only repo; swap build* functions for prefabs later).

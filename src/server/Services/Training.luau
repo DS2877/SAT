@@ -78,6 +78,8 @@ local function start(player: Player, stationId: string, position: Vector3)
 		StationId = stationId,
 		StartedAt = session.StartedAt,
 		Period = station.Period or cfg.Period,
+		Position = position,
+		MaxDistance = cfg.MaxStationDistance,
 		Reps = cfg.RepsPerSet,
 		PerfectWindow = station.PerfectWindow,
 		GoodWindow = station.GoodWindow,
@@ -156,6 +158,19 @@ function Training.Init(stations)
 		player.CharacterAdded:Connect(function()
 			stop(player, "Respawned")
 		end)
+	end)
+
+	-- Walking away from the station ends the set (the client also closes instantly on its side).
+	task.spawn(function()
+		while true do
+			task.wait(0.25)
+			for player, session in sessions do
+				local root = Combat.RootOf(player)
+				if not root or (root.Position - session.Position).Magnitude > cfg.MaxStationDistance then
+					stop(player, "Left")
+				end
+			end
+		end
 	end)
 end
 

@@ -70,7 +70,7 @@ local function makeBillboard(record: Record)
 	local info = Rarities.Info[def.Rarity]
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "TreasureTag"
-	gui.Size = UDim2.fromOffset(220, 58)
+	gui.Size = UDim2.fromOffset(150, 38)
 	gui.StudsOffsetWorldSpace = Vector3.new(0, TreasureVisual.Scale(def) * 1.4 + 1.5, 0)
 	gui.MaxDistance = info.BillboardDistance
 	gui.LightInfluence = 0

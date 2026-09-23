@@ -76,9 +76,23 @@ local function folder(name: string, parent: Instance?): Folder
 	return f
 end
 
-local function billboardSign(parent: BasePart, title: string, subtitle: string?, color: Color3, maxDistance: number, offset: number)
+-- studWidth given: the sign is sized in world studs and shrinks with distance (local signs).
+-- Otherwise it is a compact fixed-pixel label readable from far away (landmarks, beacons).
+local function billboardSign(
+	parent: BasePart,
+	title: string,
+	subtitle: string?,
+	color: Color3,
+	maxDistance: number,
+	offset: number,
+	studWidth: number?
+)
 	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(260, if subtitle then 70 else 44)
+	if studWidth then
+		gui.Size = UDim2.fromScale(studWidth, studWidth * (if subtitle then 0.26 else 0.16))
+	else
+		gui.Size = UDim2.fromOffset(190, if subtitle then 46 else 30)
+	end
 	gui.StudsOffset = Vector3.new(0, offset, 0)
 	gui.MaxDistance = maxDistance
 	gui.LightInfluence = 0
@@ -331,7 +345,7 @@ local function buildDistrict()
 		part({ Name = "GatePillar", Size = Vector3.new(4, 22, 4), CFrame = CFrame.new(gate + Vector3.new(x, 11, 0)), Color = C.Sandstone, Material = Enum.Material.Sandstone, Parent = district })
 	end
 	local beam = part({ Name = "GateBeam", Size = Vector3.new(30, 4, 5), CFrame = CFrame.new(gate + Vector3.new(0, 23, 0)), Color = C.Wood, Material = Enum.Material.Wood, Parent = district })
-	billboardSign(beam, "THE WILDS", "Treasure awaits. Danger too.", C.Gold, 250, 5)
+	billboardSign(beam, "THE WILDS", "Treasure awaits. Danger too.", C.Gold, 250, 5, 22)
 
 	-- How to play board (teaches the loop without walls of text)
 	local board = part({
@@ -404,7 +418,7 @@ local function buildTrainingStations(district: Folder)
 			part({ Name = "Pad", Size = Vector3.new(4, 1, 4), CFrame = CFrame.new(base + Vector3.new(0, 1.5, -1)), Color = C.Red, Material = Enum.Material.Plastic, Parent = grounds })
 		end
 		prop:SetAttribute("TrainingProp", info.Id)
-		billboardSign(prop, stationCfg.Name:upper(), ("Requires %d Strength"):format(stationCfg.RequiredStrength), colors[info.Id], 90, 5)
+		billboardSign(prop, stationCfg.Name:upper(), ("Requires %d Strength"):format(stationCfg.RequiredStrength), colors[info.Id], 90, 5, 11)
 		local p = prompt(platform, "Train", stationCfg.Name, 0)
 		p.MaxActivationDistance = 10
 		table.insert(stations, { Id = info.Id, Position = base, Prompt = p, Prop = prop })
@@ -426,7 +440,7 @@ local function buildShop(district: Folder)
 	for i, colorValue in { Color3.fromRGB(255, 120, 60), Color3.fromRGB(255, 70, 90), Color3.fromRGB(150, 220, 255) } do
 		part({ Name = "Display", Shape = Enum.PartType.Ball, Size = Vector3.new(2, 2, 2), CFrame = facing * CFrame.new(-5 + (i - 1) * 5, 6, 0), Color = colorValue, Material = Enum.Material.Neon, Parent = shop })
 	end
-	billboardSign(counter, "GADGET SHOP", "Toys for escapes & chaos", C.Teal, 160, 12)
+	billboardSign(counter, "GADGET SHOP", "Toys for escapes & chaos", C.Teal, 160, 12, 14)
 	return prompt(counter, "Browse", "Gadget Shop", 0)
 end
 
@@ -438,7 +452,7 @@ local function buildAscensionAltar(district: Folder)
 	local obelisk = part({ Name = "Obelisk", Size = Vector3.new(3, 16, 3), CFrame = CFrame.new(pos + Vector3.new(0, 10.5, 0)) * CFrame.Angles(0, math.rad(45), 0), Color = Color3.fromRGB(60, 40, 90), Material = Enum.Material.Slate, Parent = altar })
 	local gem = part({ Name = "Gem", Size = Vector3.new(3, 3, 3), CFrame = CFrame.new(pos + Vector3.new(0, 21, 0)) * CFrame.Angles(math.rad(45), 0, math.rad(45)), Color = C.Secret, Material = Enum.Material.Neon, Parent = altar })
 	gem:SetAttribute("Spin", 1.2)
-	billboardSign(gem, "ASCENSION", ("Reach %d Strength"):format(GameConfig.Ascension.RequiredStrength), C.Secret, 160, 4)
+	billboardSign(gem, "ASCENSION", ("Reach %d Strength"):format(GameConfig.Ascension.RequiredStrength), C.Secret, 160, 4, 12)
 	return prompt(obelisk, "Ascend", "Ascension Altar", 0.5)
 end
 
@@ -460,7 +474,7 @@ local function buildVaultPlots(district: Folder)
 		end
 		part({ Name = "Trim", Size = Vector3.new(30.4, 0.6, 1.4), CFrame = cf * CFrame.new(0, 8.2, 15), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
 		local signPart = part({ Name = "SignPost", Size = Vector3.new(1, 1, 1), CFrame = cf * CFrame.new(0, 10, 15), Transparency = 1, CanCollide = false, Parent = plotFolder })
-		local sign = billboardSign(signPart, "EMPTY VAULT", nil, C.Gold, 120, 2)
+		local sign = billboardSign(signPart, "EMPTY VAULT", nil, C.Gold, 120, 2, 18)
 		local terminal = part({ Name = "Terminal", Size = Vector3.new(2.5, 3.5, 2.5), CFrame = cf * CFrame.new(-12.5, 1.95, -13), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
 		local displays = folder("Displays", plotFolder)
 		table.insert(plots, {

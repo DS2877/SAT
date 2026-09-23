@@ -153,6 +153,9 @@ GameConfig.Vault = {
 	Columns = 5,
 	Spacing = 6,
 	AutoPlaceNewTreasures = true,
+	TeleportHomeOnExtract = true, -- carrier is brought to their Vault after extracting
+	HomeStandDistance = 19, -- studs in front of the plot centre
+	HomeTrophySeconds = 3, -- how long the banked treasure is held overhead (cosmetic)
 }
 
 GameConfig.Ascension = {

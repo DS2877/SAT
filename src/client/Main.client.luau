@@ -26,11 +26,11 @@ local gui = Kit.new("ScreenGui", {
 	Parent = player:WaitForChild("PlayerGui"),
 })
 
--- Responsive scale: designed at ~1100x620; phones shrink, TVs grow.
+-- Responsive scale: designed at 1280x720; phones shrink, TVs grow.
 local scale = Kit.new("UIScale", { Parent = gui })
 local function updateScale()
 	local viewport = workspace.CurrentCamera.ViewportSize
-	local s = math.clamp(math.min(viewport.X / 1100, viewport.Y / 620), 0.62, 1.25)
+	local s = math.clamp(math.min(viewport.X / 1280, viewport.Y / 720), 0.5, 1.15)
 	if GuiService:IsTenFootInterface() then
 		s *= 1.2
 	end
@@ -40,8 +40,8 @@ updateScale()
 workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
 
 ClientState.Init()
-Notifications.Init(gui)
 HUD.Init(gui)
+Notifications.Init(gui, HUD.TopStack)
 Effects.Init()
 TrainingUI.Init(gui)
 MenuController.Init(gui)

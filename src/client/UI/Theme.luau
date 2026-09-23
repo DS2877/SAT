@@ -10,9 +10,9 @@ Theme.Font = {
 }
 
 Theme.TextSize = {
-	Hero = 44,
-	Title = 30,
-	Heading = 22,
+	Hero = 34,
+	Title = 26,
+	Heading = 20,
 	Body = 17,
 	Small = 14,
 	Tiny = 12,

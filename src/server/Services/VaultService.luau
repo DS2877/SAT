@@ -38,7 +38,7 @@ end
 
 local function label(parent: Instance, text: string, color: Color3, offsetY: number, maxDistance: number)
 	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(150, 36)
+	gui.Size = UDim2.fromScale(7, 1.4) -- studs: shrinks with distance
 	gui.StudsOffset = Vector3.new(0, offsetY, 0)
 	gui.MaxDistance = maxDistance
 	gui.LightInfluence = 0
@@ -172,15 +172,53 @@ local function autoPlace(player: Player, def)
 			render(player)
 			if PlayerData.Milestone(player, "FirstVault") then
 				Analytics.Funnel(player, "FirstVault")
-				Net.Fire("Notify", player, {
-					Kind = "Banner",
-					Title = "ON DISPLAY IN YOUR VAULT",
-					Text = def.Name:upper(),
-					Tone = "Reward",
-				})
 			end
+			Net.Fire("Notify", player, { Kind = "Toast", Text = "🏆 ON DISPLAY IN YOUR VAULT", Tone = "Reward" })
 			return
 		end
+	end
+end
+
+-- After a successful extraction the player is brought home to their Vault, proudly holding
+-- the treasure overhead for a moment (cosmetic only: the treasure is already banked).
+local function bringHome(player: Player, def)
+	local plot = plotOf[player]
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not plot or not character or not root then
+		return
+	end
+	local standAt = (plot.CFrame * CFrame.new(0, 3.5, -cfg.HomeStandDistance)).Position
+	local lookAt = Vector3.new(plot.CFrame.Position.X, standAt.Y, plot.CFrame.Position.Z)
+	root.AssemblyLinearVelocity = Vector3.zero
+	character:PivotTo(CFrame.lookAt(standAt, lookAt))
+
+	local s = TreasureVisual.Scale(def)
+	local trophy = TreasureVisual.Build(def, root.CFrame * CFrame.new(0, 3.2 + s * 0.8, 0))
+	trophy.Name = "HomeTrophy"
+	local handle = trophy.PrimaryPart :: BasePart
+	for _, d in trophy:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.Massless = true
+			d.CanCollide = false
+			d.CanQuery = false
+		end
+	end
+	handle.Anchored = false
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = root
+	weld.Part1 = handle
+	weld.Parent = handle
+	trophy.Parent = character
+	task.delay(cfg.HomeTrophySeconds, function()
+		trophy:Destroy()
+	end)
+end
+
+local function onExtracted(player: Player, def)
+	autoPlace(player, def)
+	if cfg.TeleportHomeOnExtract then
+		bringHome(player, def)
 	end
 end
 
@@ -228,7 +266,7 @@ function VaultService.Init(builtPlots)
 	end
 	PlayerData.Loaded:Connect(assign)
 	Players.PlayerRemoving:Connect(release)
-	Extraction.Completed:Connect(autoPlace)
+	Extraction.Completed:Connect(onExtracted)
 	Net.On("SetVaultSlot", onSetSlot, 8)
 	Net.On("UpgradeVault", onUpgrade, 2)
 end
