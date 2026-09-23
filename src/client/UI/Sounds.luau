@@ -26,6 +26,8 @@ local LIBRARY = {
 	TrainGood = { Id = "rbxasset://sounds/clickfast.wav", Volume = 0.6, Speed = 1 },
 	Rep = { Id = "rbxasset://sounds/electronicpingshort.wav", Volume = 0.35, Speed = 1.5 },
 	MegaRep = { Id = "rbxasset://sounds/electronicpingshort.wav", Volume = 1, Speed = 0.9 },
+	HeavyStep = { Id = "rbxasset://sounds/action_jump_land.mp3", Volume = 0.5, Speed = 0.7 },
+	Heartbeat = { Id = "rbxasset://sounds/action_jump_land.mp3", Volume = 0.7, Speed = 0.45 },
 	TrainMiss = { Id = "rbxasset://sounds/action_get_up.mp3", Volume = 0.4, Speed = 1.5 },
 	Gadget = { Id = "rbxasset://sounds/action_jump.mp3", Volume = 0.6, Speed = 1.3 },
 	Error = { Id = "rbxasset://sounds/clickfast.wav", Volume = 0.5, Speed = 0.6 },

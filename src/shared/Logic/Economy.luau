@@ -33,6 +33,38 @@ function Economy.FindersFee(def, mutation: string?, zoneBonus: number?, ascensio
 	)
 end
 
+-- Finder's fee multiplier for the Nth extraction of the day (streak 1 = x1).
+function Economy.StreakMultiplier(streak: number): number
+	local cfg = GameConfig.Extraction
+	local steps = math.clamp(streak, 1, cfg.StreakMax) - 1
+	return 1 + steps * cfg.StreakBonusPerRun
+end
+
+-- Risky extraction: chance for an UNmutated treasure to gain a mutation. `random()` in [0, 1).
+function Economy.RollExtractionMutation(category: string, current: string?, random: () -> number): string?
+	local cfg = GameConfig.Extraction
+	local zone = cfg.Categories[category]
+	if current or not zone or random() >= (zone.MutationChance or 0) then
+		return nil
+	end
+	local total = 0
+	for _, weight in cfg.MutationWeights do
+		total += weight
+	end
+	local roll = random() * total
+	-- Iterate in a fixed order so results are deterministic for a given roll.
+	for _, name in Mutations.Order do
+		local weight = cfg.MutationWeights[name]
+		if weight then
+			roll -= weight
+			if roll < 0 then
+				return name
+			end
+		end
+	end
+	return nil
+end
+
 function Economy.EncodeSlot(id: string, mutation: string?): string
 	return if mutation then id .. "|" .. mutation else id
 end

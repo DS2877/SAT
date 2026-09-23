@@ -138,11 +138,16 @@ awaiting the phase-1 mobile playtest.
 - Funnel: Joined, FirstTraining, FirstTreasure, FirstExtraction, FirstCollect, FirstGadget,
   FirstVaultUpgrade, FirstTheft, FirstAscension + FunnelTime_<step> (seconds since join).
 
+## PHASE 2 (core loop) - see docs/ROADMAP.md
+- Risky extraction mutation blessing, day run streak, Epic+ extraction broadcast + marker,
+  extraction heartbeat, heavy-carry sway/footsteps (GameFeel), night-wave reveal flashes,
+  Epic+ pickup jackpot, vault-upgrade / bench-unlock goals.
+
 ## KNOWN BUGS / RISKS
 - Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp
   slopes, IK arms on the bench, nightfall teleport, collect board placement on every plot.
 - No server-side speed-hack detection yet (movement is client-authoritative in Roblox).
-- Dangerous/Secret extraction bonus only scales the finder's fee now (see ROADMAP phase 2).
+- Camera sway uses Humanoid.CameraOffset (yields to hit shakes via the "Shaking" attribute).
 
 ## NEXT PRIORITY
 See docs/ROADMAP.md: 1 stabilise → 2 addictive core loop → 3 first 10 minutes →

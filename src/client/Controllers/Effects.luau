@@ -47,6 +47,7 @@ local function shakeCamera(intensity: number, duration: number)
 	end
 	task.spawn(function()
 		local t = 0
+		humanoid:SetAttribute("Shaking", true) -- GameFeel's carry sway stays off meanwhile
 		while t < duration do
 			local falloff = 1 - t / duration
 			humanoid.CameraOffset = Vector3.new(
@@ -57,6 +58,7 @@ local function shakeCamera(intensity: number, duration: number)
 			t += task.wait()
 		end
 		humanoid.CameraOffset = Vector3.zero
+		humanoid:SetAttribute("Shaking", false)
 	end)
 end
 
@@ -102,11 +104,21 @@ end
 local handlers = {}
 
 function handlers.PickedUp(payload)
-	Sounds.Play("Pickup")
 	local def = Treasures.Get(payload.TreasureId)
 	if def then
 		local info = Rarities.Info[def.Rarity]
-		HUD.ShowStatus(("%s %s"):format(info.Glyph, def.Name:upper()), "NOW GET IT HOME!", info.Color, 1.6)
+		if info.Rank >= 4 then
+			-- Jackpot: Epic and above get a big sting, a camera kick and a longer callout.
+			Sounds.Play("BigReward")
+			Sounds.Play("RareDiscovery", 0.8)
+			shakeCamera(0.8, 0.35)
+			HUD.ShowStatus(("%s %s!"):format(def.Rarity:upper(), def.Name:upper()), "JACKPOT • NOW GET IT HOME!", info.Color, 2.4)
+		else
+			Sounds.Play("Pickup")
+			HUD.ShowStatus(("%s %s"):format(info.Glyph, def.Name:upper()), "NOW GET IT HOME!", info.Color, 1.6)
+		end
+	else
+		Sounds.Play("Pickup")
 	end
 	HUD.RefreshObjective()
 end

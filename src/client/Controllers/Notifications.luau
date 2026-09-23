@@ -149,6 +149,7 @@ function Notifications.Reward(payload)
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
 		Size = UDim2.fromOffset(if big then 360 else 300, if big then 150 else 124),
+		AutomaticSize = Enum.AutomaticSize.Y, -- grows for the mutation / streak lines
 		Parent = gui,
 	}, { Kit.list(Enum.FillDirection.Vertical, 2, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center), Kit.padding(10) })
 	Kit.stroke(info.Color, 3, 0.1).Parent = frame
@@ -166,6 +167,13 @@ function Notifications.Reward(payload)
 		detail ..= (" • x%.1f %s BONUS"):format(payload.Bonus, (payload.Category or ""):upper())
 	end
 	Kit.label({ Text = detail, LayoutOrder = 4, Size = UDim2.new(1, 0, 0, 14), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = if payload.NewDiscovery then Theme.Color.Gold else Theme.Color.TextDim, Parent = frame })
+	if payload.BlessedMutation then
+		Kit.label({ Text = ("✨ %s MUTATION FROM THE RISKY ESCAPE!"):format(tostring(payload.BlessedMutation):upper()), LayoutOrder = 6, Size = UDim2.new(1, 0, 0, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Small, TextColor3 = Theme.Color.Gold, Parent = frame })
+		big = true
+	end
+	if payload.Streak and payload.Streak > 1 then
+		Kit.label({ Text = ("🔥 RUN STREAK %d • FEE x%.2f"):format(payload.Streak, payload.StreakMultiplier or 1), LayoutOrder = 7, Size = UDim2.new(1, 0, 0, 14), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.Strength, Parent = frame })
+	end
 	if payload.StrengthGain and payload.StrengthGain > 0 then
 		Kit.label({ Text = ("+%d STRENGTH"):format(payload.StrengthGain), LayoutOrder = 5, Size = UDim2.new(1, 0, 0, 14), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.Strength, Parent = frame })
 	end

@@ -120,11 +120,20 @@ GameConfig.Extraction = {
 	Duration = 10,
 	TickRate = 0.1,
 	HitInterrupts = true, -- any qualifying hit cancels progress; a Knock also drops the treasure
+	-- Riskier zones pay a bigger finder's fee AND can bless an unmutated treasure with a
+	-- mutation on the spot (permanently more $/s) - the reason to take the dangerous route.
 	Categories = {
-		Safe = { Bonus = 1.0, Label = "SAFE" },
-		Dangerous = { Bonus = 1.5, Label = "DANGEROUS" },
-		Secret = { Bonus = 2.0, Label = "SECRET" },
+		Safe = { Bonus = 1.0, Label = "SAFE", MutationChance = 0 },
+		Dangerous = { Bonus = 1.5, Label = "DANGEROUS", MutationChance = 0.15 },
+		Secret = { Bonus = 2.0, Label = "SECRET", MutationChance = 0.35 },
 	},
+	-- Which mutation a risky extraction grants (relative weights).
+	MutationWeights = { Silver = 60, Gold = 30, Diamond = 10 },
+	-- Epic+ extractions are announced to the whole server with a marker over the extractor.
+	AnnounceMinRarity = "Epic",
+	-- Run streak: every extraction in the same DAY raises the finder's fee; nightfall resets it.
+	StreakBonusPerRun = 0.25,
+	StreakMax = 8, -- fee x2.75 at the cap
 }
 
 GameConfig.Combat = {

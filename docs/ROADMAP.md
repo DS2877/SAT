@@ -3,7 +3,7 @@
 Agreed plan (from the project owner). Work top to bottom; a later phase only starts when the
 earlier one is solid. **Fun and stability beat feature count.**
 
-## 1. Stabilise the current build  ← CURRENT
+## 1. Stabilise the current build  ← mobile checklist still to run
 No big new features. Mobile-test the whole core loop (see `docs/PLAYTEST_CHECKLIST.md`):
 Strength/training, treasure discovery, carry/weight, guardians, PvP/knock/drop, extraction,
 cash, Vault, gadgets, Collection, Ascension, day/night, events, respawn/death, persistence, UI.
@@ -17,8 +17,22 @@ Done in code so far (static audit):
 - "Next treasure" goal says whether it is out right now or spawns tonight.
 - Funnel + time-to-step analytics (see phase 3).
 
-## 2. Make the core loop addictive
+## 2. Make the core loop addictive  ← BUILT (awaiting playtest)
 Train → Explore → Find → Carry → Escape → Extract → Earn → Upgrade → Repeat
+
+Shipped from the analysis below:
+- Risky extraction blesses unmutated treasure: Dangerous 15% / Secret 35% (Silver 60 :
+  Gold 30 : Diamond 10). Zone label shows the chance while extracting.
+- Run streak: each extraction the same day raises the finder's fee +25% (cap x2.75), reset at
+  nightfall; shown in the HUD and the reward popup.
+- Epic+ extractions: server-wide "⚠ X IS EXTRACTING A LEGENDARY AT …" + a pulsing marker over
+  the extractor (visible 600 studs); heartbeat for the extractor that speeds up with the bar.
+- Heavy carry: camera sway + thudding footsteps scaled by burden.
+- Reveals: night-wave loot lands with a short flash column in its rarity colour; Rare+ ring
+  out nearby; Epic+ pickup = jackpot sting + camera kick.
+- Goals: "UPGRADE YOUR VAULT" when full and affordable, "UNLOCK THE <BENCH>" when affordable.
+
+Still open from the analysis: collection sets / mid-term goals (phase 4).
 
 Analysis of the current build (to validate in playtests before building):
 

@@ -460,6 +460,14 @@ local function nearestTreasure(position: Vector3, maxRank: number?)
 	return best
 end
 
+local function vaultNav()
+	local plotIndex = player:GetAttribute("VaultPlot")
+	local plotFolder = workspace:FindFirstChild("Vaults", true)
+	local plot = plotFolder and plotIndex and plotFolder:FindFirstChild("Vault" .. tostring(plotIndex))
+	local center = plot and plot:GetAttribute("VaultCenter")
+	return if typeof(center) == "Vector3" then { Name = "YOUR VAULT", Position = center } else nil
+end
+
 local function carriedMutation(): string?
 	local mutation = player:GetAttribute("CarryingMutation")
 	return if type(mutation) == "string" and mutation ~= "" then mutation else nil
@@ -478,10 +486,17 @@ local function updateClock(serverNow: number)
 		refs.Clock.TextColor3 = if left <= 60 then Theme.Color.Danger else Theme.Color.Gold
 	end
 	local income = player:GetAttribute("VaultIncome")
-	refs.Income.Visible = type(income) == "number" and income > 0
-	if refs.Income.Visible then
-		refs.Income.Text = ("📈 VAULT +%s/s"):format(Kit.shortCash(income :: number))
+	local streak = tonumber(player:GetAttribute("Streak")) or 0
+	local hasIncome = type(income) == "number" and income > 0
+	refs.Income.Visible = hasIncome or streak >= 2
+	local parts = {}
+	if hasIncome then
+		table.insert(parts, ("📈 VAULT +%s/s"):format(Kit.shortCash(income :: number)))
 	end
+	if streak >= 2 then
+		table.insert(parts, ('<font color="#ff9646">🔥 STREAK %d</font>'):format(streak))
+	end
+	refs.Income.Text = table.concat(parts, "  •  ")
 end
 
 local function nextTreasureGoal(data)
@@ -607,12 +622,8 @@ local function refreshObjective()
 
 	-- Step 4: the new economy's key idea - your Vault pays you, walk over and collect it.
 	if not ClientState.Milestone("FirstCollect") then
-		local plotIndex = player:GetAttribute("VaultPlot")
-		local plotFolder = workspace:FindFirstChild("Vaults", true)
-		local plot = plotFolder and plotIndex and plotFolder:FindFirstChild("Vault" .. tostring(plotIndex))
-		local center = plot and plot:GetAttribute("VaultCenter")
 		setObjective("STEP 4 • GET PAID", "COLLECT YOUR CASH", Theme.Color.Cash, "Your treasure earns $ every second", "▶ STEP ON THE GREEN PAD AT YOUR VAULT", nil)
-		navTarget = if typeof(center) == "Vector3" then { Name = "YOUR VAULT", Position = center } else nil
+		navTarget = vaultNav()
 		return
 	end
 
@@ -634,6 +645,28 @@ local function refreshObjective()
 		setObjective("✦ READY", "ASCENSION AVAILABLE", Theme.Color.Secret, ("Permanent x%.2f Cash multiplier"):format(GameConfig.GetAscensionMultiplier(data.Ascension + 1)), nil)
 		navTarget = { Name = "ASCENSION ALTAR", Position = WorldLayout.AscensionAltar }
 		return
+	end
+
+	-- Full Vault and the next tier is affordable: growing it is the best move right now.
+	local tier = GameConfig.Vault.Tiers[data.Vault.Tier] or GameConfig.Vault.Tiers[1]
+	local nextTier = GameConfig.Vault.Tiers[data.Vault.Tier + 1]
+	local used = 0
+	for _ in data.Vault.Displays do
+		used += 1
+	end
+	if used >= tier.Slots and nextTier and nextTier.Enabled and data.Cash >= nextTier.Price then
+		setObjective("VAULT FULL", "UPGRADE YOUR VAULT", Theme.Color.Gold, ("%d → %d pedestals • %s"):format(tier.Slots, nextTier.Slots, Kit.shortCash(nextTier.Price)), "▶ OPEN THE VAULT MENU", nil)
+		navTarget = vaultNav()
+		return
+	end
+
+	-- A better bench you can afford (and have the Ascension for): faster training.
+	for _, bench in GameConfig.Training.Benches do
+		if bench.Price > 0 and not data.OwnedBenches[bench.Id] and data.Ascension >= bench.RequiredAscension and data.Cash >= bench.Price then
+			setObjective("UPGRADE", ("UNLOCK THE %s"):format(bench.Name:upper()), Theme.Color.Strength, ("+%d 💪 per rep • %s"):format(bench.RepGain, Kit.shortCash(bench.Price)), "▶ LIE DOWN ON IT AT THE GYM", nil)
+			navTarget = { Name = "STRENGTH GYM", Position = WorldLayout.Gym.Origin }
+			return
+		end
 	end
 
 	local eventEnds = workspace:GetAttribute("EventEndsAt") or 0
@@ -817,8 +850,15 @@ local function updateExtraction(serverNow: number)
 	local e = extraction :: any
 	local elapsed = serverNow - e.StartedAt
 	local remaining = math.max(0, e.Duration - elapsed)
-	refs.ExtFill.Size = UDim2.fromScale(math.clamp(elapsed / e.Duration, 0, 1), 1)
+	local progress = math.clamp(elapsed / e.Duration, 0, 1)
+	refs.ExtFill.Size = UDim2.fromScale(progress, 1)
 	refs.ExtTime.Text = ("%.1f"):format(remaining)
+	-- Heartbeat that speeds up as the bar fills: the last seconds should feel tense.
+	local now = os.clock()
+	if now >= (e.NextBeat or 0) then
+		Sounds.Play("Heartbeat", 0.6 + 0.4 * progress)
+		e.NextBeat = now + (0.9 - 0.55 * progress)
+	end
 end
 
 function HUD.ShowStatus(title: string, subtitle: string?, color: Color3, duration: number)
@@ -889,7 +929,8 @@ local function onExtractionState(payload)
 		local cat = GameConfig.Extraction.Categories[payload.Category]
 		refs.ExtTitle.Text = "EXTRACTING..."
 		refs.ExtTitle.TextColor3 = Theme.Color.Text
-		refs.ExtZone.Text = ("%s • %s • x%.1f CASH"):format(payload.ZoneName:upper(), cat and cat.Label or "", cat and cat.Bonus or 1)
+		local blessing = if cat and (cat.MutationChance or 0) > 0 then (" • %d%% MUTATION"):format(math.floor(cat.MutationChance * 100 + 0.5)) else ""
+		refs.ExtZone.Text = ("%s • x%.1f FEE%s"):format(if cat then cat.Label else "", if cat then cat.Bonus else 1, blessing)
 		refs.ExtFill.BackgroundColor3 = if payload.Category == "Secret" then Theme.Color.Secret elseif payload.Category == "Dangerous" then Theme.Color.Warn else Theme.Color.Safe
 		refs.Extraction.Visible = true
 		Sounds.Play("ExtractStart")

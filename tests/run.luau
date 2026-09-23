@@ -234,6 +234,28 @@ test("vault slots encode treasure + mutation and read old saves", function()
 	check(Economy.VaultIncome(displays, lookup, 2, false) == base * 2, "ascension multiplies income")
 end)
 
+test("risky extractions can bless a treasure; streaks grow the fee", function()
+	local function fixed(values)
+		local i = 0
+		return function()
+			i += 1
+			return values[i] or 0
+		end
+	end
+	check(Economy.RollExtractionMutation("Safe", nil, fixed({ 0, 0 })) == nil, "safe zone never blesses")
+	check(Economy.RollExtractionMutation("Dangerous", nil, fixed({ 0, 0 })) == "Silver", "dangerous can bless (most common first)")
+	check(Economy.RollExtractionMutation("Secret", nil, fixed({ 0.3, 0.95 })) == "Diamond", "secret can give Diamond")
+	check(Economy.RollExtractionMutation("Dangerous", nil, fixed({ 0.5, 0 })) == nil, "roll above the zone chance = nothing")
+	check(Economy.RollExtractionMutation("Secret", "Gold", fixed({ 0, 0 })) == nil, "already mutated treasure is unchanged")
+	local zones = GameConfig.Extraction.Categories
+	check(zones.Secret.MutationChance > zones.Dangerous.MutationChance, "secret is the best gamble")
+	check(zones.Dangerous.MutationChance > zones.Safe.MutationChance, "danger pays")
+	check(Economy.StreakMultiplier(1) == 1, "first run of the day: x1")
+	check(Economy.StreakMultiplier(3) > Economy.StreakMultiplier(2), "streak grows")
+	check(Economy.StreakMultiplier(100) == Economy.StreakMultiplier(GameConfig.Extraction.StreakMax), "streak is capped")
+	check(Economy.StreakMultiplier(100) <= 3, "cap stays sane")
+end)
+
 test("mutation rolls: rare, night-only Moonlit, event boost", function()
 	check(Mutations.Roll(function()
 		return 0

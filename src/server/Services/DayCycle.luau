@@ -3,6 +3,7 @@
 --     only extracted loot is safe
 --   * everyone outside the Treasure District is sent home to their Vault (players already in
 --     the District - lifting, shopping, at their Vault - are left alone)
+--   * everyone's extraction run streak resets
 --   * the night's loot wave starts (TreasureService spawns only at night) and a night event
 --     may be rolled for one region (EventService.OnNightfall)
 -- The countdown warnings and lighting are client-side (Ambience) from the same clock.
@@ -18,6 +19,7 @@ local Net = require(Shared.Net)
 local TreasureService = require(script.Parent.TreasureService)
 local VaultService = require(script.Parent.VaultService)
 local EventService = require(script.Parent.EventService)
+local Extraction = require(script.Parent.Extraction)
 local Combat = require(script.Parent.Combat)
 local Analytics = require(script.Parent.Analytics)
 
@@ -40,6 +42,7 @@ local function nightfall()
 			VaultService.SendHome(player)
 		end
 	end
+	Extraction.ResetStreaks()
 	EventService.OnNightfall()
 end
 

@@ -2,6 +2,10 @@
 -- Starts automatically on entering the zone (mobile friendly). Hits interrupt, knocks drop.
 -- Success: treasure -> EXTRACTED -> finder's fee -> Collection -> a free Vault pedestal, where
 -- it earns $/s. With a full Vault the treasure is sold on the spot (Economy.SellPrice).
+-- Risky zones can bless an unmutated treasure with a mutation; every extraction in the same
+-- day grows a run STREAK (finder's fee multiplier, reset at nightfall via ResetStreaks).
+-- Epic+ extractions are announced server-wide and the extractor gets an "ExtractingRarity"
+-- attribute so every client can mark them: a chase moment.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -30,6 +34,20 @@ local sessions: { [Player]: Session } = {}
 -- After an interruption the player must step out (or wait) before auto-restart, so a hit
 -- in the zone doesn't instantly restart progress under the attacker's nose.
 local restartBlockedUntil: { [Player]: number } = {}
+local streaks: { [Player]: number } = {}
+local rng = Random.new()
+
+local function setStreak(player: Player, value: number)
+	streaks[player] = value
+	player:SetAttribute("Streak", value)
+end
+
+-- Nightfall: everyone's run streak starts over.
+function Extraction.ResetStreaks()
+	for player in streaks do
+		setStreak(player, 0)
+	end
+end
 
 local function send(player: Player, payload)
 	Net.Fire("ExtractionState", player, payload)
@@ -42,6 +60,7 @@ local function cancel(player: Player, reason: string)
 	end
 	sessions[player] = nil
 	player:SetAttribute("Extracting", false)
+	player:SetAttribute("ExtractingRarity", "")
 	restartBlockedUntil[player] = os.clock() + (if reason == "Left" then 0 else 1.0)
 	send(player, { Active = false, Reason = reason })
 	if reason ~= "Left" then
@@ -52,7 +71,8 @@ end
 local function complete(player: Player, session: Session)
 	sessions[player] = nil
 	player:SetAttribute("Extracting", false)
-	local def, mutation = TreasureService.Consume(player, session.Uid)
+	player:SetAttribute("ExtractingRarity", "")
+	local def, foundMutation = TreasureService.Consume(player, session.Uid)
 	if not def then
 		send(player, { Active = false, Reason = "Invalid" })
 		return
@@ -64,7 +84,14 @@ local function complete(player: Player, session: Session)
 	end
 	local category = cfg.Categories[session.Zone.Category] or cfg.Categories.Safe
 	local multiplier = GameConfig.GetAscensionMultiplier(data.Ascension)
-	local reward = Economy.FindersFee(def, mutation, category.Bonus, multiplier)
+	local blessed = Economy.RollExtractionMutation(session.Zone.Category, foundMutation, function()
+		return rng:NextNumber()
+	end)
+	local mutation = foundMutation or blessed
+	local streak = (streaks[player] or 0) + 1
+	setStreak(player, streak)
+	local streakMultiplier = Economy.StreakMultiplier(streak)
+	local reward = math.floor(Economy.FindersFee(def, mutation, category.Bonus, multiplier) * streakMultiplier + 0.5)
 	local strengthGain = math.ceil(def.Weight * GameConfig.Strength.ExtractionGainPerWeight)
 	local entry = data.Collection[def.Id]
 	local isNew = entry == nil or not entry.Discovered
@@ -114,6 +141,9 @@ local function complete(player: Player, session: Session)
 		Mutation = mutation,
 		Reward = reward,
 		Income = Economy.Income(def, mutation),
+		BlessedMutation = blessed,
+		Streak = streak,
+		StreakMultiplier = streakMultiplier,
 		PlacedSlot = placedSlot,
 		SoldFor = soldFor,
 		Bonus = category.Bonus,
@@ -165,6 +195,19 @@ local function tick()
 				local serverNow = workspace:GetServerTimeNow()
 				sessions[player] = { Zone = zone, Uid = record.Uid, StartedAt = now, ServerStartedAt = serverNow }
 				player:SetAttribute("Extracting", true)
+				if Rarities.AtLeast(record.Def.Rarity, cfg.AnnounceMinRarity) then
+					-- Chase moment: everyone learns where a big prize is being banked.
+					player:SetAttribute("ExtractingRarity", record.Def.Rarity)
+					Net.FireAll("Notify", {
+						Kind = "Social",
+						Text = ("⚠ %s IS EXTRACTING A %s AT %s!"):format(
+							player.DisplayName:upper(),
+							record.Def.Rarity:upper(),
+							zone.Name:upper()
+						),
+						Rarity = record.Def.Rarity,
+					})
+				end
 				send(player, {
 					Active = true,
 					ZoneName = zone.Name,
@@ -195,6 +238,7 @@ function Extraction.Init()
 	Players.PlayerRemoving:Connect(function(player)
 		sessions[player] = nil
 		restartBlockedUntil[player] = nil
+		streaks[player] = nil
 	end)
 end
 
