@@ -24,6 +24,25 @@ TerrainGen.FLAT_ZONES = {
 	{ 0, 100, 40, 30 }, -- District gate
 }
 
+-- { x, z, radius, material name }: grass-free ground under built-up areas, so animated terrain
+-- grass never pokes through floors or hides treasure there.
+TerrainGen.SURFACE_ZONES = {
+	{ 0, 250, 162, "Pavement" }, -- Treasure District (inside the wall)
+	{ 0, 55, 30, "Ground" }, -- Expedition Camp
+	{ 230, -45, 44, "Sandstone" }, -- Temple courtyard
+	{ 230, -140, 55, "Sandstone" }, -- Temple base
+	{ -345, -10, 70, "Sand" }, -- Shipwreck beach
+}
+
+function TerrainGen.SurfaceZone(x: number, z: number): string?
+	for _, zone in TerrainGen.SURFACE_ZONES do
+		if (x - zone[1]) ^ 2 + (z - zone[2]) ^ 2 <= zone[3] ^ 2 then
+			return zone[4]
+		end
+	end
+	return nil
+end
+
 local function noise2(x: number, z: number, frequency: number, offset: number): number
 	return math.noise(x * frequency, z * frequency, SEED + offset)
 end
@@ -67,6 +86,10 @@ function TerrainGen.Height(x: number, z: number): (number, number)
 end
 
 local function surfaceMaterial(height: number, coast: number, slope: number, x: number, z: number)
+	local zone = TerrainGen.SurfaceZone(x, z)
+	if zone then
+		return (Enum.Material :: any)[zone]
+	end
 	if height < 3 or (height < 8.5 and coast > 0.12) then
 		return Enum.Material.Sand
 	elseif slope > 0.95 then

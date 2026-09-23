@@ -442,28 +442,33 @@ function Effects.Init()
 	task.spawn(Effects.StartSpinners)
 end
 
+-- Spinning showpieces (District coin, spawn crown, vault displays). Client-side only; tracks
+-- parts as they stream in or get rebuilt (vaults re-render on every change).
 function Effects.StartSpinners()
-	local spinners = {}
+	local spinners: { [BasePart]: { Speed: number, Base: CFrame } } = {}
 	local function track(inst: Instance)
-		if inst:IsA("BasePart") and inst:GetAttribute("Spin") then
-			table.insert(spinners, { Part = inst, Speed = inst:GetAttribute("Spin"), Base = inst.CFrame })
+		if inst:IsA("BasePart") and inst.Anchored and inst:GetAttribute("Spin") then
+			spinners[inst] = { Speed = inst:GetAttribute("Spin"), Base = inst.CFrame }
 		end
 	end
 	local world = workspace:WaitForChild("World", 30)
-	if world then
-		for _, d in world:GetDescendants() do
-			track(d)
+	if not world then
+		return
+	end
+	for _, d in world:GetDescendants() do
+		track(d)
+	end
+	world.DescendantAdded:Connect(track)
+	world.DescendantRemoving:Connect(function(inst)
+		spinners[inst :: any] = nil
+	end)
+	local angle = 0
+	RunService.Heartbeat:Connect(function(dt)
+		angle += dt
+		for part, spin in spinners do
+			part.CFrame = CFrame.new(spin.Base.Position) * CFrame.Angles(0, angle * spin.Speed, 0) * spin.Base.Rotation
 		end
-	end
-	if #spinners > 0 then
-		local angle = 0
-		RunService.Heartbeat:Connect(function(dt)
-			angle += dt
-			for _, s in spinners do
-				s.Part.CFrame = CFrame.new(s.Base.Position) * CFrame.Angles(0, angle * s.Speed, 0) * s.Base.Rotation
-			end
-		end)
-	end
+	end)
 end
 
 return Effects

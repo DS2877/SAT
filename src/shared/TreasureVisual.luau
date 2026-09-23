@@ -176,10 +176,11 @@ function TreasureVisual.Scale(def): number
 end
 
 -- Returns Model with PrimaryPart "Handle" (invisible root). Handle is left Anchored = true.
-function TreasureVisual.Build(def, cframe: CFrame?): Model
+-- maxScale caps the size (e.g. Vault pedestals).
+function TreasureVisual.Build(def, cframe: CFrame?, maxScale: number?): Model
 	local model = Instance.new("Model")
 	model.Name = def.Name
-	local s = TreasureVisual.Scale(def)
+	local s = math.min(TreasureVisual.Scale(def), maxScale or math.huge)
 	local root = cframe or CFrame.new()
 
 	local handle = Instance.new("Part")

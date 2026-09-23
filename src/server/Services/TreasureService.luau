@@ -40,6 +40,7 @@ export type Record = {
 	ProtectedFor: Player?,
 	ProtectedUntil: number,
 	KnockedFrom: Player?, -- who lost it through a knock (theft detection)
+	Marker: Model?, -- ground ring + light beam while the treasure lies in the world
 }
 
 local cfg = GameConfig.Treasure
@@ -47,6 +48,7 @@ local records: { [number]: Record } = {}
 local carrying: { [Player]: Record } = {}
 local spawnPoints = {}
 local folder: Folder
+local markerFolder: Folder
 local nextUid = 0
 local rng = Random.new()
 
@@ -140,6 +142,49 @@ local function activeCount(): number
 end
 
 -- point: a spawn point (normal spawns) or nil for free spawns (events), which pass `ground`.
+-- Ground marker: a glowing ring in the rarity colour (+ a light beam for Rare and above) so
+-- treasure reads from far away and through grass. Removed while carried.
+local function clearMarker(record: Record)
+	if record.Marker then
+		record.Marker:Destroy()
+		record.Marker = nil
+	end
+end
+
+local function placeMarker(record: Record, ground: Vector3)
+	clearMarker(record)
+	local info = Rarities.Info[record.Def.Rarity]
+	local s = TreasureVisual.Scale(record.Def)
+	local marker = Instance.new("Model")
+	marker.Name = "Marker_" .. record.Uid
+	local function glow(size: Vector3, cframe: CFrame, transparency: number)
+		local p = Instance.new("Part")
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.Shape = Enum.PartType.Cylinder
+		p.Material = Enum.Material.Neon
+		p.Color = info.Color
+		p.Transparency = transparency
+		p.Size = size
+		p.CFrame = cframe
+		p.Parent = marker
+		return p
+	end
+	local upright = CFrame.Angles(0, 0, math.rad(90))
+	local diameter = s * 2.4 + 2
+	glow(Vector3.new(0.15, diameter, diameter), CFrame.new(ground + Vector3.new(0, 0.12, 0)) * upright, 0.35)
+	glow(Vector3.new(0.18, diameter - 1.2, diameter - 1.2), CFrame.new(ground + Vector3.new(0, 0.14, 0)) * upright, 0.8)
+	if info.Rank >= 3 then
+		local height = 25 + info.Rank * 8
+		glow(Vector3.new(height, 0.9, 0.9), CFrame.new(ground + Vector3.new(0, height / 2, 0)) * upright, 0.55)
+	end
+	marker.Parent = markerFolder
+	record.Marker = marker
+end
+
 local function spawnAt(point, def, ground: Vector3?)
 	nextUid += 1
 	local s = TreasureVisual.Scale(def)
@@ -176,6 +221,7 @@ local function spawnAt(point, def, ground: Vector3?)
 		sparkles.Parent = record.Handle
 	end
 	setState(record, "World")
+	placeMarker(record, base)
 	model.Parent = folder
 	if point then
 		point.Occupied = record
@@ -258,6 +304,7 @@ local function remove(record: Record, reason: string)
 		carrying[record.Carrier] = nil
 	end
 	freeSpawnPoint(record)
+	clearMarker(record)
 	record.Model:Destroy()
 	TreasureService.Removed:Fire(record, reason)
 end
@@ -361,6 +408,7 @@ function TreasureService.TryPickup(player: Player, uid: number): (boolean, strin
 	record.ProtectedUntil = 0
 	record.KnockedFrom = nil
 	record.Prompt.Enabled = false
+	clearMarker(record)
 	record.Billboard.MaxDistance = if record.Def.SpecialEffect == "RevealsCarrier" then 2000 else 160
 	record.Billboard.AlwaysOnTop = record.Def.SpecialEffect == "RevealsCarrier"
 	carrying[player] = record
@@ -441,6 +489,7 @@ function TreasureService.Drop(player: Player, reason: string, knockedBy: Player?
 	handle.Anchored = true
 	handle.CFrame = CFrame.new(ground + Vector3.new(0, TreasureVisual.Scale(record.Def) * 0.9 + 0.3, 0))
 		* CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
+	placeMarker(record, ground)
 
 	local now = os.clock()
 	record.Carrier = nil
@@ -520,6 +569,9 @@ function TreasureService.Init(points)
 	folder = Instance.new("Folder")
 	folder.Name = "Treasures"
 	folder.Parent = workspace
+	markerFolder = Instance.new("Folder")
+	markerFolder.Name = "TreasureMarkers"
+	markerFolder.Parent = workspace
 	for _, point in points do
 		table.insert(spawnPoints, {
 			Area = point.Area,

@@ -58,11 +58,12 @@ for _, def in Treasures.List do
 	Treasures.ById[def.Id] = def
 end
 
+-- World size of treasure models. Big on purpose: treasure must read clearly through grass.
 Treasures.DisplayScale = {
-	Small = 1.3,
-	Medium = 2,
-	Large = 2.8,
-	Huge = 3.8,
+	Small = 2.2,
+	Medium = 3,
+	Large = 3.8,
+	Huge = 5,
 }
 
 function Treasures.Get(id: string)

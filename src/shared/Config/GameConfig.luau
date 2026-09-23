@@ -97,7 +97,7 @@ GameConfig.Combat = {
 
 GameConfig.SafeZone = {
 	-- Treasure District: circle on XZ plane. Keep in sync with WorldLayout.
-	Radius = 145,
+	Radius = 150, -- matches the District wall
 }
 
 -- Treadmill training (AFK-friendly). Stand on a treadmill to gain Strength over time; tap SPRINT
@@ -120,16 +120,21 @@ GameConfig.Training = {
 }
 
 GameConfig.Vault = {
-	-- Progression tiers. Enabled=false tiers are designed but not yet physically supported.
+	-- Progression tiers. Vaults grow UP: every PerFloor slots add a new floor to the gallery.
 	Tiers = {
 		{ Slots = 5, Price = 0, Enabled = true },
 		{ Slots = 10, Price = 25000, Enabled = true },
 		{ Slots = 20, Price = 250000, Enabled = true },
-		{ Slots = 40, Price = 2500000, Enabled = false },
-		{ Slots = 60, Price = 10000000, Enabled = false },
+		{ Slots = 40, Price = 2500000, Enabled = true },
+		{ Slots = 60, Price = 10000000, Enabled = true },
 	},
+	PlotSize = 30,
+	PerFloor = 20,
+	FloorHeight = 12,
 	Columns = 5,
-	Spacing = 6,
+	ColumnSpacing = 5,
+	RowSpacing = 5.5,
+	DisplayMaxScale = 2.4, -- treasure size cap on pedestals
 	AutoPlaceNewTreasures = true,
 	TeleportHomeOnExtract = true, -- carrier is brought to their Vault after extracting
 	HomeStandDistance = 19, -- studs in front of the plot centre

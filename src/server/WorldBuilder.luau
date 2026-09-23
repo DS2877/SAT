@@ -11,6 +11,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
 local WorldLayout = require(Shared.Config.WorldLayout)
+local Treasures = require(Shared.Config.Treasures)
+local TreasureVisual = require(Shared.TreasureVisual)
 
 local TerrainGen = require(script.Parent.World.TerrainGen)
 local Props = require(script.Parent.World.Props)
@@ -265,6 +267,166 @@ end
 
 -- TREASURE DISTRICT -------------------------------------------------------------
 
+-- Welcoming spawn pavilion: stepped marble dais, ring of pillars, dome with a spinning golden
+-- crown, sparkles, and a welcome arch that doubles as the how-to-play sign.
+local function buildSpawnPavilion(district: Folder)
+	local pav = folder("SpawnPavilion", district)
+	local spawnPos = WorldLayout.Spawn
+	local base = Vector3.new(spawnPos.X, WorldLayout.District.Center.Y + 1, spawnPos.Z)
+	cylinder(base + Vector3.new(0, 0.5, 0), 1, 34, { Name = "Step1", Color = Color3.fromRGB(225, 218, 200), Material = Enum.Material.Marble, Parent = pav })
+	cylinder(base + Vector3.new(0, 1.5, 0), 1, 28, { Name = "Step2", Color = Color3.fromRGB(240, 234, 220), Material = Enum.Material.Marble, Parent = pav })
+	cylinder(base + Vector3.new(0, 2.05, 0), 0.12, 24, { Name = "GoldInlay", Color = C.Gold, Material = Enum.Material.Metal, CanCollide = false, Parent = pav })
+	cylinder(base + Vector3.new(0, 2.08, 0), 0.12, 21, { Name = "InnerFloor", Color = Color3.fromRGB(70, 60, 110), Material = Enum.Material.Marble, CanCollide = false, Parent = pav })
+
+	local spawn = Instance.new("SpawnLocation")
+	spawn.Name = "DistrictSpawn"
+	spawn.Anchored = true
+	spawn.Size = Vector3.new(12, 0.2, 12)
+	spawn.CFrame = CFrame.lookAt(spawnPos - Vector3.new(0, 0.4, 0), Vector3.new(0, spawnPos.Y - 0.4, WorldLayout.District.Gate.Z))
+	spawn.Transparency = 1
+	spawn.CanCollide = false
+	spawn.Duration = GameConfig.Player.SpawnProtection
+	spawn.Neutral = true
+	spawn.Parent = pav
+	local decal = spawn:FindFirstChildOfClass("Decal")
+	if decal then
+		decal:Destroy()
+	end
+
+	-- Pillars (gap facing north so the view opens onto the plaza)
+	for i = 0, 7 do
+		local a = math.rad(22.5 + i * 45)
+		local p = base + Vector3.new(math.sin(a) * 12, 0, math.cos(a) * 12)
+		cylinder(p + Vector3.new(0, 8, 0), 12, 1.6, { Name = "Pillar", Color = Color3.fromRGB(250, 246, 236), Material = Enum.Material.Marble, Parent = pav })
+		cylinder(p + Vector3.new(0, 14.3, 0), 0.6, 2.2, { Name = "PillarCap", Color = C.Gold, Material = Enum.Material.Metal, Parent = pav })
+	end
+	cylinder(base + Vector3.new(0, 15, 0), 1.2, 27, { Name = "RoofRing", Color = C.Gold, Material = Enum.Material.Metal, Parent = pav })
+	part({ Name = "Dome", Shape = Enum.PartType.Ball, Size = Vector3.new(26, 11, 26), CFrame = CFrame.new(base + Vector3.new(0, 16.5, 0)), Color = Color3.fromRGB(60, 170, 190), Material = Enum.Material.SmoothPlastic, Parent = pav })
+	local crownDef = Treasures.Get("golden_crown")
+	if crownDef then
+		local crown = TreasureVisual.Build(crownDef, CFrame.new(base + Vector3.new(0, 25.5, 0)), 3)
+		crown.Name = "SpawnCrown"
+		crown.Parent = pav
+		local crownHandle = crown.PrimaryPart :: BasePart
+		crownHandle:SetAttribute("Spin", 0.5)
+	end
+	local sparkle = Instance.new("ParticleEmitter")
+	sparkle.Color = ColorSequence.new(C.Gold)
+	sparkle.LightEmission = 1
+	sparkle.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.4), NumberSequenceKeypoint.new(1, 0) })
+	sparkle.Lifetime = NumberRange.new(1.5, 2.5)
+	sparkle.Rate = 12
+	sparkle.Speed = NumberRange.new(1, 3)
+	sparkle.SpreadAngle = Vector2.new(180, 180)
+	local emitterPart = part({ Name = "Sparkles", Size = Vector3.new(20, 1, 20), CFrame = CFrame.new(base + Vector3.new(0, 4, 0)), Transparency = 1, CanCollide = false, CanQuery = false, Parent = pav })
+	sparkle.Parent = emitterPart
+
+	-- Welcome arch between the pavilion and the fountain; its panel teaches the loop.
+	local archZ = base.Z - 22
+	for _, x in { -12, 12 } do
+		part({ Name = "ArchPost", Size = Vector3.new(2.4, 15, 2.4), CFrame = CFrame.new(base.X + x, base.Y + 7.5, archZ), Color = C.Sandstone, Material = Enum.Material.Sandstone, Parent = pav })
+		part({ Name = "ArchPostCap", Size = Vector3.new(3.2, 1, 3.2), CFrame = CFrame.new(base.X + x, base.Y + 15.5, archZ), Color = C.Gold, Material = Enum.Material.Metal, Parent = pav })
+	end
+	local panel = part({
+		Name = "WelcomePanel",
+		Size = Vector3.new(26, 5, 1),
+		CFrame = CFrame.lookAt(Vector3.new(base.X, base.Y + 13, archZ), Vector3.new(base.X, base.Y + 13, archZ + 1)),
+		Color = Color3.fromRGB(40, 32, 70),
+		Material = Enum.Material.SmoothPlastic,
+		Parent = pav,
+	})
+	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+		local surface = Instance.new("SurfaceGui")
+		surface.Face = face
+		surface.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		surface.PixelsPerStud = 24
+		surface.LightInfluence = 0
+		surface.Parent = panel
+		local text = Instance.new("TextLabel")
+		text.Size = UDim2.fromScale(1, 1)
+		text.BackgroundTransparency = 1
+		text.Font = Enum.Font.FredokaOne
+		text.TextScaled = true
+		text.RichText = true
+		text.TextColor3 = C.Gold
+		text.Text = if face == Enum.NormalId.Front
+			then "STEAL THE TREASURE\n<font color=\"#ffffff\" size=\"60\">TRAIN • FIND • CARRY • EXTRACT</font>"
+			else "WELCOME HOME, TREASURE HUNTER"
+		text.Parent = surface
+	end
+	for _, x in { -18, 18 } do
+		part({ Name = "Planter", Size = Vector3.new(6, 1.2, 6), CFrame = CFrame.new(base.X + x, base.Y + 0.6, base.Z + 16), Color = Color3.fromRGB(160, 90, 70), Material = Enum.Material.Brick, Parent = pav })
+		Props.Flowers(pav, Vector3.new(base.X + x, base.Y + 1.2, base.Z + 16), rng, 9)
+	end
+end
+
+-- Stone wall around the District: the north gatehouse is the ONLY way to the Wilds.
+-- An invisible barrier above the wall stops Balloons/Grapples from skipping the gate.
+local function buildWall(district: Folder)
+	local walls = folder("DistrictWall", district)
+	local d = WorldLayout.District
+	local center = Vector3.new(d.Center.X, d.Center.Y, d.Center.Z)
+	local radius, height = d.WallRadius, d.WallHeight
+	local stone = Color3.fromRGB(196, 186, 168)
+	local gateGap = math.deg(d.GateHalfWidth / radius) + 1.5
+	local span = 360 - gateGap * 2
+	local segments = math.ceil(span / 6)
+	local step = span / segments
+	local function onCircle(degreesFromGate: number, y: number): (Vector3, CFrame)
+		local a = math.rad(180 + degreesFromGate)
+		local pos = center + Vector3.new(math.sin(a) * radius, y, math.cos(a) * radius)
+		return pos, CFrame.lookAt(pos, Vector3.new(center.X, pos.Y, center.Z))
+	end
+	local length = 2 * radius * math.sin(math.rad(step / 2)) + 1
+	for k = 0, segments - 1 do
+		local b = gateGap + (k + 0.5) * step
+		local _, cf = onCircle(b, height / 2)
+		part({ Name = "Wall", Size = Vector3.new(length, height, 3), CFrame = cf, Color = stone, Material = Enum.Material.Cobblestone, Parent = walls })
+		part({ Name = "WallCap", Size = Vector3.new(length, 1, 3.8), CFrame = cf * CFrame.new(0, height / 2 + 0.5, 0), Color = Color3.fromRGB(170, 160, 145), Material = Enum.Material.Slate, Parent = walls })
+		for m = -1, 1 do
+			part({ Name = "Merlon", Size = Vector3.new(2.2, 2, 1.6), CFrame = cf * CFrame.new(m * length / 3, height / 2 + 2, 1), Color = stone, Material = Enum.Material.Cobblestone, Parent = walls })
+		end
+		part({
+			Name = "Barrier",
+			Size = Vector3.new(length, 110, 3),
+			CFrame = cf * CFrame.new(0, height / 2 + 1 + 55, 0),
+			Transparency = 1,
+			CanQuery = false,
+			CastShadow = false,
+			Parent = walls,
+		})
+		if k % 5 == 2 then
+			local towerPos = onCircle(b, 0)
+			cylinder(towerPos + Vector3.new(0, (height + 6) / 2, 0), height + 6, 9, { Name = "Tower", Color = stone, Material = Enum.Material.Cobblestone, Parent = walls })
+			cylinder(towerPos + Vector3.new(0, height + 6.8, 0), 1.6, 10.5, { Name = "TowerRim", Color = Color3.fromRGB(170, 160, 145), Material = Enum.Material.Slate, Parent = walls })
+			cylinder(towerPos + Vector3.new(0, height + 9, 0), 3, 8, { Name = "Roof1", Color = C.Red, Material = Enum.Material.Slate, Parent = walls })
+			cylinder(towerPos + Vector3.new(0, height + 11.5, 0), 2, 5, { Name = "Roof2", Color = C.Red, Material = Enum.Material.Slate, Parent = walls })
+			cylinder(towerPos + Vector3.new(0, height + 13.3, 0), 1.6, 2, { Name = "Roof3", Color = C.Red, Material = Enum.Material.Slate, Parent = walls })
+		end
+	end
+
+	-- Gatehouse
+	local gate = d.Gate
+	for _, x in { -1, 1 } do
+		local towerPos = Vector3.new(gate.X + x * (d.GateHalfWidth + 5), gate.Y, gate.Z)
+		part({ Name = "GateTower", Size = Vector3.new(10, height + 12, 10), CFrame = CFrame.new(towerPos + Vector3.new(0, (height + 12) / 2, 0)), Color = stone, Material = Enum.Material.Cobblestone, Parent = walls })
+		for mx = -1, 1, 2 do
+			for mz = -1, 1, 2 do
+				part({ Name = "GateMerlon", Size = Vector3.new(2.4, 2.4, 2.4), CFrame = CFrame.new(towerPos + Vector3.new(mx * 3.8, height + 13.2, mz * 3.8)), Color = stone, Material = Enum.Material.Cobblestone, Parent = walls })
+			end
+		end
+		Props.Brazier(walls, towerPos + Vector3.new(0, 0, 7))
+		part({ Name = "Banner", Size = Vector3.new(4, 9, 0.3), CFrame = CFrame.new(towerPos + Vector3.new(0, height + 4, -5.2)), Color = C.Red, Material = Enum.Material.Fabric, CanCollide = false, Parent = walls })
+		part({ Name = "BannerEmblem", Size = Vector3.new(2, 2, 0.35), CFrame = CFrame.new(towerPos + Vector3.new(0, height + 5, -5.25)) * CFrame.Angles(0, 0, math.rad(45)), Color = C.Gold, Material = Enum.Material.Metal, CanCollide = false, Parent = walls })
+	end
+	local arch = part({ Name = "GateArch", Size = Vector3.new(d.GateHalfWidth * 2 + 2, 5, 8), CFrame = CFrame.new(gate + Vector3.new(0, height + 6.5, 0)), Color = stone, Material = Enum.Material.Cobblestone, Parent = walls })
+	part({ Name = "GateBarrier", Size = Vector3.new(d.GateHalfWidth * 2, 100, 3), CFrame = CFrame.new(gate + Vector3.new(0, height + 9 + 50, 0)), Transparency = 1, CanQuery = false, CastShadow = false, Parent = walls })
+	for _, x in { -1, 1 } do
+		part({ Name = "GateDoor", Size = Vector3.new(d.GateHalfWidth - 1, height + 2, 1), CFrame = CFrame.new(gate + Vector3.new(x * (d.GateHalfWidth + 1), (height + 2) / 2, 5)) * CFrame.Angles(0, math.rad(x * 80), 0) * CFrame.new(x * (d.GateHalfWidth - 1) / 2, 0, 0), Color = C.Wood, Material = Enum.Material.WoodPlanks, Parent = walls })
+	end
+	billboardSign(arch, "THE WILDS", "Treasure awaits. Danger too.", C.Gold, 300, 5, 24)
+end
+
 local function buildDistrict()
 	local d = WorldLayout.District
 	local district = folder("TreasureDistrict")
@@ -303,78 +465,8 @@ local function buildDistrict()
 	coinLight.Brightness = 1.5
 	coinLight.Parent = coin
 
-	-- Spawn (ForceField duration = spawn protection)
-	local spawn = Instance.new("SpawnLocation")
-	spawn.Name = "DistrictSpawn"
-	spawn.Anchored = true
-	spawn.Size = Vector3.new(14, 1, 14)
-	spawn.CFrame = CFrame.lookAt(WorldLayout.Spawn, Vector3.new(0, WorldLayout.Spawn.Y, 0))
-	spawn.Color = C.Gold
-	spawn.Material = Enum.Material.Neon
-	spawn.Transparency = 0.6
-	spawn.Duration = GameConfig.Player.SpawnProtection
-	spawn.Neutral = true
-	spawn.CanCollide = true
-	spawn.Parent = district
-	local decal = spawn:FindFirstChildOfClass("Decal")
-	if decal then
-		decal:Destroy()
-	end
-
-	-- Perimeter lamps make the safe-zone edge readable
-	for i = 0, 23 do
-		local angle = i / 24 * math.pi * 2
-		local pos = center + Vector3.new(math.cos(angle), 0, math.sin(angle)) * (GameConfig.SafeZone.Radius + 2)
-		if math.abs(pos.X) > 14 or pos.Z > center.Z then -- leave the north gate open
-			cylinder(pos + Vector3.new(0, 5, 0), 10, 0.8, { Name = "Lamp", Color = C.DarkWood, Parent = district })
-			local bulb = part({
-				Name = "Bulb",
-				Shape = Enum.PartType.Ball,
-				Size = Vector3.new(1.8, 1.8, 1.8),
-				CFrame = CFrame.new(pos + Vector3.new(0, 10.5, 0)),
-				Color = Color3.fromRGB(255, 220, 140),
-				Material = Enum.Material.Neon,
-				Parent = district,
-			})
-			bulb.CanCollide = false
-		end
-	end
-
-	-- North gate towards the Wilds
-	local gate = d.Gate
-	for _, x in { -12, 12 } do
-		part({ Name = "GatePillar", Size = Vector3.new(4, 22, 4), CFrame = CFrame.new(gate + Vector3.new(x, 11, 0)), Color = C.Sandstone, Material = Enum.Material.Sandstone, Parent = district })
-	end
-	local beam = part({ Name = "GateBeam", Size = Vector3.new(30, 4, 5), CFrame = CFrame.new(gate + Vector3.new(0, 23, 0)), Color = C.Wood, Material = Enum.Material.Wood, Parent = district })
-	billboardSign(beam, "THE WILDS", "Treasure awaits. Danger too.", C.Gold, 250, 5, 22)
-
-	-- How to play board (teaches the loop without walls of text)
-	local board = part({
-		Name = "HowToPlay",
-		Size = Vector3.new(22, 12, 1),
-		CFrame = CFrame.lookAt(center + Vector3.new(-26, 8, 32), Vector3.new(0, 8, WorldLayout.Spawn.Z)),
-		Color = C.DarkWood,
-		Material = Enum.Material.Wood,
-		Parent = district,
-	})
-	local surface = Instance.new("SurfaceGui")
-	surface.Face = Enum.NormalId.Front
-	surface.CanvasSize = Vector2.new(660, 360)
-	surface.LightInfluence = 0
-	surface.Parent = board
-	local text = Instance.new("TextLabel")
-	text.Size = UDim2.fromScale(1, 1)
-	text.BackgroundTransparency = 1
-	text.Font = Enum.Font.GothamBlack
-	text.TextColor3 = Color3.fromRGB(255, 230, 160)
-	text.TextScaled = true
-	text.RichText = true
-	text.Text = "STEAL THE TREASURE\n<font color=\"#ffffff\">1 TRAIN  •  2 FIND\n3 CARRY  •  4 EXTRACT\nDON'T GET CAUGHT</font>"
-	text.Parent = surface
-
-	for _, pillarX in { -18, 18 } do
-		part({ Name = "BoardLeg", Size = Vector3.new(1, 3, 1), CFrame = board.CFrame * CFrame.new(pillarX * 0.5, -7.5, 0), Color = C.DarkWood, Parent = district })
-	end
+	buildSpawnPavilion(district)
+	buildWall(district)
 
 	return district
 end
@@ -478,10 +570,23 @@ local function buildAscensionAltar(district: Folder)
 	return prompt(obelisk, "Ascend", "Ascension Altar", 0.5)
 end
 
+-- Vault plots: an open marble gallery with an arched entrance, red carpet and tall corner
+-- towers that frame the upper floors a vault grows into (floors themselves are built by
+-- VaultService as the owner upgrades).
 local function buildVaultPlots(district: Folder)
 	local d = WorldLayout.District
+	local vcfg = GameConfig.Vault
 	local plots = {}
 	local vaults = folder("Vaults", district)
+	local maxSlots = 0
+	for _, tier in vcfg.Tiers do
+		if tier.Enabled then
+			maxSlots = math.max(maxSlots, tier.Slots)
+		end
+	end
+	local floors = math.ceil(maxSlots / vcfg.PerFloor)
+	local towerHeight = (floors - 1) * vcfg.FloorHeight + 12
+	local half = vcfg.PlotSize / 2
 	local count = GameConfig.MaxPlayers
 	for i = 1, count do
 		local t = if count == 1 then 0.5 else (i - 1) / (count - 1)
@@ -489,19 +594,38 @@ local function buildVaultPlots(district: Folder)
 		local pos = d.Center + Vector3.new(math.sin(angle) * d.VaultArcRadius, 1, math.cos(angle) * d.VaultArcRadius)
 		local cf = CFrame.lookAt(pos, Vector3.new(d.Center.X, pos.Y, d.Center.Z))
 		local plotFolder = folder("Vault" .. i, vaults)
-		part({ Name = "Floor", Size = Vector3.new(30, 0.4, 30), CFrame = cf * CFrame.new(0, 0.2, 0), Color = Color3.fromRGB(70, 60, 90), Material = Enum.Material.Marble, Parent = plotFolder })
-		part({ Name = "BackWall", Size = Vector3.new(30, 8, 1), CFrame = cf * CFrame.new(0, 4, 15), Color = C.Cream, Material = Enum.Material.Marble, Parent = plotFolder })
-		for _, x in { -15, 15 } do
-			part({ Name = "SideWall", Size = Vector3.new(1, 5, 30), CFrame = cf * CFrame.new(x, 2.5, 0), Color = C.Cream, Material = Enum.Material.Marble, Parent = plotFolder })
+		-- Floor with a gold border
+		part({ Name = "Border", Size = Vector3.new(vcfg.PlotSize + 1, 0.5, vcfg.PlotSize + 1), CFrame = cf * CFrame.new(0, 0.25, 0), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
+		part({ Name = "Floor", Size = Vector3.new(vcfg.PlotSize - 1, 0.6, vcfg.PlotSize - 1), CFrame = cf * CFrame.new(0, 0.3, 0), Color = Color3.fromRGB(62, 52, 88), Material = Enum.Material.Marble, Parent = plotFolder })
+		part({ Name = "Carpet", Size = Vector3.new(5, 0.08, half + 2), CFrame = cf * CFrame.new(0, 0.64, -half / 2 - 1), Color = Color3.fromRGB(180, 30, 50), Material = Enum.Material.Fabric, CanCollide = false, Parent = plotFolder })
+		-- Back wall with emblem
+		part({ Name = "BackWall", Size = Vector3.new(vcfg.PlotSize, 10, 1), CFrame = cf * CFrame.new(0, 5, half), Color = C.Cream, Material = Enum.Material.Marble, Parent = plotFolder })
+		part({ Name = "WallTrim", Size = Vector3.new(vcfg.PlotSize + 0.4, 0.6, 1.4), CFrame = cf * CFrame.new(0, 10.2, half), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
+		part({ Name = "Emblem", Size = Vector3.new(3.2, 3.2, 0.4), CFrame = cf * CFrame.new(0, 6.5, half - 0.6) * CFrame.Angles(0, 0, math.rad(45)), Color = C.Gold, Material = Enum.Material.Neon, CanCollide = false, Parent = plotFolder })
+		-- Low balustrades on the sides keep the gallery visible from the plaza
+		for _, x in { -half, half } do
+			part({ Name = "Balustrade", Size = Vector3.new(1, 2.4, vcfg.PlotSize), CFrame = cf * CFrame.new(x, 1.8, 0), Color = C.Cream, Material = Enum.Material.Marble, Parent = plotFolder })
+			part({ Name = "Rail", Size = Vector3.new(1.4, 0.4, vcfg.PlotSize), CFrame = cf * CFrame.new(x, 3.2, 0), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
 		end
-		part({ Name = "Trim", Size = Vector3.new(30.4, 0.6, 1.4), CFrame = cf * CFrame.new(0, 8.2, 15), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
-		local signPart = part({ Name = "SignPost", Size = Vector3.new(1, 1, 1), CFrame = cf * CFrame.new(0, 10, 15), Transparency = 1, CanCollide = false, Parent = plotFolder })
-		local sign = billboardSign(signPart, "EMPTY VAULT", nil, C.Gold, 120, 2, 18)
-		local terminal = part({ Name = "Terminal", Size = Vector3.new(2.5, 3.5, 2.5), CFrame = cf * CFrame.new(-12.5, 1.95, -13), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
+		-- Corner towers: the frame the vault grows into
+		for _, x in { -half, half } do
+			for _, z in { -half, half } do
+				part({ Name = "CornerTower", Size = Vector3.new(2, towerHeight, 2), CFrame = cf * CFrame.new(x, towerHeight / 2 + 0.5, z), Color = Color3.fromRGB(235, 228, 210), Material = Enum.Material.Marble, Parent = plotFolder })
+				part({ Name = "TowerCap", Size = Vector3.new(2.8, 1, 2.8), CFrame = cf * CFrame.new(x, towerHeight + 1, z), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
+			end
+		end
+		-- Entrance arch with the owner's name plaque
+		for _, x in { -5, 5 } do
+			part({ Name = "ArchPost", Size = Vector3.new(1.6, 9, 1.6), CFrame = cf * CFrame.new(x, 5, -half), Color = C.Cream, Material = Enum.Material.Marble, Parent = plotFolder })
+		end
+		local plaque = part({ Name = "ArchTop", Size = Vector3.new(12, 2.2, 1.8), CFrame = cf * CFrame.new(0, 10.4, -half), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
+		local sign = billboardSign(plaque, "EMPTY VAULT", nil, C.Gold, 140, 2.2, 16)
+		local terminal = part({ Name = "Terminal", Size = Vector3.new(2.2, 3.4, 2.2), CFrame = cf * CFrame.new(-8.5, 2.3, -half + 1.5), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
+		part({ Name = "TerminalScreen", Size = Vector3.new(1.8, 1.2, 0.2), CFrame = cf * CFrame.new(-8.5, 3.6, -half + 0.35) * CFrame.Angles(math.rad(-20), 0, 0), Color = Color3.fromRGB(120, 220, 255), Material = Enum.Material.Neon, CanCollide = false, Parent = plotFolder })
 		local displays = folder("Displays", plotFolder)
 		table.insert(plots, {
 			Index = i,
-			CFrame = cf,
+			CFrame = cf * CFrame.new(0, 0.6, 0), -- floor surface
 			Sign = sign:FindFirstChild("Title") :: TextLabel,
 			Prompt = prompt(terminal, "Edit Vault", "Vault", 0),
 			Displays = displays,

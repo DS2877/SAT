@@ -10,12 +10,15 @@ WorldLayout.SeaLevel = 0
 WorldLayout.District = {
 	Center = Vector3.new(0, 10, 250),
 	FloorRadius = 150,
-	Gate = Vector3.new(0, 10, 100),
+	Gate = Vector3.new(0, 10, 100), -- the ONLY way between the District and the Wilds
+	WallRadius = 150,
+	WallHeight = 16,
+	GateHalfWidth = 14,
 	VaultArcRadius = 112,
 	VaultArcDegrees = 150, -- plots spread across the south side, facing the plaza
 }
 
-WorldLayout.Spawn = Vector3.new(0, 11, 290)
+WorldLayout.Spawn = Vector3.new(0, 13.5, 290) -- on top of the spawn pavilion
 
 -- Strength Gym: one row of treadmills per tier (GameConfig.Training.Treadmills), belts run toward +X.
 WorldLayout.Gym = {

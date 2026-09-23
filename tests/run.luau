@@ -279,6 +279,8 @@ test("terrain: gameplay spots are flat, island has hills and a coast", function(
 	check(highest > 22, ("island has real hills (max %.1f)"):format(highest))
 	check(highest < 72, "hills fit inside the generated voxel range")
 	check(lowestInland > 2, ("inland never dips below sea level (min %.1f)"):format(lowestInland))
+	check(TerrainGen.SurfaceZone(0, 290) == "Pavement", "spawn sits on grass-free pavement")
+	check(TerrainGen.SurfaceZone(0, -60) == nil, "the Wilds keep their grass")
 	for angle = 0, 350, 10 do
 		local a = math.rad(angle)
 		local h, coast = TerrainGen.Height(math.cos(a) * 600, math.sin(a) * 600)

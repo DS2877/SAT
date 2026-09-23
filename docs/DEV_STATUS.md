@@ -59,6 +59,18 @@ M0–M7 implemented in code; awaiting first Roblox runtime playtest (M8 multipla
   fountain jets. Landmarks: temple vines/braziers/fallen pillars, layered waterfall + foam,
   shipwreck cargo + driftwood, furnished expedition camp, rope-bridge rails.
 
+## PLAYTEST 2 CHANGES
+- District wall (radius 150) with one gatehouse = the only route to the Wilds; invisible barrier
+  above the wall stops Balloon/Grapple shortcuts.
+- Spawn pavilion (marble dais, pillars, dome + spinning crown, welcome arch that teaches the loop).
+- Vaults grow UP: 20 pedestals per floor, 3 floors (tiers 5/10/20/40/60 all enabled), ghost
+  pedestals + locked-floor outlines show room to grow, lift pads between floors, new gallery design.
+- Treasures ~1.5x bigger with glowing rarity ground rings and light beams (Rare+).
+- Grass-free terrain under the District/camp/courtyard/beach (grass no longer pokes through floors).
+- AFK treadmill gym (4 tiers) replaces the timing-bar training; much slower Strength; 2x pass hook.
+- Objective card is now a slim collapsible tracker under the stats.
+- Gadget prices raised ~7-10x ($3K–$120K).
+
 ## KNOWN BUGS / RISKS
 - Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp slopes.
 - No server-side speed-hack detection yet (movement is client-authoritative in Roblox).
