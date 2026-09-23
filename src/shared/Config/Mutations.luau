@@ -1,6 +1,6 @@
 -- Treasure mutations: rare variants that LOOK different (material / colour / sparkle) and
 -- multiply the treasure's income and sell price. A treasure has at most one mutation.
--- Chance = probability per normal spawn. Moonlit only rolls at night (see DayNight).
+-- Chance = probability per spawn. Moonlit only rolls on night spawns (see DayNight).
 -- Pure data (colours are RGB arrays, see Mutations.Color) so tests can load it.
 
 local Mutations = {}
@@ -32,7 +32,7 @@ Mutations.Info = {
 	Moonlit = {
 		Multiplier = 4,
 		Chance = 0,
-		NightChance = 0.08, -- only while it is night
+		NightChance = 0.02, -- only rolls on the night loot wave
 		Color = { 150, 170, 255 },
 		Material = "Neon",
 		Sparkle = { 200, 215, 255 },

@@ -266,6 +266,12 @@ test("day/night clock", function()
 		check(st.ClockTime >= 0 and st.ClockTime < 24, "valid clock time")
 	end
 	check(cfg.NightSeconds < cfg.CycleSeconds / 2, "nights are short")
+	check(cfg.CycleSeconds - cfg.NightSeconds == 300 and cfg.NightSeconds == 30, "5 minute day, 30 second night")
+	check(cfg.WaveFillFraction > 0 and cfg.WaveFillFraction < 1, "loot wave lands before the night ends")
+	for _, warnAt in cfg.WarnSecondsBeforeNight do
+		check(warnAt < cfg.CycleSeconds - cfg.NightSeconds, "nightfall warning inside the day")
+	end
+	check(GameConfig.Events.TreasureRain.Duration + 15 < cfg.CycleSeconds - cfg.NightSeconds, "a Treasure Rain fits in a day")
 end)
 
 test("money pacing: first gadget quick, upgrades are real goals", function()

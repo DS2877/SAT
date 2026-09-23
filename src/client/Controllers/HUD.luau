@@ -470,11 +470,12 @@ local function updateClock(serverNow: number)
 	local left = math.ceil(state.SecondsLeft)
 	local clock = ("%d:%02d"):format(left // 60, left % 60)
 	if state.IsNight then
-		refs.Clock.Text = ("🌙 NIGHT • VAULTS x%d • MOONLIT TREASURE • %s"):format(GameConfig.DayNight.NightIncomeMultiplier, clock)
+		refs.Clock.Text = ("🌙 NIGHT • NEW LOOT • %s"):format(clock)
 		refs.Clock.TextColor3 = Color3.fromRGB(170, 185, 255)
 	else
 		refs.Clock.Text = ("☀ DAY • NIGHT IN %s"):format(clock)
-		refs.Clock.TextColor3 = Theme.Color.Gold
+		-- Last minute of the day: turn red, carried loot is about to be lost.
+		refs.Clock.TextColor3 = if left <= 60 then Theme.Color.Danger else Theme.Color.Gold
 	end
 	local income = player:GetAttribute("VaultIncome")
 	refs.Income.Visible = type(income) == "number" and income > 0

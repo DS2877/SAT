@@ -259,48 +259,61 @@ local function render(player: Player)
 			end
 		end
 	end
-	-- COLLECT pad (front-left corner): earnings wait here until the owner steps on it.
-	local padCf = plot.CFrame * CFrame.new(-half + 4, 0, -half + 4)
+	-- COLLECT pad OUTSIDE the entrance (right of the gate) with a sign board facing the plaza:
+	-- inside the Vault the text got cut by the gate posts and clashed with the treasure tags.
+	local padCf = plot.CFrame * CFrame.new(11.5, 0, -half - 4.5)
 	newPart(plot.Displays, {
 		Name = "CollectPad",
 		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(0.3, 5, 5),
-		CFrame = padCf * CFrame.new(0, 0.15, 0) * CFrame.Angles(0, 0, math.rad(90)),
+		Size = Vector3.new(0.5, 5, 5),
+		CFrame = padCf * CFrame.new(0, -0.35, 0) * CFrame.Angles(0, 0, math.rad(90)),
 		Color = Color3.fromRGB(80, 235, 110),
 		Material = Enum.Material.Neon,
 		CanCollide = false,
 	})
-	local anchor = newPart(plot.Displays, { Name = "CollectSign", Size = Vector3.new(1, 1, 1), CFrame = padCf * CFrame.new(0, 3, 0), Transparency = 1, CanCollide = false, CanQuery = false })
-	local sign = Instance.new("BillboardGui")
-	sign.Size = UDim2.fromOffset(220, 64)
-	sign.MaxDistance = 90
-	sign.LightInfluence = 0
-	sign.StudsOffset = Vector3.new(0, 1.5, 0)
-	local amount = Instance.new("TextLabel")
-	amount.BackgroundTransparency = 1
-	amount.Size = UDim2.fromScale(1, 0.6)
-	amount.Font = Enum.Font.FredokaOne
-	amount.TextScaled = true
-	amount.TextColor3 = Color3.fromRGB(80, 255, 90)
-	amount.Text = "$0"
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = 2
-	stroke.Parent = amount
-	amount.Parent = sign
-	local rate = Instance.new("TextLabel")
-	rate.BackgroundTransparency = 1
-	rate.Position = UDim2.fromScale(0, 0.6)
-	rate.Size = UDim2.fromScale(1, 0.4)
-	rate.Font = Enum.Font.FredokaOne
-	rate.TextScaled = true
-	rate.TextColor3 = Color3.new(1, 1, 1)
-	rate.Text = "COLLECT"
-	local stroke2 = Instance.new("UIStroke")
-	stroke2.Thickness = 2
-	stroke2.Parent = rate
-	rate.Parent = sign
-	sign.Parent = anchor
-	plot.CollectPosition = padCf.Position
+	local board = newPart(plot.Displays, {
+		Name = "CollectBoard",
+		Size = Vector3.new(6, 3.4, 0.4),
+		CFrame = plot.CFrame * CFrame.new(11.5, 4.6, -half - 1.3),
+		Color = Color3.fromRGB(28, 36, 30),
+		Material = Enum.Material.SmoothPlastic,
+		CanCollide = false,
+	})
+	newPart(plot.Displays, {
+		Name = "CollectBoardTrim",
+		Size = Vector3.new(6.4, 3.8, 0.3),
+		CFrame = plot.CFrame * CFrame.new(11.5, 4.6, -half - 1.05),
+		Color = Color3.fromRGB(255, 196, 50),
+		Material = Enum.Material.Metal,
+		CanCollide = false,
+	})
+	local surface = Instance.new("SurfaceGui")
+	surface.Face = Enum.NormalId.Front -- -Z: towards the plaza
+	surface.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	surface.PixelsPerStud = 50
+	surface.LightInfluence = 0
+	surface.MaxDistance = 120
+	local function text(name: string, y: number, height: number, color: Color3, value: string)
+		local label = Instance.new("TextLabel")
+		label.Name = name
+		label.BackgroundTransparency = 1
+		label.Position = UDim2.fromScale(0.04, y)
+		label.Size = UDim2.fromScale(0.92, height)
+		label.Font = Enum.Font.FredokaOne
+		label.TextScaled = true
+		label.TextColor3 = color
+		label.Text = value
+		local outline = Instance.new("UIStroke")
+		outline.Thickness = 3
+		outline.Parent = label
+		label.Parent = surface
+		return label
+	end
+	text("Title", 0.04, 0.22, Color3.fromRGB(255, 220, 110), "💰 COLLECT")
+	local amount = text("Amount", 0.28, 0.42, Color3.fromRGB(80, 255, 90), "$0")
+	local rate = text("Rate", 0.72, 0.22, Color3.new(1, 1, 1), "")
+	surface.Parent = board
+	plot.CollectPosition = (padCf * CFrame.new(0, -0.35, 0)).Position
 	plot.CollectAmount = amount
 	plot.CollectRate = rate
 
@@ -370,17 +383,28 @@ end
 
 -- After a successful extraction the player is brought home to their Vault, proudly holding
 -- the treasure overhead for a moment (cosmetic only: the treasure is already banked).
-local function bringHome(player: Player, def, mutation: string?)
+-- Teleports a player to the plaza in front of their Vault, facing it. Returns their root.
+local function sendHome(player: Player): BasePart?
 	local plot = plotOf[player]
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if not plot or not character or not root then
-		return
+		return nil
 	end
 	local standAt = (plot.CFrame * CFrame.new(0, 3.5, -cfg.HomeStandDistance)).Position
 	local lookAt = Vector3.new(plot.CFrame.Position.X, standAt.Y, plot.CFrame.Position.Z)
 	root.AssemblyLinearVelocity = Vector3.zero
 	character:PivotTo(CFrame.lookAt(standAt, lookAt))
+	return root
+end
+VaultService.SendHome = sendHome
+
+local function bringHome(player: Player, def, mutation: string?)
+	local root = sendHome(player)
+	local character = player.Character
+	if not root or not character then
+		return
+	end
 
 	local s = TreasureVisual.Scale(def)
 	local trophy = TreasureVisual.Build(def, root.CFrame * CFrame.new(0, 3.2 + s * 0.8, 0), nil, mutation)
@@ -467,7 +491,7 @@ local function earningsTick(dt: number)
 			end
 			if plot.CollectAmount then
 				plot.CollectAmount.Text = formatCash(data.Vault.Stored)
-				plot.CollectRate.Text = ("+%s/s  •  STEP HERE"):format(formatCash(income))
+				plot.CollectRate.Text = ("+%s/s • STEP ON THE PAD"):format(formatCash(income))
 			end
 		end
 	end

@@ -120,8 +120,13 @@ M0–M7 implemented in code; awaiting first Roblox runtime playtest (M8 multipla
 ## REGIONAL EVENTS + DAY/NIGHT
 - Treasure Rain, Cursed Hour and the new Gold Rush (mutations x6) each hit ONE region; guardian
   rage and the purple tint only apply inside it.
-- 6-minute cycle: 4.5 min day, 1.5 min night (Vaults x3, Moonlit treasure, more Rare+).
+- 5-minute DAY, 30-second NIGHT. Loot ONLY spawns at night (one wave of 20, fully spawned
+  after ~18 s); Treasure Rain is the only daytime loot. At nightfall all loot left in the world
+  (including CARRIED treasure) is lost and players outside the District are sent to their
+  Vault (DayCycle). Warnings at 60/30/10 s. Vaults earn x3 at night; Moonlit (x4) only spawns
+  on night waves. Cursed Hour / Gold Rush are night modifiers rolled at nightfall (40%).
   Clock comes from server time (Logic/DayNight), lighting is client-side (Ambience).
+- Collect pad + sign board moved OUTSIDE the Vault entrance (text was cut by the gate posts).
 
 ## KNOWN BUGS / RISKS
 - Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp slopes.

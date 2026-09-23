@@ -1,6 +1,8 @@
 -- Server events: rare, announced moments that pull players to ONE REGION of the island
 -- (Wilds / Ruins / Coast / Falls) - never the whole map, so the rest stays calm and players
--- choose whether to rush over. One event at a time. State is published as workspace attributes
+-- choose whether to rush over. Treasure Rain is a DAYTIME event (the only daytime loot);
+-- Cursed Hour and Gold Rush are NIGHT modifiers that shape tonight's loot wave in one region
+-- (rolled at nightfall by DayCycle, or forced by admins). One event at a time. State is published as workspace attributes
 -- so every client (and late joiners) can show it without extra remotes:
 --   EventId, EventName, EventSite, EventArea, EventPosition (Vector3), EventEndsAt (server time)
 --
@@ -17,6 +19,7 @@ local Rarities = require(Shared.Config.Rarities)
 local Treasures = require(Shared.Config.Treasures)
 local WorldLayout = require(Shared.Config.WorldLayout)
 local TreasureRoll = require(Shared.Logic.TreasureRoll)
+local DayNight = require(Shared.Logic.DayNight)
 local Net = require(Shared.Net)
 
 local TreasureService = require(script.Parent.TreasureService)
@@ -130,68 +133,82 @@ function Runners.TreasureRain()
 	end
 end
 
+-- Seconds until the end of the NEXT night (the loot wave a night modifier applies to).
+local function untilNightEnds(): number
+	local state = DayNight.State(workspace:GetServerTimeNow())
+	if state.IsNight then
+		return state.SecondsLeft
+	end
+	return state.SecondsLeft + GameConfig.DayNight.NightSeconds
+end
+
+local function tonight(): string
+	return if DayNight.IsNight(workspace:GetServerTimeNow()) then "TONIGHT" else "NEXT NIGHT"
+end
+
+-- Cursed Hour: tonight's loot in the region is much rarer, and its guardians are furious
+-- through the night and into the morning.
 function Runners.CursedHour()
 	local curse = cfg.CursedHour
 	local site = pickSite()
-	local endsAt = workspace:GetServerTimeNow() + curse.Duration
+	local waveEnds = untilNightEnds()
+	local endsAt = workspace:GetServerTimeNow() + waveEnds + cfg.CurseLingerSeconds
 	publish("CursedHour", curse.Name, site, endsAt)
 	workspace:SetAttribute("GuardianRage", curse.GuardianRage)
 	TreasureService.SetRegionBoost({ Area = site.Area, Rarity = curse.RarityBoost })
 	Net.FireAll("Notify", {
 		Kind = "Banner",
 		Title = ("%s %s!"):format(curse.Icon, curse.Name),
-		Text = ("%s is cursed: rare treasure, furious guardians."):format(site.Name),
+		Text = ("%s: rare loot at %s, furious guardians."):format(tonight(), site.Name),
 		Tone = "Danger",
 	})
 	Net.FireAll("Feedback", { Type = "EventStarted", EventId = "CursedHour" })
-	local ok, err = pcall(task.wait, curse.Duration)
-	workspace:SetAttribute("GuardianRage", 1)
+	local ok, err = pcall(task.wait, waveEnds)
 	TreasureService.SetRegionBoost(nil)
+	if ok then
+		ok, err = pcall(task.wait, cfg.CurseLingerSeconds)
+	end
+	workspace:SetAttribute("GuardianRage", 1)
 	Net.FireAll("Notify", { Kind = "Toast", Text = ("The curse on %s has lifted."):format(site.Name), Tone = "Info" })
 	if not ok then
 		error(err)
 	end
 end
 
--- Gold Rush: mutations (Silver / Gold / Diamond / Rainbow) are far more likely in one region.
+-- Gold Rush: mutations (Silver / Gold / Diamond / Rainbow) far more likely in tonight's wave.
 function Runners.GoldRush()
 	local rush = cfg.GoldRush
 	local site = pickSite()
-	local endsAt = workspace:GetServerTimeNow() + rush.Duration
-	publish("GoldRush", rush.Name, site, endsAt)
+	local waveEnds = untilNightEnds()
+	publish("GoldRush", rush.Name, site, workspace:GetServerTimeNow() + waveEnds)
 	TreasureService.SetRegionBoost({ Area = site.Area, Mutation = rush.MutationBoost })
 	Net.FireAll("Notify", {
 		Kind = "Banner",
 		Title = ("%s %s!"):format(rush.Icon, rush.Name),
-		Text = ("Mutated treasure x%d at %s!"):format(rush.MutationBoost, site.Name),
+		Text = ("%s: mutated treasure x%d at %s!"):format(tonight(), rush.MutationBoost, site.Name),
 		Tone = "Reward",
 	})
 	Net.FireAll("Feedback", { Type = "EventStarted", EventId = "GoldRush" })
-	local ok, err = pcall(task.wait, rush.Duration)
+	local ok, err = pcall(task.wait, waveEnds)
 	TreasureService.SetRegionBoost(nil)
-	Net.FireAll("Notify", { Kind = "Toast", Text = ("The Gold Rush at %s is over."):format(site.Name), Tone = "Info" })
 	if not ok then
 		error(err)
 	end
 end
 
-local function pickEvent(): string
+local function pickNightEvent(): string
 	local total = 0
-	for id, weight in cfg.Weights do
-		if Runners[id] then
-			total += weight
-		end
+	for _, weight in cfg.NightWeights do
+		total += weight
 	end
 	local roll = rng:NextNumber() * total
-	for id, weight in cfg.Weights do
-		if Runners[id] then
-			roll -= weight
-			if roll <= 0 then
-				return id
-			end
+	for id, weight in cfg.NightWeights do
+		roll -= weight
+		if roll <= 0 then
+			return id
 		end
 	end
-	return "TreasureRain"
+	return "GoldRush"
 end
 
 function EventService.IsActive(): boolean
@@ -285,14 +302,25 @@ function EventService.Init()
 	end)
 end
 
+-- Called by DayCycle when night falls: maybe roll a night modifier for tonight's wave.
+function EventService.OnNightfall()
+	if not active and #Players:GetPlayers() > 0 and rng:NextNumber() < cfg.NightEventChance then
+		EventService.Start(pickNightEvent())
+	end
+end
+
+-- Daytime: Treasure Rain now and then, only when the whole rain fits before nightfall.
 function EventService.StartScheduler()
 	task.spawn(function()
-		task.wait(cfg.FirstDelay)
+		local nextRainAt = os.clock() + cfg.FirstDelay
 		while true do
-			if #Players:GetPlayers() > 0 then
-				EventService.Start(pickEvent())
+			task.wait(5)
+			local state = DayNight.State(workspace:GetServerTimeNow())
+			local fits = not state.IsNight and state.SecondsLeft > cfg.TreasureRain.Duration + 15
+			if os.clock() >= nextRainAt and fits and not active and #Players:GetPlayers() > 0 then
+				EventService.Start("TreasureRain")
+				nextRainAt = os.clock() + rng:NextNumber(cfg.IntervalMin, cfg.IntervalMax)
 			end
-			task.wait(rng:NextNumber(cfg.IntervalMin, cfg.IntervalMax))
 		end
 	end)
 end

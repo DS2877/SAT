@@ -33,16 +33,19 @@ GameConfig.Economy = {
 	CollectRadius = 4, -- studs from the Vault's collect pad to cash out
 }
 
--- Steal-an-Egg style cycle: long days, short nights where Vaults earn triple and Moonlit
--- treasure spawns. Clock is derived from server time (Logic/DayNight).
+-- The island's heartbeat (Steal-an-Egg style): a 5-minute DAY to hunt and extract, then a
+-- 30-second NIGHT. At nightfall every treasure still out there - including anything being
+-- carried - is lost, and everyone in the wilds is sent home to their Vault. During the night a
+-- fresh wave of loot spawns: treasure ONLY spawns at night (Treasure Rain is the exception).
+-- Clock is derived from server time (Logic/DayNight) so every server and client agree.
 GameConfig.DayNight = {
-	CycleSeconds = 360,
-	NightSeconds = 90,
+	CycleSeconds = 330,
+	NightSeconds = 30,
 	DayStartClock = 6.5,
 	DayEndClock = 18.5,
-	NightIncomeMultiplier = 3,
-	-- Extra weight for Rare+ spawns at night.
-	NightRarityBoost = { Rare = 1.5, Epic = 1.5, Legendary = 1.5, Mythic = 1.5 },
+	NightIncomeMultiplier = 3, -- Vaults earn triple while it's dark
+	WaveFillFraction = 0.6, -- the loot wave is fully spawned after 60% of the night
+	WarnSecondsBeforeNight = { 60, 30, 10 },
 }
 
 GameConfig.Carry = {
@@ -78,8 +81,8 @@ GameConfig.Stability = {
 GameConfig.Treasure = {
 	ReclaimProtection = 2,
 	DroppedTimeout = 30,
-	MaxActive = 16, -- world + carried + dropped
-	SpawnTick = 2,
+	MaxActive = 20, -- loot per night wave (world + carried + dropped)
+	SpawnTick = 1, -- seconds between spawn checks during the night wave
 	RespawnDelayMin = 15,
 	RespawnDelayMax = 40,
 	InitialFillFraction = 0.75, -- fraction of MaxActive spawned immediately at server start
@@ -215,9 +218,9 @@ GameConfig.Leaderboards = {
 }
 
 GameConfig.Events = {
-	FirstDelay = 240, -- seconds after server start before the first event
-	IntervalMin = 480,
-	IntervalMax = 720,
+	FirstDelay = 90, -- seconds after server start before the first Treasure Rain can start
+	IntervalMin = 300, -- between Treasure Rains (daytime only)
+	IntervalMax = 600,
 	-- Who can force events with chat commands ("/event rain"). Studio and the owner of a
 	-- user-owned place are always allowed; add group admins here by UserId.
 	AdminUserIds = {},
@@ -249,8 +252,11 @@ GameConfig.Events = {
 		Duration = 90,
 		MutationBoost = 6, -- every mutation chance x6 in the region
 	},
-	-- Relative chance the scheduler picks each event.
-	Weights = { TreasureRain = 2, CursedHour = 1, GoldRush = 1.5 },
+	-- Treasure Rain happens during the DAY (the only daytime loot). Cursed Hour and Gold Rush
+	-- are NIGHT modifiers: rolled at nightfall, they shape tonight's loot wave in one region.
+	NightEventChance = 0.4,
+	NightWeights = { CursedHour = 1, GoldRush = 1.5 },
+	CurseLingerSeconds = 120, -- the cursed region's guardians stay furious into the morning
 }
 
 GameConfig.Gadgets = {

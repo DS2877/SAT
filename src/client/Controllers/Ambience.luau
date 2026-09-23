@@ -1,7 +1,8 @@
 -- World presentation that every client runs locally:
 --   * Day/night lighting from the shared DayNight clock (server time, so everyone agrees),
---     with a readable blue night (nights are short and should feel special, not blind you)
---     and a banner when night falls / the sun rises.
+--     with a readable blue night (nights are short and should feel special, not blind you).
+--   * Nightfall countdown warnings (carried loot is lost at nightfall!) and banners when night
+--     falls (new loot is spawning) and when the sun rises (go hunt).
 --   * Rainbow-mutation treasures cycle their colours (tag "RainbowTreasure").
 --   * Sell prompts on other players' Vault pedestals are hidden.
 
@@ -101,6 +102,7 @@ function Ambience.Init()
 	workspace.DescendantAdded:Connect(filterPrompt)
 
 	local wasNight: boolean? = nil
+	local lastLeft = math.huge
 	local accumulator = 0
 	RunService.Heartbeat:Connect(function(dt)
 		accumulator += dt
@@ -114,15 +116,28 @@ function Ambience.Init()
 			if state.IsNight then
 				Notifications.Banner(
 					"🌙 NIGHT FALLS",
-					("Vaults earn x%d • Moonlit treasure is spawning"):format(GameConfig.DayNight.NightIncomeMultiplier),
+					("New treasure is appearing • Vaults earn x%d"):format(GameConfig.DayNight.NightIncomeMultiplier),
 					"Info",
 					3
 				)
 				Sounds.Play("Event", 0.7)
 			else
-				Notifications.Toast("☀ The sun rises", "Info")
+				Notifications.Banner("☀ A NEW DAY", "Fresh treasure is out there • Go hunt!", "Reward", 3)
 			end
 		end
+		if not state.IsNight and wasNight ~= nil then
+			for _, warnAt in GameConfig.DayNight.WarnSecondsBeforeNight do
+				if lastLeft > warnAt and state.SecondsLeft <= warnAt then
+					local carrying = player:GetAttribute("CarryingId")
+					local text = if type(carrying) == "string" and carrying ~= ""
+						then "EXTRACT NOW or lose your treasure!"
+						else "Unextracted loot will be lost"
+					Notifications.Banner(("🌙 NIGHTFALL IN %ds"):format(warnAt), text, "Warn", 2.5)
+					Sounds.Play("GuardianAlert", 0.5)
+				end
+			end
+		end
+		lastLeft = if state.IsNight then math.huge else state.SecondsLeft
 		wasNight = state.IsNight
 
 		local hueBase = (os.clock() * 0.25) % 1

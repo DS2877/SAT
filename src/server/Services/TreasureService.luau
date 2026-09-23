@@ -1,5 +1,8 @@
 -- Authoritative treasure lifecycle: WORLD -> CARRIED -> DROPPED -> (CARRIED | WORLD respawn) -> EXTRACTED
 -- The server alone decides which treasure spawns, who holds it and where it is.
+-- Loot only spawns during the NIGHT (one wave per night, see GameConfig.DayNight); nightfall
+-- wipes whatever is left, carried or not (ClearAll). A fresh server gets one initial fill so
+-- the first day isn't empty. Treasure Rain (SpawnFalling) is the daytime exception.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -219,7 +222,7 @@ function TreasureService.SetRegionBoost(boost: RegionBoost?)
 	end
 end
 
-local function weightsFor(area: string, isNight: boolean)
+local function weightsFor(area: string)
 	local weights = table.clone(cfg.RarityWeights)
 	local function apply(mults)
 		for rarity, mult in mults do
@@ -227,9 +230,6 @@ local function weightsFor(area: string, isNight: boolean)
 				weights[rarity] *= mult
 			end
 		end
-	end
-	if isNight then
-		apply(GameConfig.DayNight.NightRarityBoost)
 	end
 	if regionBoost and regionBoost.Area == area and regionBoost.Rarity then
 		apply(regionBoost.Rarity)
@@ -258,12 +258,11 @@ local function trySpawnOne(): boolean
 		return false
 	end
 	local counts = activeByRarity()
-	local isNight = DayNight.IsNight(workspace:GetServerTimeNow())
 	-- Try a few random free points (some may have no eligible treasure due to caps).
 	for _ = 1, math.min(#free, 6) do
 		local point = table.remove(free, rng:NextInteger(1, #free))
 		local candidates =
-			TreasureRoll.Candidates(Treasures.List, point, Rarities.Order, weightsFor(point.Area, isNight), cfg.RarityCaps, counts)
+			TreasureRoll.Candidates(Treasures.List, point, Rarities.Order, weightsFor(point.Area), cfg.RarityCaps, counts)
 		local def = TreasureRoll.Pick(candidates, function()
 			return rng:NextNumber()
 		end)
@@ -557,6 +556,28 @@ function TreasureService.SpawnFalling(
 	return record
 end
 
+-- Nightfall: every treasure still in the world is lost - dropped, lying around or CARRIED
+-- (only extracted loot is safe). Spawn points are reset so the night wave can use them all.
+-- Returns the players who lost a carried treasure.
+function TreasureService.ClearAll(reason: string): { Player }
+	local losers = {}
+	for player, record in carrying do
+		carrying[player] = nil
+		record.Carrier = nil
+		setPlayerCarryAttributes(player, nil)
+		applyCarrierMovement(player, nil)
+		table.insert(losers, player)
+	end
+	for _, record in records do
+		remove(record, reason)
+	end
+	for _, point in spawnPoints do
+		point.Occupied = nil
+		point.NextSpawnAt = 0
+	end
+	return losers
+end
+
 -- Re-applies carry speed (e.g. after Strength changed while carrying).
 function TreasureService.RefreshCarrier(player: Player)
 	applyCarrierMovement(player, carrying[player])
@@ -607,10 +628,18 @@ function TreasureService.Start()
 		end
 	end
 	task.spawn(function()
+		local dayNight = GameConfig.DayNight
 		while true do
 			task.wait(cfg.SpawnTick)
-			if activeCount() < cfg.MaxActive then
-				trySpawnOne()
+			-- Night wave: ramp up to MaxActive over the first part of the night.
+			local state = DayNight.State(workspace:GetServerTimeNow())
+			if state.IsNight then
+				local target = math.ceil(cfg.MaxActive * math.min(1, state.Progress / dayNight.WaveFillFraction))
+				for _ = 1, 4 do
+					if activeCount() >= target or not trySpawnOne() then
+						break
+					end
+				end
 			end
 			-- Safety net: treasure that fell out of the world goes back to the spawn system.
 			for _, record in records do
