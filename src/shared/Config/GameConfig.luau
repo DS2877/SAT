@@ -183,6 +183,28 @@ GameConfig.Leaderboards = {
 	},
 }
 
+GameConfig.Events = {
+	FirstDelay = 240, -- seconds after server start before the first event
+	IntervalMin = 480,
+	IntervalMax = 720,
+	-- Who can force events with chat commands ("/event rain"). Studio, the place owner and
+	-- group owners (rank 255) are always allowed.
+	AdminUserIds = {},
+	TreasureRain = {
+		Name = "TREASURE RAIN",
+		Icon = "🌧",
+		Duration = 60, -- treasure keeps falling for this long
+		Waves = 5,
+		PerWave = 3,
+		Radius = 55,
+		DropHeight = 140,
+		FallTime = 2.5,
+		Lifetime = 60, -- ungrabbed rain treasure disappears after landing + this
+		RarityWeights = { Common = 55, Uncommon = 40, Rare = 22, Epic = 7, Legendary = 1 },
+		-- Landing sites: WorldLayout.EventSites
+	},
+}
+
 GameConfig.Gadgets = {
 	Slots = 3,
 }

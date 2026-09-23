@@ -42,6 +42,10 @@ M0–M7 implemented in code; awaiting first Roblox runtime playtest (M8 multipla
 - Grapple Hook (gadget #4): aim with camera centre (reticle shown when equipped), server raycast,
   pull slowed by carried weight, usable while carrying.
 
+- Decoy Duck + Disguise gadgets (6 of 8 gadgets live; Bee Box + Boomerang remain).
+- Event system + TREASURE RAIN: every 8–12 min (first after 4 min) treasures fall at one of
+  4 sites for 60 s; HUD pill with countdown + nav arrow. Admin/Studio chat: `/event rain`.
+
 ## KNOWN BUGS / RISKS
 - Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp slopes.
 - No server-side speed-hack detection yet (movement is client-authoritative in Roblox).
@@ -50,7 +54,7 @@ M0–M7 implemented in code; awaiting first Roblox runtime playtest (M8 multipla
 ## NEXT PRIORITY
 1. Playtest the vertical slice in Studio / test place; fix runtime issues.
 2. Tune first-10-minutes pacing (training gains, first treasure distance, prices).
-3. Remaining gadgets (Decoy Duck, Disguise, Boomerang, Bee Box), then first event (Treasure Rain).
+3. Playtest events + new gadgets; then Bee Box / Boomerang and a second event (Meteor Crash or Cursed Hour).
 
 ## OPEN DESIGN QUESTIONS
 - Training style (timing bar) kept for now; revisit after more playtests.

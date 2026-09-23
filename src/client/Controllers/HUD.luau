@@ -193,9 +193,27 @@ local function buildObjective()
 	}, { Kit.corner(Theme.Radius.Round) })
 	refs.ObjLine2 = Kit.label({ Name = "Line2", LayoutOrder = 5, Size = UDim2.new(1, 0, 0, 18), Font = Theme.Font.Black, TextSize = Theme.TextSize.Small, TextColor3 = Theme.Color.Gold, RichText = true, Parent = card })
 
+	refs.Event = Kit.panel({
+		Name = "Event",
+		LayoutOrder = 2,
+		Size = UDim2.fromOffset(300, 30),
+		Radius = Theme.Radius.Round,
+		BackgroundColor3 = Color3.fromRGB(60, 40, 90),
+		Visible = false,
+		Parent = topStack,
+	})
+	Kit.stroke(Theme.Color.Gold, 2, 0.2).Parent = refs.Event
+	refs.EventText = Kit.label({
+		Size = UDim2.fromScale(1, 1),
+		Font = Theme.Font.Black,
+		TextSize = Theme.TextSize.Small,
+		TextColor3 = Theme.Color.Gold,
+		Parent = refs.Event,
+	})
+
 	refs.Nav = Kit.panel({
 		Name = "Nav",
-		LayoutOrder = 2,
+		LayoutOrder = 3,
 		Size = UDim2.fromOffset(260, 34),
 		Radius = Theme.Radius.Round,
 		BackgroundTransparency = Theme.Transparency.PanelSoft,
@@ -502,10 +520,16 @@ local function refreshObjective()
 		return
 	end
 
+	local eventEnds = workspace:GetAttribute("EventEndsAt") or 0
+	local eventActive = eventEnds > workspace:GetServerTimeNow()
+	local eventTarget = if eventActive
+		then { Name = tostring(workspace:GetAttribute("EventSite")), Position = workspace:GetAttribute("EventPosition") }
+		else nil
+
 	local goal = nextTreasureGoal(data)
 	if not goal then
 		setObjective("COLLECTION COMPLETE", "HUNT THE SECRET", Theme.Color.Secret, "Legends speak of the Heart of the Island...", nil)
-		navTarget = nil
+		navTarget = eventTarget
 		return
 	end
 	local recommended = Carry.RecommendedStrength(goal.Weight, GameConfig.Carry)
@@ -522,7 +546,7 @@ local function refreshObjective()
 		if needsTraining then strength / recommended else nil,
 		if needsTraining then Theme.Color.Strength else Theme.Color.Safe
 	)
-	navTarget = nil
+	navTarget = eventTarget
 end
 HUD.RefreshObjective = refreshObjective
 
@@ -793,6 +817,17 @@ function HUD.Init(screenGui: ScreenGui)
 			updateNav()
 			updateCooldowns(serverNow)
 			updateExtraction(serverNow)
+			local eventEnds = workspace:GetAttribute("EventEndsAt") or 0
+			local remaining = eventEnds - serverNow
+			refs.Event.Visible = remaining > 0
+			if remaining > 0 then
+				refs.EventText.Text = ("%s • %s • %d:%02d"):format(
+					tostring(workspace:GetAttribute("EventName")),
+					tostring(workspace:GetAttribute("EventSite")),
+					math.floor(remaining / 60),
+					math.floor(remaining % 60)
+				)
+			end
 			if elapsed >= 1.5 then
 				elapsed = 0
 				refreshObjective()

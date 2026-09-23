@@ -232,6 +232,11 @@ function handlers.DecoyPopped(payload)
 	end
 end
 
+function handlers.EventStarted()
+	Sounds.Play("Event")
+	shakeCamera(0.4, 0.4)
+end
+
 function handlers.Bubbled(payload)
 	Sounds.Play("Splash")
 	HUD.ShowStatus("BUBBLED!", ("by %s"):format(tostring(payload.By)), Theme.Color.Info, payload.Duration or 2)

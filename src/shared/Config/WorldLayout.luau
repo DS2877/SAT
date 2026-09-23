@@ -115,6 +115,14 @@ WorldLayout.TreasureSpawns = {
 	{ Area = "Falls", Position = Vector3.new(-40, 91, -345), MinRarity = "Epic", MaxRarity = "Mythic" },
 }
 
+-- Open areas where events (Treasure Rain, ...) take place.
+WorldLayout.EventSites = {
+	{ Name = "THE WILDS", Position = Vector3.new(0, 10, -60) },
+	{ Name = "THE TEMPLE ROAD", Position = Vector3.new(160, 10, -30) },
+	{ Name = "SHIPWRECK COAST", Position = Vector3.new(-250, 10, 10) },
+	{ Name = "THE WATERFALL", Position = Vector3.new(20, 10, -240) },
+}
+
 WorldLayout.GuardianSpawns = {
 	{ Type = "Wolf", Position = Vector3.new(-110, 10, -60), PatrolRadius = 45 },
 	{ Type = "Wolf", Position = Vector3.new(110, 10, -190), PatrolRadius = 45 },

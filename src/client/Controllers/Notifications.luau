@@ -195,7 +195,7 @@ function Notifications.Init(screenGui: ScreenGui, topStack: Frame)
 	gui = screenGui
 	toastStack = Kit.new("Frame", {
 		Name = "Toasts",
-		LayoutOrder = 4,
+		LayoutOrder = 5,
 		Size = UDim2.fromOffset(330, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
@@ -211,7 +211,7 @@ function Notifications.Init(screenGui: ScreenGui, topStack: Frame)
 	}, { Kit.list(Enum.FillDirection.Vertical, 4, Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Bottom) })
 	banner = Kit.panel({
 		Name = "Banner",
-		LayoutOrder = 3,
+		LayoutOrder = 4,
 		Size = UDim2.fromOffset(330, 54),
 		Visible = false,
 		Parent = topStack,

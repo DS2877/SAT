@@ -3,6 +3,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
@@ -138,10 +139,12 @@ local function activeCount(): number
 	return n
 end
 
-local function spawnAt(point, def)
+-- point: a spawn point (normal spawns) or nil for free spawns (events), which pass `ground`.
+local function spawnAt(point, def, ground: Vector3?)
 	nextUid += 1
 	local s = TreasureVisual.Scale(def)
-	local cframe = CFrame.new(point.Position + Vector3.new(0, s * 0.9 + 0.3, 0))
+	local base = if point then point.Position else ground :: Vector3
+	local cframe = CFrame.new(base + Vector3.new(0, s * 0.9 + 0.3, 0))
 		* CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
 	local model = TreasureVisual.Build(def, cframe)
 	model.Name = def.Id .. "_" .. nextUid
@@ -174,7 +177,9 @@ local function spawnAt(point, def)
 	end
 	setState(record, "World")
 	model.Parent = folder
-	point.Occupied = record
+	if point then
+		point.Occupied = record
+	end
 	records[record.Uid] = record
 	return record
 end
@@ -448,6 +453,34 @@ function TreasureService.Consume(player: Player, expectedUid: number)
 	applyCarrierMovement(player, nil)
 	remove(record, "Extracted")
 	return record.Def
+end
+
+-- Event spawn outside the spawn-point system. The treasure falls from the sky onto `ground`,
+-- can't be picked up until it lands, and despawns after `lifetime` if nobody took it.
+function TreasureService.SpawnFalling(def, ground: Vector3, dropHeight: number, fallTime: number, lifetime: number)
+	local record = spawnAt(nil, def, ground)
+	local landed = record.Handle.CFrame
+	record.Handle.CFrame = landed + Vector3.new(0, dropHeight, 0)
+	record.Prompt.Enabled = false
+	record.Model:SetAttribute("Falling", true)
+	local tween = TweenService:Create(
+		record.Handle,
+		TweenInfo.new(fallTime, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{ CFrame = landed }
+	)
+	tween.Completed:Connect(function()
+		if records[record.Uid] == record and record.State == "World" then
+			record.Prompt.Enabled = true
+			record.Model:SetAttribute("Falling", false)
+		end
+	end)
+	tween:Play()
+	task.delay(fallTime + lifetime, function()
+		if records[record.Uid] == record and record.State == "World" then
+			remove(record, "Timeout")
+		end
+	end)
+	return record
 end
 
 -- Re-applies carry speed (e.g. after Strength changed while carrying).
