@@ -148,13 +148,8 @@ local function isAdmin(player: Player): boolean
 	if RunService:IsStudio() or table.find(cfg.AdminUserIds, player.UserId) then
 		return true
 	end
-	if game.CreatorType == Enum.CreatorType.User then
-		return player.UserId == game.CreatorId
-	end
-	local ok, rank = pcall(function()
-		return player:GetRankInGroupAsync(game.CreatorId)
-	end)
-	return ok and rank >= 255
+	-- Group-owned games: list admins in GameConfig.Events.AdminUserIds.
+	return game.CreatorType == Enum.CreatorType.User and player.UserId == game.CreatorId
 end
 
 local lastCommand: { [Player]: number } = {}

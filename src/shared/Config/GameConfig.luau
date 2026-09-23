@@ -187,8 +187,8 @@ GameConfig.Events = {
 	FirstDelay = 240, -- seconds after server start before the first event
 	IntervalMin = 480,
 	IntervalMax = 720,
-	-- Who can force events with chat commands ("/event rain"). Studio, the place owner and
-	-- group owners (rank 255) are always allowed.
+	-- Who can force events with chat commands ("/event rain"). Studio and the owner of a
+	-- user-owned place are always allowed; add group admins here by UserId.
 	AdminUserIds = {},
 	TreasureRain = {
 		Name = "TREASURE RAIN",
