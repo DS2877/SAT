@@ -91,6 +91,15 @@ M0–M7 implemented in code; awaiting first Roblox runtime playtest (M8 multipla
 - All prompts hidden while lying on a bench; occupied benches hide their prompt for everyone.
 - Strength pill shows full numbers with separators below 1M so it visibly ticks every rep.
 
+## PLAYTEST 3 FIXES
+- Spawn dais: bottom step is now a deep plinth sunk into the ground (no terrain clipping).
+- Lighting retuned: earlier sun, less haze/glare, higher bloom threshold (neon no longer smears).
+- Bench animation no longer depends on Motor6D arms: the bar is driven from the lying root and
+  IKControls pull the hands onto it (works with R6, R15 and AnimationConstraint rigs).
+- Rep gains: big centre-screen "+N 💪" pops, "+N" flying out of the Strength pill for any gain,
+  and "+N" over other lifters' heads for everyone nearby.
+- Vault pedestal names are plaques on the pedestal front (floating labels overlapped).
+
 ## KNOWN BUGS / RISKS
 - Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp slopes.
 - No server-side speed-hack detection yet (movement is client-authoritative in Roblox).

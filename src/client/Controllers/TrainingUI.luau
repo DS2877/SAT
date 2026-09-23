@@ -97,13 +97,13 @@ local function setCombo(combo: number)
 	end
 end
 
--- Floating reward text that rises out of the panel.
+-- Big floating reward text in the middle of the screen (above your lifter), so every rep lands.
 local function pop(text: string, color: Color3, size: number)
 	local label = Kit.label({
 		Text = text,
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, math.random(-110, 110), 1, -(panel.AbsoluteSize.Y + 30)),
-		Size = UDim2.fromOffset(260, size + 8),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5 + math.random(-12, 12) / 100, 0.4 + math.random(-4, 4) / 100),
+		Size = UDim2.fromOffset(420, size + 12),
 		Font = Theme.Font.Display,
 		TextSize = size,
 		TextColor3 = color,
@@ -111,16 +111,17 @@ local function pop(text: string, color: Color3, size: number)
 		ZIndex = 20,
 		Parent = gui,
 	})
-	Kit.stroke(Color3.fromRGB(30, 20, 10), 2, 0).Parent = label
-	local scale = Kit.new("UIScale", { Scale = 0.4, Parent = label })
-	Kit.tween(scale, Theme.Motion.Pop, { Scale = 1 })
-	local rise = TweenInfo.new(1.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	Kit.tween(label, rise, { Position = label.Position - UDim2.fromOffset(0, 70) })
-	task.delay(0.55, function()
-		Kit.tween(label, Theme.Motion.Slow, { TextTransparency = 1 })
+	Kit.stroke(Color3.fromRGB(40, 22, 8), 3, 0).Parent = label
+	local scale = Kit.new("UIScale", { Scale = 0.3, Parent = label })
+	Kit.tween(scale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+	local rise = TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	Kit.tween(label, rise, { Position = label.Position - UDim2.fromScale(0, 0.14) })
+	task.delay(0.7, function()
+		local fade = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		Kit.tween(label, fade, { TextTransparency = 1 })
 		local stroke = label:FindFirstChildOfClass("UIStroke")
 		if stroke then
-			Kit.tween(stroke, Theme.Motion.Slow, { Transparency = 1 })
+			Kit.tween(stroke, fade, { Transparency = 1 })
 		end
 	end)
 	task.delay(1.3, function()
@@ -138,12 +139,12 @@ local function onRep(payload)
 	local combo = tonumber(payload.Combo) or 0
 	setCombo(combo)
 	if payload.Crit then
-		pop(("MEGA REP!  +%s"):format(Kit.bigNumber(payload.Amount)), Theme.Color.Gold, 40)
+		pop(("MEGA REP!  +%s 💪"):format(Kit.bigNumber(payload.Amount)), Theme.Color.Gold, 60)
 		Sounds.Play("MegaRep")
 		Kit.pulse(panel)
 	else
 		local color = if combo > 0 then Theme.Color.Gold else Theme.Color.Strength
-		pop(("+%s 💪"):format(Kit.bigNumber(payload.Amount)), color, 26 + math.min(combo, 10))
+		pop(("+%s 💪"):format(Kit.bigNumber(payload.Amount)), color, 40 + 1.5 * math.min(combo, 10))
 		Sounds.Play("Rep", 1, 1 + combo * 0.06)
 	end
 end

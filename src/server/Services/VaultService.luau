@@ -107,7 +107,31 @@ local function buildPedestal(parent: Instance, base: CFrame, def, ghost: boolean
 		local handle = model.PrimaryPart :: BasePart
 		handle:SetAttribute("Spin", 0.6)
 		model.Parent = parent
-		label(model.PrimaryPart :: BasePart, ("%s %s"):format(info.Glyph, def.Name), info.Color, s + 1.5, 45)
+		-- Name plaque on the front of the pedestal (floating billboards overlapped each other).
+		local plaque = newPart(parent, {
+			Name = "Plaque",
+			Size = Vector3.new(3.2, 0.9, 0.12),
+			CFrame = base * CFrame.new(0, 0.95, -1.4),
+			Color = Color3.fromRGB(40, 32, 60),
+			Material = Enum.Material.SmoothPlastic,
+			CanCollide = false,
+		})
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = Enum.NormalId.Front
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 60
+		gui.LightInfluence = 0
+		gui.MaxDistance = 60
+		local text = Instance.new("TextLabel")
+		text.BackgroundTransparency = 1
+		text.Size = UDim2.new(1, -12, 1, -6)
+		text.Position = UDim2.fromOffset(6, 3)
+		text.Font = Enum.Font.GothamBlack
+		text.TextScaled = true
+		text.TextColor3 = info.Color
+		text.Text = def.Name:upper()
+		text.Parent = gui
+		gui.Parent = plaque
 	end
 end
 

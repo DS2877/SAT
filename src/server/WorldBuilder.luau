@@ -155,42 +155,45 @@ end
 -- ENVIRONMENT -----------------------------------------------------------------
 
 local function buildLighting()
-	Lighting.ClockTime = 15.3
-	Lighting.Brightness = 3
+	-- Early-afternoon sun: shorter shadows than late afternoon, clean colours, gentle haze.
+	Lighting.ClockTime = 13.6
+	Lighting.Brightness = 2.4
+	Lighting.ExposureCompensation = 0.1
 	Lighting.GlobalShadows = true
-	Lighting.ShadowSoftness = 0.25
-	Lighting.OutdoorAmbient = Color3.fromRGB(150, 145, 160)
-	Lighting.Ambient = Color3.fromRGB(80, 75, 90)
-	Lighting.ColorShift_Top = Color3.fromRGB(255, 236, 200)
-	Lighting.EnvironmentDiffuseScale = 1
-	Lighting.EnvironmentSpecularScale = 0.8
-	Lighting.GeographicLatitude = 20
+	Lighting.ShadowSoftness = 0.35
+	Lighting.OutdoorAmbient = Color3.fromRGB(135, 138, 150)
+	Lighting.Ambient = Color3.fromRGB(70, 70, 82)
+	Lighting.ColorShift_Top = Color3.fromRGB(255, 244, 225)
+	Lighting.EnvironmentDiffuseScale = 0.8
+	Lighting.EnvironmentSpecularScale = 0.5
+	Lighting.GeographicLatitude = 25
 
 	local atmosphere = Instance.new("Atmosphere")
-	atmosphere.Density = 0.32
-	atmosphere.Offset = 0.25
-	atmosphere.Color = Color3.fromRGB(205, 225, 240)
-	atmosphere.Decay = Color3.fromRGB(120, 160, 200)
-	atmosphere.Glare = 0.4
-	atmosphere.Haze = 1.6
+	atmosphere.Density = 0.22
+	atmosphere.Offset = 0.1
+	atmosphere.Color = Color3.fromRGB(200, 222, 240)
+	atmosphere.Decay = Color3.fromRGB(110, 150, 195)
+	atmosphere.Glare = 0.1
+	atmosphere.Haze = 0.6
 	atmosphere.Parent = Lighting
 
+	-- High threshold: only true glows bloom, neon trim doesn't smear across the screen.
 	local bloom = Instance.new("BloomEffect")
-	bloom.Intensity = 0.6
-	bloom.Size = 28
-	bloom.Threshold = 1.4
+	bloom.Intensity = 0.35
+	bloom.Size = 20
+	bloom.Threshold = 2
 	bloom.Parent = Lighting
 
 	local color = Instance.new("ColorCorrectionEffect")
-	color.Saturation = 0.22
-	color.Contrast = 0.08
-	color.Brightness = 0.02
-	color.TintColor = Color3.fromRGB(255, 250, 240)
+	color.Saturation = 0.18
+	color.Contrast = 0.1
+	color.Brightness = 0
+	color.TintColor = Color3.fromRGB(255, 252, 245)
 	color.Parent = Lighting
 
 	local rays = Instance.new("SunRaysEffect")
-	rays.Intensity = 0.08
-	rays.Spread = 0.6
+	rays.Intensity = 0.04
+	rays.Spread = 0.5
 	rays.Parent = Lighting
 
 	local sky = Instance.new("Sky")
@@ -273,7 +276,9 @@ local function buildSpawnPavilion(district: Folder)
 	local pav = folder("SpawnPavilion", district)
 	local spawnPos = WorldLayout.Spawn
 	local base = Vector3.new(spawnPos.X, WorldLayout.District.Center.Y + 1, spawnPos.Z)
-	cylinder(base + Vector3.new(0, 0.5, 0), 1, 34, { Name = "Step1", Color = Color3.fromRGB(225, 218, 200), Material = Enum.Material.Marble, Parent = pav })
+	-- Step1 is a deep plinth sunk into the ground: smooth terrain is never perfectly flat, so a
+	-- thin disc resting on it clips in and out along its edge.
+	cylinder(base + Vector3.new(0, -1.5, 0), 5, 34, { Name = "Step1", Color = Color3.fromRGB(225, 218, 200), Material = Enum.Material.Marble, Parent = pav })
 	cylinder(base + Vector3.new(0, 1.5, 0), 1, 28, { Name = "Step2", Color = Color3.fromRGB(240, 234, 220), Material = Enum.Material.Marble, Parent = pav })
 	-- Stacked discs: every top surface is at least 0.1 above the one below (no z-fighting).
 	cylinder(base + Vector3.new(0, 2.1, 0), 0.3, 24, { Name = "GoldInlay", Color = C.Gold, Material = Enum.Material.Metal, Parent = pav })

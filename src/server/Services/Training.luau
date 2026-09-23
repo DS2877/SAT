@@ -154,6 +154,7 @@ local function rep(player: Player, session: Session, boosted: boolean)
 		d.Strength = math.min(GameConfig.Strength.Max, d.Strength + amount)
 	end)
 	TreasureService.RefreshCarrier(player)
+	player:SetAttribute("BenchGain", amount) -- set first: clients read it when BenchRep changes
 	player:SetAttribute("BenchRep", session.Reps) -- every client syncs the lift animation to this
 	Net.Fire("TrainingRep", player, { Amount = amount, Crit = crit, Combo = session.Combo, Total = session.Gained })
 end

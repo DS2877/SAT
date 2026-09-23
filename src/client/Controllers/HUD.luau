@@ -601,6 +601,30 @@ local function refreshStats(data, previous)
 		if math.floor(data.Strength) ~= math.floor(previous.Strength) then
 			Kit.pulse(refs.Strength.Parent)
 		end
+		local gained = math.floor(data.Strength) - math.floor(previous.Strength)
+		if gained > 0 then
+			-- "+N" flies out of the Strength pill so every gain is felt, whatever its source.
+			local pill = refs.Strength.Parent :: GuiObject
+			local fly = Kit.label({
+				Text = "+" .. Kit.bigNumber(gained),
+				AnchorPoint = Vector2.new(0, 0.5),
+				Position = UDim2.new(1, 8, 0.5, 0),
+				Size = UDim2.fromOffset(120, 26),
+				Font = Theme.Font.Display,
+				TextSize = 22,
+				TextColor3 = Theme.Color.Strength,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				TextWrapped = false,
+				Parent = pill,
+			})
+			Kit.stroke(Color3.fromRGB(40, 22, 8), 2, 0).Parent = fly
+			local info = TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+			Kit.tween(fly, info, { Position = UDim2.new(1, 30, 0.5, 0), TextTransparency = 1 })
+			Kit.tween(fly:FindFirstChildOfClass("UIStroke") :: UIStroke, info, { Transparency = 1 })
+			task.delay(0.95, function()
+				fly:Destroy()
+			end)
+		end
 	end
 	refs.Ascension.Visible = data.Ascension > 0
 	refs.Ascension.Text = ("✦ %s • x%.2f CASH"):format((data.SelectedTitle or ""):upper(), GameConfig.GetAscensionMultiplier(data.Ascension))

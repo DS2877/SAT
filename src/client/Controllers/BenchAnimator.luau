@@ -1,12 +1,14 @@
 -- Animates EVERY player who is on a bench press (player attribute "Bench" ~= ""), locally on
--- each client: shoulder/elbow motors press up and down and a barbell follows the hands.
--- Every server rep ("BenchRep" attribute) pulls the press toward lockout so the arms hit the
--- top exactly when the Strength pops. Motor C0 edits are visual only and restored when the
--- player gets up. R6 rigs just get the bar.
+-- each client. The barbell is driven from the lying root part (works for any rig: R6, R15 and
+-- avatars whose joints are AnimationConstraints instead of Motor6Ds), and IKControls pull the
+-- hands onto the bar so the arms follow. Every server rep ("BenchRep" attribute) snaps the
+-- press to lockout, so the bar hits the top exactly when the Strength pops; other lifters get a
+-- floating "+N 💪" over their head ("BenchGain") so the whole gym sees the gains.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 
@@ -14,22 +16,32 @@ local BenchAnimator = {}
 
 type Lifter = {
 	Character: Model,
-	Motors: { { Motor: Motor6D, Original: CFrame, Kind: string } },
 	Bar: Model,
+	Iks: { IKControl },
+	HiddenRack: BasePart?,
 	Phase: number,
+	Kick: number,
 }
 
+local localPlayer = Players.LocalPlayer
 local lifters: { [Player]: Lifter } = {}
 local TIER_COLOR = {}
 for _, tier in GameConfig.Training.Benches do
 	TIER_COLOR[tier.Id] = Color3.fromRGB(tier.Color[1], tier.Color[2], tier.Color[3])
 end
 
+-- Bar height above the chest (studs along the lying root's look vector).
+local BAR_LOW = 1.1
+local BAR_HIGH = 3.0
+local BAR_TOWARD_HEAD = 0.9
+local GRIP = 1.45
+
 local function makeBar(color: Color3): Model
 	local model = Instance.new("Model")
 	model.Name = "LocalBarbell"
-	local function piece(size: Vector3, partColor: Color3, material: Enum.Material): Part
+	local function piece(name: string, size: Vector3, partColor: Color3, material: Enum.Material): Part
 		local p = Instance.new("Part")
+		p.Name = name
 		p.Anchored = true
 		p.CanCollide = false
 		p.CanQuery = false
@@ -42,20 +54,55 @@ local function makeBar(color: Color3): Model
 		p.Parent = model
 		return p
 	end
-	local bar = piece(Vector3.new(7.4, 0.35, 0.35), Color3.fromRGB(205, 205, 215), Enum.Material.Metal)
-	bar.Name = "Bar"
+	local bar = piece("Bar", Vector3.new(7.4, 0.35, 0.35), Color3.fromRGB(205, 205, 215), Enum.Material.Metal)
 	model.PrimaryPart = bar
-	for _, name in { "PlateA", "PlateB" } do
-		piece(Vector3.new(0.5, 2.2, 2.2), color, Enum.Material.Metal).Name = name
+	piece("PlateA", Vector3.new(0.5, 2.2, 2.2), color, Enum.Material.Metal)
+	piece("PlateB", Vector3.new(0.5, 2.2, 2.2), color, Enum.Material.Metal)
+	for _, side in { { "GripR", GRIP }, { "GripL", -GRIP } } do
+		local attachment = Instance.new("Attachment")
+		attachment.Name = side[1]
+		attachment.Position = Vector3.new(side[2], 0, 0)
+		attachment.Parent = bar
 	end
 	model.Parent = workspace
 	return model
 end
 
-local function findMotor(character: Model, partName: string, motorName: string): Motor6D?
-	local part = character:FindFirstChild(partName)
-	local motor = part and part:FindFirstChild(motorName)
-	return if motor and motor:IsA("Motor6D") then motor else nil
+local function makeIk(character: Model, upper: string, hand: string, target: Attachment): IKControl?
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local chainRoot = character:FindFirstChild(upper)
+	local effector = character:FindFirstChild(hand)
+	if not humanoid or not chainRoot or not effector then
+		return nil -- R6: no arm chain, the bar still presses on its own
+	end
+	local ik = Instance.new("IKControl")
+	ik.Name = "BenchIK"
+	ik.Type = Enum.IKControlType.Position
+	ik.ChainRoot = chainRoot
+	ik.EndEffector = effector
+	ik.Target = target
+	ik.Weight = 1
+	ik.Priority = 10
+	ik.Parent = humanoid
+	return ik
+end
+
+-- The bench's own resting barbell would double up with the one being lifted.
+local function nearestRackBar(position: Vector3): BasePart?
+	local gym = workspace:FindFirstChild("StrengthGym", true)
+	if not gym then
+		return nil
+	end
+	local best, bestDistance = nil, 6
+	for _, child in gym:GetChildren() do
+		if child.Name == "RackBar" and child:IsA("BasePart") then
+			local d = (child.Position - position).Magnitude
+			if d < bestDistance then
+				best, bestDistance = child, d
+			end
+		end
+	end
+	return best
 end
 
 local function start(player: Player)
@@ -63,25 +110,22 @@ local function start(player: Player)
 	if not character or lifters[player] then
 		return
 	end
-	local motors = {}
-	for _, spec in {
-		{ "RightUpperArm", "RightShoulder", "Shoulder" },
-		{ "LeftUpperArm", "LeftShoulder", "Shoulder" },
-		{ "RightLowerArm", "RightElbow", "Elbow" },
-		{ "LeftLowerArm", "LeftElbow", "Elbow" },
-	} do
-		local motor = findMotor(character, spec[1], spec[2])
-		if motor then
-			table.insert(motors, { Motor = motor, Original = motor.C0, Kind = spec[3] })
+	local root = character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local tierId = player:GetAttribute("Bench")
+	local bar = makeBar(TIER_COLOR[tierId] or Color3.fromRGB(170, 120, 70))
+	local primary = bar.PrimaryPart :: BasePart
+	local iks = {}
+	for _, spec in { { "RightUpperArm", "RightHand", "GripR" }, { "LeftUpperArm", "LeftHand", "GripL" } } do
+		local ik = makeIk(character, spec[1], spec[2], primary:FindFirstChild(spec[3]) :: Attachment)
+		if ik then
+			table.insert(iks, ik)
 		end
 	end
-	local tierId = player:GetAttribute("Bench")
-	lifters[player] = {
-		Character = character,
-		Motors = motors,
-		Bar = makeBar(TIER_COLOR[tierId] or Color3.fromRGB(170, 120, 70)),
-		Phase = math.random(),
-	}
+	local rack = if root then nearestRackBar(root.Position) else nil
+	if rack then
+		rack.Transparency = 1 -- local only
+	end
+	lifters[player] = { Character = character, Bar = bar, Iks = iks, HiddenRack = rack, Phase = 0.5, Kick = 0 }
 end
 
 local function stop(player: Player)
@@ -90,10 +134,11 @@ local function stop(player: Player)
 		return
 	end
 	lifters[player] = nil
-	for _, entry in lifter.Motors do
-		if entry.Motor.Parent then
-			entry.Motor.C0 = entry.Original
-		end
+	for _, ik in lifter.Iks do
+		ik:Destroy()
+	end
+	if lifter.HiddenRack then
+		lifter.HiddenRack.Transparency = 0
 	end
 	lifter.Bar:Destroy()
 end
@@ -107,16 +152,52 @@ local function refresh(player: Player)
 	end
 end
 
+-- "+N 💪" rising over another lifter's head.
+local function worldPop(lifter: Lifter, amount: number)
+	local head = lifter.Character:FindFirstChild("Head") or lifter.Character:FindFirstChild("HumanoidRootPart")
+	if not head or not head:IsA("BasePart") then
+		return
+	end
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromOffset(160, 40)
+	gui.StudsOffsetWorldSpace = Vector3.new(math.random(-10, 10) / 10, 3, 0)
+	gui.AlwaysOnTop = true
+	gui.MaxDistance = 70
+	gui.LightInfluence = 0
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(1, 1)
+	label.Font = Enum.Font.FredokaOne
+	label.TextScaled = true
+	label.TextColor3 = Color3.fromRGB(255, 170, 70)
+	label.TextStrokeTransparency = 0.2
+	label.Text = ("+%d 💪"):format(amount)
+	label.Parent = gui
+	gui.Adornee = head
+	gui.Parent = head
+	local info = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	TweenService:Create(gui, info, { StudsOffsetWorldSpace = gui.StudsOffsetWorldSpace + Vector3.new(0, 2.5, 0) }):Play()
+	TweenService:Create(label, info, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+	task.delay(1.05, function()
+		gui:Destroy()
+	end)
+end
+
 local function watch(player: Player)
 	player:GetAttributeChangedSignal("Bench"):Connect(function()
 		refresh(player)
 	end)
 	player:GetAttributeChangedSignal("BenchRep"):Connect(function()
 		local lifter = lifters[player]
-		if lifter then
-			-- Lockout is phase 0.5: take most of the way there now, the rest shows as a snappy push.
-			local err = ((0.5 - lifter.Phase + 0.5) % 1) - 0.5
-			lifter.Phase = (lifter.Phase + err * 0.7) % 1
+		if not lifter then
+			return
+		end
+		-- Lockout is phase 0.5: jump there and add a little overshoot "kick".
+		lifter.Phase = 0.5
+		lifter.Kick = 1
+		local gain = player:GetAttribute("BenchGain")
+		if player ~= localPlayer and type(gain) == "number" then
+			worldPop(lifter, gain)
 		end
 	end)
 	player.CharacterRemoving:Connect(function()
@@ -135,43 +216,25 @@ function BenchAnimator.Init()
 	local period = GameConfig.Training.RepPeriod
 	RunService.RenderStepped:Connect(function(dt)
 		for player, lifter in lifters do
-			if not lifter.Character.Parent then
+			local root = lifter.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+			if not lifter.Character.Parent or not root then
 				stop(player)
 				continue
 			end
 			local boosting = player:GetAttribute("BenchBoost") == true
 			lifter.Phase = (lifter.Phase + dt / (if boosting then period / 2 else period)) % 1
+			lifter.Kick = math.max(0, lifter.Kick - dt * 5)
 			-- 0 = bar at the chest, 1 = arms locked out
 			local extend = 0.5 - 0.5 * math.cos(lifter.Phase * math.pi * 2)
-			for _, entry in lifter.Motors do
-				if entry.Kind == "Shoulder" then
-					-- Upper arm swings from along the body (20°) to pointing at the sky (90°).
-					entry.Motor.C0 = entry.Original * CFrame.Angles(math.rad(20 + 70 * extend), 0, 0)
-				else
-					-- Elbow bends 70° at the bottom so the forearms stay vertical.
-					entry.Motor.C0 = entry.Original * CFrame.Angles(math.rad(70 * (1 - extend)), 0, 0)
-				end
-			end
-			-- Bar between the hands (falls back to above the chest for R6 / missing hands).
-			local right = lifter.Character:FindFirstChild("RightHand") :: BasePart?
-			local left = lifter.Character:FindFirstChild("LeftHand") :: BasePart?
-			local root = lifter.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-			local center: Vector3?
-			local axis: Vector3?
-			if right and left then
-				center = (right.Position + left.Position) / 2
-				axis = (right.Position - left.Position).Unit
-			elseif root then
-				center = root.Position + root.CFrame.LookVector * (1.2 + 1.6 * extend)
-				axis = root.CFrame.RightVector
-			end
-			if center and axis then
-				local barCf = CFrame.lookAt(center, center + axis) * CFrame.Angles(0, math.rad(90), 0)
-				lifter.Bar.PrimaryPart.CFrame = barCf
-				local plates = { lifter.Bar:FindFirstChild("PlateA") :: BasePart, lifter.Bar:FindFirstChild("PlateB") :: BasePart }
-				plates[1].CFrame = barCf * CFrame.new(3.1, 0, 0)
-				plates[2].CFrame = barCf * CFrame.new(-3.1, 0, 0)
-			end
+			local height = BAR_LOW + (BAR_HIGH - BAR_LOW) * extend + 0.25 * lifter.Kick
+			-- Lying root: LookVector points at the sky, UpVector toward the head. Bar axis = RightVector.
+			local barCf = root.CFrame * CFrame.new(0, BAR_TOWARD_HEAD, -height)
+			local primary = lifter.Bar.PrimaryPart :: BasePart
+			primary.CFrame = barCf
+			local plateA = lifter.Bar:FindFirstChild("PlateA") :: BasePart
+			local plateB = lifter.Bar:FindFirstChild("PlateB") :: BasePart
+			plateA.CFrame = barCf * CFrame.new(3.1, 0, 0)
+			plateB.CFrame = barCf * CFrame.new(-3.1, 0, 0)
 		end
 	end)
 end
