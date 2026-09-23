@@ -26,6 +26,7 @@ stylua src tests           # format
 selene src                 # lint
 lune run tests/run         # unit tests
 lune run tests/compile     # syntax check every file
+rojo sourcemap -o sourcemap.json && luau-lsp analyze --definitions=globalTypes.d.luau --sourcemap=sourcemap.json src
 ```
 
 Studio: enable *Game Settings → Security → Enable Studio Access to API Services* to test saving;

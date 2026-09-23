@@ -43,18 +43,21 @@ local function getFolder(): Folder
 	if folder then
 		return folder
 	end
+	local found: Folder
 	if RunService:IsServer() then
-		local existing = ReplicatedStorage:FindFirstChild(FOLDER_NAME)
-		if not existing then
-			existing = Instance.new("Folder")
-			existing.Name = FOLDER_NAME
-			existing.Parent = ReplicatedStorage
+		local existing = ReplicatedStorage:FindFirstChild(FOLDER_NAME) :: Folder?
+		if existing then
+			found = existing
+		else
+			found = Instance.new("Folder")
+			found.Name = FOLDER_NAME
+			found.Parent = ReplicatedStorage
 		end
-		folder = existing
 	else
-		folder = ReplicatedStorage:WaitForChild(FOLDER_NAME) :: Folder
+		found = ReplicatedStorage:WaitForChild(FOLDER_NAME) :: Folder
 	end
-	return folder :: Folder
+	folder = found
+	return found
 end
 
 function Net.Init()

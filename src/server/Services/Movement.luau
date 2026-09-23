@@ -9,7 +9,7 @@ local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 
 local Movement = {}
 
-type Entry = { Speed: { [string]: number }, Jump: { [string]: number }, Locks: { [string]: boolean } }
+type Entry = { Speed: { [string]: number? }, Jump: { [string]: number? }, Locks: { [string]: boolean? } }
 local entries: { [Player]: Entry } = {}
 
 local function entryFor(player: Player): Entry
@@ -31,10 +31,10 @@ function Movement.Refresh(player: Player)
 	local speed = GameConfig.Player.BaseWalkSpeed
 	local jump = GameConfig.Player.BaseJumpPower
 	for _, mult in entry.Speed do
-		speed *= mult
+		speed *= mult :: number
 	end
 	for _, mult in entry.Jump do
-		jump *= mult
+		jump *= mult :: number
 	end
 	if next(entry.Locks) ~= nil then
 		speed = 0

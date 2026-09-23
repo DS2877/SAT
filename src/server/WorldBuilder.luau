@@ -38,7 +38,7 @@ local C = {
 local function part(props): BasePart
 	local p: BasePart
 	if props.Class then
-		p = Instance.new(props.Class)
+		p = Instance.new(props.Class) :: BasePart
 	else
 		p = Instance.new("Part")
 	end

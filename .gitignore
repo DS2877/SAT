@@ -8,3 +8,6 @@ roblox.yml
 sourcemap.json
 .env
 *.lock.rbxl
+.luau-lsp/
+luau-lsp.zip
+globalTypes.d.luau

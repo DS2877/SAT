@@ -15,6 +15,7 @@ env:
   SELENE_VERSION: 0.31.0
   STYLUA_VERSION: 2.5.2
   LUNE_VERSION: 0.10.5
+  LUAU_LSP_VERSION: 1.70.0
 
 jobs:
   validate:
@@ -43,6 +44,21 @@ jobs:
       - name: Lint
         run: selene src
 
+      - name: Type check (luau-lsp + Roblox definitions)
+        run: |
+          base="https://github.com/JohnnyMorganz/luau-lsp/releases/download/${LUAU_LSP_VERSION}"
+          for asset in luau-lsp-linux-x86_64.zip luau-lsp-linux.zip; do
+            if curl -fsSL -o luau-lsp.zip "${base}/${asset}"; then break; fi
+          done
+          unzip -o -q luau-lsp.zip -d .luau-lsp
+          chmod +x .luau-lsp/luau-lsp
+          curl -fsSL -o globalTypes.d.luau \
+            "https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/${LUAU_LSP_VERSION}/scripts/globalTypes.d.luau" \
+            || curl -fsSL -o globalTypes.d.luau \
+            "https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/main/scripts/globalTypes.d.luau"
+          rojo sourcemap default.project.json -o sourcemap.json
+          .luau-lsp/luau-lsp analyze --definitions=globalTypes.d.luau --sourcemap=sourcemap.json --no-strict-dm-types src
+
       - name: Compile all sources
         run: lune run tests/compile
 
@@ -53,6 +69,7 @@ jobs:
         run: |
           mkdir -p build
           rojo build default.project.json -o build/game.rbxl
+          lune run tests/place build/game.rbxl
 
       - uses: actions/upload-artifact@v4
         with:
