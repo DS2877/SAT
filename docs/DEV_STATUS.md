@@ -72,6 +72,15 @@ M0–M7 implemented in code; awaiting first Roblox runtime playtest (M8 multipla
 - Objective card is now a slim collapsible tracker under the stats.
 - Gadget prices raised ~7-10x ($12K–$120K); Speed Soda stays cheap ($600) as the first gadget.
 
+## PROGRESSION REDESIGN (uncapped Strength)
+- Strength has no cap. Past 1x weight a carry is "OVERPOWERED" (up to +10% speed) - capped so
+  whales can't outrun guardians forever. HUD shows big numbers as K/M/B.
+- Ascension requirement grows x2.5 per level (100, 250, 625, 1.6K, 3.9K, 9.8K...).
+- Each Ascension multiplies training speed x1.6 forever, so every climb stays ~8-50 AFK minutes
+  (unit test enforces this for levels 0-6).
+- Benches are gated by ASCENSION (not Strength, which resets): Wooden free, Iron $5K, Golden
+  Asc 1, Diamond Asc 2, Mythic Asc 4 (5th gym row).
+
 ## KNOWN BUGS / RISKS
 - Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp slopes.
 - No server-side speed-hack detection yet (movement is client-authoritative in Roblox).
@@ -83,7 +92,7 @@ M0–M7 implemented in code; awaiting first Roblox runtime playtest (M8 multipla
 3. Playtest gadgets/events; then Meteor Crash / Dragon Awakens / Ancient Vault events and world polish.
 
 ## OPEN DESIGN QUESTIONS
-- Training style (timing bar) kept for now; revisit after more playtests.
+- Is the Ascension cash cost curve right once Mythic Bench players appear? Needs playtest data.
 
 ## IMPORTANT ARCHITECTURE DECISIONS
 - World is built procedurally at server start (code-only repo; swap build* functions for prefabs later).
@@ -93,5 +102,5 @@ M0–M7 implemented in code; awaiting first Roblox runtime playtest (M8 multipla
 - Carriers can't attack (CARRIER = RUN / CHASER = STOP); configurable.
 
 ## IMPORTANT BALANCE CHANGES
-- Extraction also grants Strength = ceil(weight × 0.2).
-- Training stations have Strength caps (diminishing gains) to slow the 1→100 climb.
+- Extraction grants Strength = weight × 0.1.
+- Strength uncapped; ascension requirement x2.5/level, training speed x1.6/level.

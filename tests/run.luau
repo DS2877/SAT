@@ -42,6 +42,8 @@ end
 test("carry bands match spec", function()
 	local cfg = GameConfig.Carry
 	check(Carry.SpeedMultiplier(25, 100, cfg) == 1.0, "ratio 0.25 -> 100%")
+	check(Carry.SpeedMultiplier(10, 100, cfg) == 1.05, "ratio 0.10 -> 105% (overpowered)")
+	check(Carry.SpeedMultiplier(5, 100, cfg) == 1.1, "ratio 0.05 -> 110% (overpowered)")
 	check(Carry.SpeedMultiplier(26, 100, cfg) == 0.9, "ratio 0.26 -> 90%")
 	check(Carry.SpeedMultiplier(50, 100, cfg) == 0.9, "ratio 0.50 -> 90%")
 	check(Carry.SpeedMultiplier(75, 100, cfg) == 0.75, "ratio 0.75 -> 75%")
@@ -132,25 +134,42 @@ test("every spawn area referenced by treasures can spawn something", function()
 end)
 
 -- TRAINING ------------------------------------------------------------------------
-test("bench tiers are ordered and slow enough to matter", function()
+test("bench tiers: ordered, ascension-gated, and every ascension climb takes a sensible time", function()
 	local tiers = GameConfig.Training.Benches
-	check(#tiers >= 3, "at least three bench tiers")
-	local afkSeconds = 0
-	local strength = GameConfig.Strength.Start
+	check(#tiers >= 4, "at least four bench tiers")
 	for i, tier in tiers do
 		check(tier.Rate > 0 and tier.Count > 0, "valid tier " .. tier.Id)
 		if i > 1 then
 			check(tier.Rate > tiers[i - 1].Rate, "rate increases " .. tier.Id)
 			check(tier.Price > tiers[i - 1].Price, "price increases " .. tier.Id)
-			check(tier.RequiredStrength > tiers[i - 1].RequiredStrength, "requirement increases " .. tier.Id)
+			check(tier.RequiredAscension >= tiers[i - 1].RequiredAscension, "gate never goes down " .. tier.Id)
 		end
-		-- AFK time to climb from this tier's requirement to the next one (or ascension).
-		local target = if tiers[i + 1] then tiers[i + 1].RequiredStrength else GameConfig.Ascension.RequiredStrength
-		afkSeconds += math.max(0, target - math.max(strength, tier.RequiredStrength)) / tier.Rate
-		strength = target
 	end
-	check(afkSeconds >= 15 * 60, ("reaching Ascension AFK takes 15+ minutes (%.0f min)"):format(afkSeconds / 60))
+	-- AFK minutes to climb from a fresh reset to the next Ascension, on the best bench allowed.
+	local previousRequirement = 0
+	for level = 0, 6 do
+		local best = 0
+		for _, tier in tiers do
+			if tier.RequiredAscension <= level then
+				best = math.max(best, tier.Rate)
+			end
+		end
+		local requirement = GameConfig.GetAscensionRequirement(level)
+		local minutes = (requirement - GameConfig.Strength.Start) / (best * GameConfig.GetTrainingMultiplier(level)) / 60
+		check(requirement > previousRequirement, ("requirement grows at ascension %d"):format(level))
+		check(minutes >= 8 and minutes <= 50, ("ascension %d climb takes %.1f min (8-50)"):format(level, minutes))
+		previousRequirement = requirement
+	end
+	check(GameConfig.GetTrainingMultiplier(3) > GameConfig.GetTrainingMultiplier(2), "training speeds up every ascension")
 	check(GameConfig.Strength.Start >= 5, "starting strength lets a new player carry a Common")
+end)
+
+test("uncapped strength keeps making carrying easier (within limits)", function()
+	local cfg = GameConfig.Carry
+	check(GameConfig.Strength.Max == math.huge, "strength is uncapped")
+	check(Carry.SpeedMultiplier(70, 1000, cfg) > Carry.SpeedMultiplier(70, 100, cfg), "more strength = faster carry")
+	check(Carry.SpeedMultiplier(1, 10000, cfg) <= 1.1, "overpowered bonus stays small (chaseable)")
+	check(Carry.JumpMultiplier(Carry.SpeedMultiplier(1, 10000, cfg), cfg) == 1, "jump never boosted")
 end)
 
 -- DATA ----------------------------------------------------------------------------

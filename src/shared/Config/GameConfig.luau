@@ -15,7 +15,7 @@ GameConfig.Player = {
 
 GameConfig.Strength = {
 	Start = 10, -- enough to carry a Common comfortably on the very first run
-	Max = 250,
+	Max = math.huge, -- uncapped: Ascension requirements keep growing instead
 	-- Strength earned when extracting: ceil(weight * factor)
 	ExtractionGainPerWeight = 0.1,
 }
@@ -23,6 +23,10 @@ GameConfig.Strength = {
 GameConfig.Carry = {
 	-- Carry Ratio = Treasure Weight / Player Strength. First band whose MaxRatio >= ratio wins.
 	Bands = {
+		-- "Overpowered" carries: far stronger than the load = slightly faster than walking.
+		-- Kept small on purpose so strong carriers can still be chased down.
+		{ MaxRatio = 0.05, Speed = 1.1 },
+		{ MaxRatio = 0.10, Speed = 1.05 },
 		{ MaxRatio = 0.25, Speed = 1.0 },
 		{ MaxRatio = 0.50, Speed = 0.9 },
 		{ MaxRatio = 0.75, Speed = 0.75 },
@@ -112,11 +116,14 @@ GameConfig.Training = {
 	-- Placeholder for a "2x Strength" game pass (0 = disabled). Multiplies all bench gains.
 	StrengthPassId = 0,
 	StrengthPassMultiplier = 2,
+	-- Benches are gated by ASCENSION (permanent), not Strength (which resets on every Ascension).
+	-- Actual gain = Rate x TrainingMultiplier(ascension) x boosts.
 	Benches = {
-		{ Id = "wooden", Name = "Wooden Bench", Price = 0, RequiredStrength = 0, Rate = 0.02, Color = { 170, 120, 70 }, Count = 4 },
-		{ Id = "iron", Name = "Iron Bench", Price = 5000, RequiredStrength = 20, Rate = 0.05, Color = { 150, 155, 170 }, Count = 4 },
-		{ Id = "golden", Name = "Golden Bench", Price = 75000, RequiredStrength = 45, Rate = 0.12, Color = { 255, 196, 50 }, Count = 4 },
-		{ Id = "diamond", Name = "Diamond Bench", Price = 500000, RequiredStrength = 80, Rate = 0.3, Color = { 120, 220, 255 }, Count = 4 },
+		{ Id = "wooden", Name = "Wooden Bench", Price = 0, RequiredAscension = 0, Rate = 0.02, Color = { 170, 120, 70 }, Count = 4 },
+		{ Id = "iron", Name = "Iron Bench", Price = 5000, RequiredAscension = 0, Rate = 0.05, Color = { 150, 155, 170 }, Count = 4 },
+		{ Id = "golden", Name = "Golden Bench", Price = 75000, RequiredAscension = 1, Rate = 0.12, Color = { 255, 196, 50 }, Count = 4 },
+		{ Id = "diamond", Name = "Diamond Bench", Price = 500000, RequiredAscension = 2, Rate = 0.3, Color = { 120, 220, 255 }, Count = 4 },
+		{ Id = "mythic", Name = "Mythic Bench", Price = 5000000, RequiredAscension = 4, Rate = 0.8, Color = { 255, 70, 110 }, Count = 3 },
 	},
 }
 
@@ -143,7 +150,11 @@ GameConfig.Vault = {
 }
 
 GameConfig.Ascension = {
-	RequiredStrength = 100,
+	-- Strength needed to Ascend grows every time: Base x Growth^ascension (100, 250, 625, 1.6K...)
+	BaseRequirement = 100,
+	RequirementGrowth = 2.5,
+	-- ...but training speeds up every time too (compounding), so each climb stays reachable.
+	TrainingMultiplierPerLevel = 1.6,
 	-- Cash price per ascension (index = new level). Ties Ascension to the treasure loop, not just training.
 	CashCost = { 50000, 250000, 1000000, 3000000 },
 	CashCostGrowthAfterTable = 2,
@@ -215,6 +226,17 @@ GameConfig.Remotes = {
 	-- Max requests per second per player per remote (token bucket).
 	DefaultRate = 10,
 }
+
+-- Strength required to go from `level` to `level + 1`.
+function GameConfig.GetAscensionRequirement(level: number): number
+	local a = GameConfig.Ascension
+	return math.floor(a.BaseRequirement * a.RequirementGrowth ^ level)
+end
+
+-- Training (bench) speed multiplier at a given ascension level.
+function GameConfig.GetTrainingMultiplier(level: number): number
+	return GameConfig.Ascension.TrainingMultiplierPerLevel ^ level
+end
 
 function GameConfig.GetAscensionCost(newLevel: number): number
 	local costs = GameConfig.Ascension.CashCost

@@ -1,6 +1,7 @@
 -- Bench-press training: AFK-friendly Strength gain. A player lies down on a bench (prompt), is
 -- held in place, and earns Strength every tick. Tapping PUSH briefly multiplies the rate.
--- Higher tiers are unlocked with Cash + a Strength requirement. All gains are server-side.
+-- Higher tiers are unlocked with Cash + an Ascension level; every Ascension multiplies training
+-- speed (GameConfig.GetTrainingMultiplier). All gains are server-side.
 -- Every client animates bench users from the "Bench"/"BenchBoost" player attributes.
 
 local MarketplaceService = game:GetService("MarketplaceService")
@@ -74,7 +75,9 @@ local function stop(player: Player, reason: string)
 end
 
 local function rateFor(player: Player, tier): number
-	return tier.Rate * (passMultiplier[player] or 1)
+	local data = PlayerData.Get(player)
+	local ascension = if data then data.Ascension else 0
+	return tier.Rate * GameConfig.GetTrainingMultiplier(ascension) * (passMultiplier[player] or 1)
 end
 
 local function owns(data, tier): boolean
@@ -96,10 +99,10 @@ local function start(player: Player, machine: Machine)
 		return
 	end
 	local tier = machine.Tier
-	if data.Strength < tier.RequiredStrength then
+	if data.Ascension < tier.RequiredAscension then
 		Net.Fire("Notify", player, {
 			Kind = "Toast",
-			Text = ("%s needs %d STRENGTH"):format(tier.Name:upper(), tier.RequiredStrength),
+			Text = ("%s unlocks at ASCENSION %d"):format(tier.Name:upper(), tier.RequiredAscension),
 			Tone = "Warn",
 		})
 		return

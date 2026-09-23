@@ -552,7 +552,7 @@ local function refreshObjective()
 	end
 
 	if
-		data.Strength >= GameConfig.Ascension.RequiredStrength
+		data.Strength >= GameConfig.GetAscensionRequirement(data.Ascension)
 		and data.Cash >= GameConfig.GetAscensionCost(data.Ascension + 1)
 	then
 		setObjective("✦ READY", "ASCENSION AVAILABLE", Theme.Color.Secret, ("Permanent x%.2f Cash multiplier"):format(GameConfig.GetAscensionMultiplier(data.Ascension + 1)), nil)
@@ -592,7 +592,7 @@ end
 HUD.RefreshObjective = refreshObjective
 
 local function refreshStats(data, previous)
-	refs.Strength.Text = tostring(math.floor(data.Strength))
+	refs.Strength.Text = Kit.shortNumber(data.Strength)
 	refs.Cash.Text = Kit.formatCash(data.Cash)
 	if previous then
 		if data.Cash ~= previous.Cash then

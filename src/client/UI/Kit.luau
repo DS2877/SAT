@@ -161,6 +161,19 @@ function Kit.shortCash(n: number): string
 	return Kit.formatCash(n)
 end
 
+-- Compact big numbers for uncapped stats: 950, 12.4K, 3.1M, 2.0B
+function Kit.shortNumber(n: number): string
+	n = math.floor(n)
+	for _, unit in { { 1e12, "T" }, { 1e9, "B" }, { 1e6, "M" }, { 1e3, "K" } } do
+		if n >= unit[1] * 10 then
+			return ("%d%s"):format(math.floor(n / unit[1]), unit[2])
+		elseif n >= unit[1] then
+			return ("%.1f%s"):format(math.floor(n / unit[1] * 10) / 10, unit[2])
+		end
+	end
+	return tostring(n)
+end
+
 -- Temporarily pops an element (scale bump) to draw the eye to a change.
 function Kit.pulse(guiObject: GuiObject)
 	local scale = guiObject:FindFirstChild("PulseScale") :: UIScale?

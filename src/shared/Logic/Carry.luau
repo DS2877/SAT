@@ -18,7 +18,7 @@ function Carry.SpeedMultiplier(weight: number, strength: number, config): number
 end
 
 function Carry.JumpMultiplier(speedMultiplier: number, config): number
-	return math.max(config.JumpMultiplierFloor, speedMultiplier)
+	return math.clamp(speedMultiplier, config.JumpMultiplierFloor, 1)
 end
 
 function Carry.RecommendedStrength(weight: number, config): number
@@ -31,7 +31,9 @@ end
 
 -- Short human label for the burden, used by HUD.
 function Carry.BurdenLabel(speedMultiplier: number): string
-	if speedMultiplier >= 1 then
+	if speedMultiplier > 1 then
+		return "OVERPOWERED"
+	elseif speedMultiplier >= 1 then
 		return "LIGHT"
 	elseif speedMultiplier >= 0.75 then
 		return "MANAGEABLE"

@@ -17,7 +17,7 @@ local cfg = GameConfig.Ascension
 
 local function onAscend(player: Player)
 	local data = PlayerData.Get(player)
-	if not data or data.Strength < cfg.RequiredStrength then
+	if not data or data.Strength < GameConfig.GetAscensionRequirement(data.Ascension) then
 		return
 	end
 	if TreasureService.GetCarrying(player) then

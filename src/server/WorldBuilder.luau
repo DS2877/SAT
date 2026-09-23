@@ -554,7 +554,8 @@ local function buildGym(district: Folder)
 			Parent = gym,
 		})
 		local priceText = tostring(tier.Price):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
-		local unlock = if tier.Price > 0 then ("$%s • %d STR"):format(priceText, tier.RequiredStrength) else "FREE"
+		local gate = if tier.RequiredAscension > 0 then (" • ASC %d"):format(tier.RequiredAscension) else ""
+		local unlock = if tier.Price > 0 then ("$%s%s"):format(priceText, gate) else "FREE"
 		billboardSign(signPost, tier.Name:upper(), ("+%.2f 💪/s  •  %s"):format(tier.Rate, unlock), color, 90, 4, 10)
 	end
 	local header = part({
@@ -596,7 +597,7 @@ local function buildAscensionAltar(district: Folder)
 	local obelisk = part({ Name = "Obelisk", Size = Vector3.new(3, 16, 3), CFrame = CFrame.new(pos + Vector3.new(0, 10.5, 0)) * CFrame.Angles(0, math.rad(45), 0), Color = Color3.fromRGB(60, 40, 90), Material = Enum.Material.Slate, Parent = altar })
 	local gem = part({ Name = "Gem", Size = Vector3.new(3, 3, 3), CFrame = CFrame.new(pos + Vector3.new(0, 21, 0)) * CFrame.Angles(math.rad(45), 0, math.rad(45)), Color = C.Secret, Material = Enum.Material.Neon, Parent = altar })
 	gem:SetAttribute("Spin", 1.2)
-	billboardSign(gem, "ASCENSION", ("Reach %d Strength"):format(GameConfig.Ascension.RequiredStrength), C.Secret, 160, 4, 12)
+	billboardSign(gem, "ASCENSION", "Faster training • More Cash", C.Secret, 160, 4, 12)
 	return prompt(obelisk, "Ascend", "Ascension Altar", 0.5)
 end
 
@@ -1096,7 +1097,7 @@ local function dressDistrict()
 	end
 
 	-- Houses around the edge, facing the plaza
-	for _, degrees in { 100, 125, 150, 210, 235, 260 } do
+	for _, degrees in { 100, 125, 150, 210, 235 } do -- 260° would clip the Strength Gym
 		local a = math.rad(degrees)
 		local pos = Vector3.new(center.X + math.sin(a) * 135, plazaY - 1, center.Z + math.cos(a) * 135)
 		Props.House(dressing, CFrame.lookAt(pos, Vector3.new(center.X, pos.Y, center.Z)), rng)
