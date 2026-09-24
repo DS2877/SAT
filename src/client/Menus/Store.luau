@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
 local Monetization = require(Shared.Config.Monetization)
+local Net = require(Shared.Net)
 
 local UI = script.Parent.Parent.UI
 local Theme = require(UI.Theme)
@@ -125,6 +126,12 @@ function Store.Build(root: Frame)
 			end
 			if kind == "Pass" then
 				if player:GetAttribute("Pass_" .. key) then
+					if key == "AutoCollect" then
+						-- Owned: the button is an ON / OFF switch.
+						local data = ClientState.Data
+						local enabled = not (data and data.Settings and data.Settings.AutoCollect == false)
+						Net.Get("SetSetting"):FireServer("AutoCollect", not enabled)
+					end
 					return
 				end
 				MarketplaceService:PromptGamePassPurchase(player, item.Id)
@@ -173,6 +180,10 @@ function Store.Build(root: Frame)
 			if entry.Item.Id == 0 then
 				entry.Button.Text = "SOON"
 				entry.Button.BackgroundColor3 = Theme.Color.Disabled
+			elseif ownedPass and entry.Key == "AutoCollect" then
+				local enabled = not (data and data.Settings and data.Settings.AutoCollect == false)
+				entry.Button.Text = if enabled then "AUTO: ON" else "AUTO: OFF"
+				entry.Button.BackgroundColor3 = if enabled then Theme.Color.Safe else Theme.Color.ButtonAlt
 			elseif ownedPass then
 				entry.Button.Text = "OWNED ✔"
 				entry.Button.BackgroundColor3 = Theme.Color.ButtonAlt

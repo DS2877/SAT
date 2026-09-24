@@ -490,7 +490,7 @@ local function collect(player: Player, data, quiet: boolean?)
 		d.Stats.TotalEarned += amount
 	end)
 	if quiet then
-		return -- Auto Collect: straight into the wallet, no banner every second
+		return -- Auto Collect / still standing on the pad: no banner every second
 	end
 	Net.Fire("Feedback", player, { Type = "Collected", Amount = amount })
 	if PlayerData.Milestone(player, "FirstCollect") then
@@ -507,13 +507,6 @@ local function earningsTick(dt: number)
 			data.Vault.Stored += income * dt
 			data.LastOnline = os.time() -- saved with the profile; drives offline earnings
 			player:SetAttribute("VaultIncome", income)
-			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-			if root and plot.CollectPosition then
-				local offset = root.Position - plot.CollectPosition
-				if Vector2.new(offset.X, offset.Z).Magnitude <= GameConfig.Economy.CollectRadius and math.abs(offset.Y) < 6 then
-					collect(player, data)
-				end
-			end
 			if VaultService.AutoCollect(player) and data.Vault.Stored >= 1 then
 				collect(player, data, true)
 			end
@@ -522,6 +515,28 @@ local function earningsTick(dt: number)
 				plot.CollectRate.Text = ("+%s/s • STEP ON THE PAD"):format(formatCash(income))
 			end
 		end
+	end
+end
+
+-- COLLECT PAD: checked 10x a second so the cash pops the instant you step on it. Stepping ON
+-- plays the big "COLLECTED" moment; staying on it keeps banking new income quietly.
+local onPad: { [Player]: boolean } = {}
+local function padTick()
+	for player, plot in plotOf do
+		local data = PlayerData.Get(player)
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		local standing = false
+		if data and root and plot.CollectPosition then
+			local offset = root.Position - plot.CollectPosition
+			standing = Vector2.new(offset.X, offset.Z).Magnitude <= GameConfig.Economy.CollectRadius and math.abs(offset.Y) < 6
+		end
+		if standing and data then
+			collect(player, data, onPad[player] == true)
+			if plot.CollectAmount then
+				plot.CollectAmount.Text = formatCash(data.Vault.Stored)
+			end
+		end
+		onPad[player] = standing
 	end
 end
 
@@ -626,6 +641,19 @@ function VaultService.Init(builtPlots)
 	Extraction.Completed:Connect(onExtracted)
 	Net.On("SellTreasure", sellSlot, 4)
 	Net.On("UpgradeVault", onUpgrade, 2)
+
+	task.spawn(function()
+		while true do
+			task.wait(0.1)
+			local ok, err = pcall(padTick)
+			if not ok then
+				warn("[Vault] pad tick error:", err)
+			end
+		end
+	end)
+	Players.PlayerRemoving:Connect(function(player)
+		onPad[player] = nil
+	end)
 
 	task.spawn(function()
 		local last = os.clock()

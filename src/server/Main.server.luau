@@ -57,7 +57,7 @@ world.ShopPrompt.Triggered:Connect(function(player)
 end)
 
 -- Player preferences. Only known boolean settings are accepted.
-local BOOLEAN_SETTINGS = { Music = true }
+local BOOLEAN_SETTINGS = { Music = true, AutoCollect = true }
 Net.On("SetSetting", function(player, name, value)
 	if type(name) ~= "string" or not BOOLEAN_SETTINGS[name] or type(value) ~= "boolean" then
 		return

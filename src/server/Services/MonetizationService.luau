@@ -249,8 +249,11 @@ function MonetizationService.Init()
 		end
 		return GameConfig.Economy.OfflineIncomeRate, GameConfig.Economy.OfflineMaxHours
 	end
+	-- Pass owners can switch it off (the collect pad is half the fun). Note: the experience's
+	-- creator owns every pass automatically.
 	VaultService.AutoCollect = function(player: Player)
-		return owns(player, "AutoCollect")
+		local data = PlayerData.Get(player)
+		return owns(player, "AutoCollect") and data ~= nil and data.Settings.AutoCollect ~= false
 	end
 	Training.MultiplierFor = function(player: Player)
 		local multiplier = if owns(player, "DoubleStrength") then Monetization.Passes.DoubleStrength.TrainingMultiplier else 1

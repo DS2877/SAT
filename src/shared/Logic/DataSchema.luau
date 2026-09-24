@@ -39,6 +39,7 @@ function DataSchema.Default()
 		Milestones = {}, -- [milestoneName] = unix time (analytics funnel, tutorial)
 		Settings = {
 			Music = true,
+			AutoCollect = true, -- only matters with the Auto Collect pass (can be switched off)
 		},
 		TutorialStep = 0,
 	}
