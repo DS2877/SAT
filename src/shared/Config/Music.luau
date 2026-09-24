@@ -7,8 +7,8 @@
 --   CarryByRarity (optional): a different carry theme for specific rarities, e.g. Legendary.
 --   SuccessSting / FailSting: short one-shots when a carry ends - extracted vs dropped / lost.
 --
--- Tracks are public-domain recordings found and uploaded by the music pipeline
--- (music/tracks.json, tools/music/pipeline.py, .github/workflows/music.yml); see music/CREDITS.md.
+-- The success / fail stings are our own uploads (approved); the pipeline in tools/music can
+-- upload more and reports each asset's moderation status. See music/CREDITS.md.
 
 local Music = {}
 
@@ -16,20 +16,26 @@ Music.Volume = 0.35 -- master music volume (players can mute in the HUD)
 Music.CrossfadeSeconds = 1.5
 Music.Shuffle = true
 
--- Mischievous classical: orchestral Grieg / Tchaikovsky / Saint-Saens and solo piano.
+-- Mischievous classical. These are Roblox's own licensed library recordings (APM Music, uploaded
+-- by the verified "APMOfficial" account): free to use in every experience, never moderated away.
+-- (Our own public-domain uploads of the same pieces were REJECTED by Roblox moderation, which is
+-- why the game was silent - see music/CREDITS.md.)
 Music.Playlist = {
-	{ Name = "Morning Mood", Id = "rbxassetid://78668272498081" }, -- Edvard Grieg
-	{ Name = "Anitra's Dance", Id = "rbxassetid://105535399370641" }, -- Edvard Grieg
-	{ Name = "Sugar Plum Fairy and Russian Dance", Id = "rbxassetid://95147405203508" }, -- Pyotr Tchaikovsky
-	{ Name = "Danse Macabre", Id = "rbxassetid://111142441082336" }, -- Camille Saint-Saens
-	{ Name = "Flight of the Bumblebee", Id = "rbxassetid://106049612353448" }, -- Nikolai Rimsky-Korsakov
-	{ Name = "Rondo alla Turca", Id = "rbxassetid://109763529271338" }, -- Wolfgang Amadeus Mozart
-	{ Name = "Fur Elise", Id = "rbxassetid://90914907253072" }, -- Ludwig van Beethoven
-	{ Name = "Minute Waltz", Id = "rbxassetid://127639660640379" }, -- Frederic Chopin
-	{ Name = "The Entertainer", Id = "rbxassetid://102817718772248" }, -- Scott Joplin
+	{ Name = "Morning Mood", Id = "rbxassetid://1846088038" }, -- Grieg
+	{ Name = "Anitra's Dance", Id = "rbxassetid://1843564354" }, -- Grieg
+	{ Name = "Dance of the Sugar Plum Fairy", Id = "rbxassetid://1848047667" }, -- Tchaikovsky
+	{ Name = "Russian Dance (Trepak)", Id = "rbxassetid://1848059091" }, -- Tchaikovsky
+	{ Name = "Flight of the Bumblebee", Id = "rbxassetid://1836282767" }, -- Rimsky-Korsakov
+	{ Name = "Rondo alla Turca", Id = "rbxassetid://1843535552" }, -- Mozart (piano)
+	{ Name = "Fur Elise", Id = "rbxassetid://1836283178" }, -- Beethoven (piano)
+	{ Name = "The Entertainer", Id = "rbxassetid://1846442728" }, -- Joplin (piano)
+	{ Name = "Maple Leaf Rag", Id = "rbxassetid://1846443027" }, -- Joplin (piano)
+	{ Name = "Hungarian Dance No. 5", Id = "rbxassetid://1842150470" }, -- Brahms
 }
 
-Music.CarryTheme = { Name = "In the Hall of the Mountain King", Id = "rbxassetid://97301792132141" } -- Grieg, Musopen
+-- Grieg's "In the Hall of the Mountain King" (APM library recording). Our own upload of it,
+-- rbxassetid://97301792132141 (Musopen, approved), is the fallback if you ever want to switch.
+Music.CarryTheme = { Name = "In the Hall of the Mountain King", Id = "rbxassetid://1843564372" }
 
 Music.SuccessSting = { Name = "Extraction Fanfare", Id = "rbxassetid://116829871483507", Volume = 0.9 }
 Music.FailSting = { Name = "Lost It", Id = "rbxassetid://97318551187594", Volume = 0.9 }

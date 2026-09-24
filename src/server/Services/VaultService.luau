@@ -480,16 +480,11 @@ local function collect(player: Player, data)
 	Analytics.Economy(player, "Source", amount, data.Cash, "Gameplay", "vault_income")
 end
 
--- Away (app backgrounded / idle): the Vault only earns a fraction (GameConfig.Economy.AwayIncomeRate).
-local function awayRate(player: Player): number
-	return if player:GetAttribute("Away") == true then GameConfig.Economy.AwayIncomeRate else 1
-end
-
 local function earningsTick(dt: number)
 	for player, plot in plotOf do
 		local data = PlayerData.Get(player)
 		if data then
-			local income = incomeOf(data) * awayRate(player)
+			local income = incomeOf(data)
 			data.Vault.Stored += income * dt
 			data.LastOnline = os.time() -- saved with the profile; drives offline earnings
 			player:SetAttribute("VaultIncome", income)
@@ -502,15 +497,13 @@ local function earningsTick(dt: number)
 			end
 			if plot.CollectAmount then
 				plot.CollectAmount.Text = formatCash(data.Vault.Stored)
-				plot.CollectRate.Text = if awayRate(player) < 1
-					then ("💤 AWAY: +%s/s"):format(formatCash(income))
-					else ("+%s/s • STEP ON THE PAD"):format(formatCash(income))
+				plot.CollectRate.Text = ("+%s/s • STEP ON THE PAD"):format(formatCash(income))
 			end
 		end
 	end
 end
 
--- Offline earnings at the away rate, paid onto the collect pad when the player comes back.
+-- Offline earnings at the offline rate, paid onto the collect pad when the player comes back.
 local function payOffline(player: Player)
 	local data = PlayerData.Get(player)
 	if not data then
@@ -536,7 +529,7 @@ local function payOffline(player: Player)
 					Title = "💤 WELCOME BACK",
 					Text = ("Your Vault earned %s while you were away (%d%% for %s) • collect it on your pad"):format(
 						formatCash(amount),
-						math.floor(GameConfig.Economy.AwayIncomeRate * 100 + 0.5),
+						math.floor(GameConfig.Economy.OfflineIncomeRate * 100 + 0.5),
 						if seconds >= 3600 then ("%.1fh"):format(seconds / 3600) else ("%dm"):format(seconds // 60)
 					),
 					Tone = "Reward",
@@ -544,12 +537,6 @@ local function payOffline(player: Player)
 			end
 		end)
 		Analytics.Event(player, "OfflineEarnings", { Amount = amount, Seconds = seconds })
-	end
-end
-
-local function onAway(player: Player, away)
-	if type(away) == "boolean" then
-		player:SetAttribute("Away", away)
 	end
 end
 
@@ -604,7 +591,6 @@ function VaultService.Init(builtPlots)
 	Extraction.Completed:Connect(onExtracted)
 	Net.On("SellTreasure", sellSlot, 4)
 	Net.On("UpgradeVault", onUpgrade, 2)
-	Net.On("SetAway", onAway, 4)
 
 	task.spawn(function()
 		local last = os.clock()

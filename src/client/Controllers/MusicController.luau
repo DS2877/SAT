@@ -6,8 +6,11 @@
 --   * When the carry ends, a short sting says how it went: SuccessSting when you extracted it,
 --     FailSting when you dropped it, got knocked, had it stolen or lost it at nightfall.
 --   * Muting (HUD 🔊 button) is saved per player (data.Settings.Music).
--- Tracks with empty ids are ignored, so nothing plays until real asset ids are configured.
+-- Tracks with empty ids are ignored. A track that fails to load (moderation-rejected, deleted,
+-- no permission) is skipped instead of silencing the playlist forever, and a warning names it
+-- in the developer console (F9).
 
+local ContentProvider = game:GetService("ContentProvider")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
@@ -25,6 +28,8 @@ local MusicController = {}
 local player = Players.LocalPlayer
 local group: SoundGroup
 local playlist: { Sound } = {}
+local failed: { [Sound]: boolean } = {}
+local LOAD_TIMEOUT = 12 -- seconds a track may take to start before it is skipped
 local order: { number } = {}
 local position = 0
 local current: Sound? = nil
@@ -76,26 +81,54 @@ local function shuffle()
 	position = 0
 end
 
-local function playNext()
+local playNext
+
+local function markFailed(sound: Sound, why: string)
+	if not failed[sound] then
+		failed[sound] = true
+		warn(("[Music] skipping %s (%s): %s"):format(sound.Name, sound.SoundId, why))
+	end
+end
+
+playNext = function()
 	if #playlist == 0 or carrying then
 		return
 	end
-	position += 1
-	if position > #order then
-		shuffle()
-		position = 1
+	-- Find the next track that hasn't failed (at most one full lap).
+	local sound: Sound? = nil
+	for _ = 1, #playlist do
+		position += 1
+		if position > #order then
+			shuffle()
+			position = 1
+		end
+		local candidate = playlist[order[position]]
+		if not failed[candidate] then
+			sound = candidate
+			break
+		end
+	end
+	if not sound then
+		return -- every track failed to load
 	end
 	local previous = current
-	current = playlist[order[position]]
-	local sound = current :: Sound
+	current = sound
+	local chosen = sound :: Sound
+	-- Watchdog: a track that never starts (failed asset) is skipped.
+	task.delay(LOAD_TIMEOUT, function()
+		if current == chosen and not carrying and (not chosen.IsLoaded or chosen.TimeLength <= 0) then
+			markFailed(chosen, "did not load in time")
+			playNext()
+		end
+	end)
 	if previous and previous ~= sound then
 		fade(previous, 0, function()
 			previous:Stop()
 		end)
 	end
-	sound.TimePosition = 0
-	sound:Play()
-	fade(sound, 1)
+	chosen.TimePosition = 0
+	chosen:Play()
+	fade(chosen, 1)
 end
 
 local function startCarry()
@@ -203,6 +236,22 @@ function MusicController.Init()
 		end
 	end
 	shuffle()
+	-- Preload everything: rejected / missing assets are flagged before their turn comes.
+	task.spawn(function()
+		local all: { Instance } = table.clone(playlist)
+		ContentProvider:PreloadAsync(all, function(contentId, status)
+			if status == Enum.AssetFetchStatus.Failure then
+				for _, sound in playlist do
+					if sound.SoundId == contentId then
+						markFailed(sound, "asset failed to load")
+						if current == sound and not carrying then
+							playNext()
+						end
+					end
+				end
+			end
+		end)
+	end)
 
 	-- Saved preference arrives with the first data sync.
 	local function syncSetting(data)

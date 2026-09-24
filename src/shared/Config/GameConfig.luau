@@ -31,11 +31,12 @@ GameConfig.Economy = {
 	SellIncomeSeconds = 60, -- sell price = one minute of that treasure's income
 	FindersFeeSeconds = 20, -- extraction pays 20 s of income up front (x zone bonus)
 	CollectRadius = 4, -- studs from the Vault's collect pad to cash out
-	-- AWAY: while a player is connected but not playing (app in the background, window unfocused
-	-- or idle for 2 min) and while offline, the Vault only earns this fraction of its income.
-	-- (A later monetisation lever: e.g. a pass that raises it.)
-	AwayIncomeRate = 0.05,
-	OfflineMaxHours = 12, -- offline earnings stop accruing after this long
+	-- OFFLINE: while you're in a server the Vault always earns full rate (AFK and benching
+	-- included - we want players to stay online). While you're OFFLINE it earns this fraction,
+	-- for at most OfflineMaxHours, paid onto the collect pad when you come back.
+	-- (A later monetisation lever: e.g. a pass that raises the rate or the cap.)
+	OfflineIncomeRate = 0.5,
+	OfflineMaxHours = 2,
 	OfflineMinSeconds = 60, -- shorter gaps (a quick rejoin) pay nothing
 }
 

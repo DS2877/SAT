@@ -8,21 +8,24 @@
       "composer": "Edvard Grieg",
       "query": "Hall of the Mountain King",
       "file": "File:Grieg - Peer Gynt Suite No. 1, Op. 46 - IV. In the Hall of the Mountain King (Musopen Symphony).flac",
-      "assetId": "97301792132141"
+      "assetId": "97301792132141",
+      "status": "Approved"
     },
     {
       "key": "success",
       "role": "SuccessSting",
       "name": "Extraction Fanfare",
       "synth": "success.wav",
-      "assetId": "116829871483507"
+      "assetId": "116829871483507",
+      "status": "Approved"
     },
     {
       "key": "fail",
       "role": "FailSting",
       "name": "Lost It",
       "synth": "fail.wav",
-      "assetId": "97318551187594"
+      "assetId": "97318551187594",
+      "status": "Approved"
     },
     {
       "key": "morning",
@@ -31,7 +34,8 @@
       "composer": "Edvard Grieg",
       "query": "Grieg Morning Mood",
       "file": "File:Grieg - Peer Gynt Suite No. 1, Op. 46 - I. Morning Mood (Musopen Symphony).flac",
-      "assetId": "78668272498081"
+      "assetId": "78668272498081",
+      "status": "Rejected by Roblox moderation - replaced by the APM library recording in Config/Music.luau"
     },
     {
       "key": "anitra",
@@ -40,7 +44,8 @@
       "composer": "Edvard Grieg",
       "query": "Grieg Anitra",
       "file": "File:Grieg - Peer Gynt Suite No. 1, Op. 46 - III. Anitra's Dance (Musopen Symphony).flac",
-      "assetId": "105535399370641"
+      "assetId": "105535399370641",
+      "status": "Rejected by Roblox moderation - replaced by the APM library recording in Config/Music.luau"
     },
     {
       "key": "sugarplum",
@@ -49,7 +54,8 @@
       "composer": "Pyotr Tchaikovsky",
       "query": "Sugar Plum Fairy",
       "file": "File:PDP-CH - National Symphony Orchestra of London - Stanford Robinson, conductor - The Nutcracker Suite, Op. 71 - Dance of the Sugar Plum Fairy - Russian Dance - Tchaikovsky - Decca-k1142-ar9057.flac",
-      "assetId": "95147405203508"
+      "assetId": "95147405203508",
+      "status": "Rejected by Roblox moderation - replaced by the APM library recording in Config/Music.luau"
     },
     {
       "key": "macabre",
@@ -58,7 +64,8 @@
       "composer": "Camille Saint-Saens",
       "query": "Danse macabre Saint-Saens",
       "file": "File:Saint-Saëns - Danse macabre (Fourestier, 1953).flac",
-      "assetId": "111142441082336"
+      "assetId": "111142441082336",
+      "status": "Rejected by Roblox moderation - replaced by the APM library recording in Config/Music.luau"
     },
     {
       "key": "bumblebee",
@@ -67,7 +74,8 @@
       "composer": "Nikolai Rimsky-Korsakov",
       "query": "Flight of the Bumblebee",
       "file": "File:Jaan Patterson - 02 - The Flight of the Bumblebee Nikolai Andrejewitsch Rimski-Korsakow.ogg",
-      "assetId": "106049612353448"
+      "assetId": "106049612353448",
+      "status": "Rejected by Roblox moderation - replaced by the APM library recording in Config/Music.luau"
     },
     {
       "key": "turca",
@@ -76,7 +84,8 @@
       "composer": "Wolfgang Amadeus Mozart",
       "query": "Mozart Rondo alla Turca",
       "file": "File:Rondo Alla Turka.ogg",
-      "assetId": "109763529271338"
+      "assetId": "109763529271338",
+      "status": "Rejected by Roblox moderation - replaced by the APM library recording in Config/Music.luau"
     },
     {
       "key": "elise",
@@ -85,7 +94,8 @@
       "composer": "Ludwig van Beethoven",
       "query": "Beethoven Fur Elise",
       "file": "File:FurElise.ogg",
-      "assetId": "90914907253072"
+      "assetId": "90914907253072",
+      "status": "Rejected by Roblox moderation - replaced by the APM library recording in Config/Music.luau"
     },
     {
       "key": "minute",
@@ -94,7 +104,8 @@
       "composer": "Frederic Chopin",
       "query": "Chopin Minute Waltz 64",
       "file": "File:Chopin - Waltz No. 6 in D-flat major, Op. 64, No. 1 'Minute' (Olga Gurevich).flac",
-      "assetId": "127639660640379"
+      "assetId": "127639660640379",
+      "status": "Rejected by Roblox moderation - replaced by the APM library recording in Config/Music.luau"
     },
     {
       "key": "entertainer",
@@ -103,7 +114,8 @@
       "composer": "Scott Joplin",
       "query": "Joplin The Entertainer",
       "file": "File:Scott Joplin - 04 - The Entertainer 1902 piano roll.mp3",
-      "assetId": "102817718772248"
+      "assetId": "102817718772248",
+      "status": "Rejected by Roblox moderation - replaced by the APM library recording in Config/Music.luau"
     }
   ]
 }

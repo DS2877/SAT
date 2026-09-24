@@ -21,8 +21,8 @@ awaiting the phase-1 mobile playtest.
   wiped (Logic/AscensionReset); Vault, treasures, Collection, benches and titles are kept
 - 30 data-driven treasures, spawn budget + rarity caps, pickup validation, carry weld, carry speed formula
 - Manual drop (📦 button while carrying, G / D-pad down)
-- Away / offline income: 5% of Vault income while the app is backgrounded or idle 2 min, and
-  5% for time offline (capped 12 h) paid onto the collect pad with a "welcome back" banner
+- Offline income: full rate while in a server (AFK / benching included); while offline the
+  Vault earns 50% for at most 2 h, paid onto the collect pad with a "welcome back" banner
 - Stability STABLE→SHAKEN→KNOCKED, knock immunity, reclaim protection, dropped timeout, theft detection
 - Extraction (10 s, interruptible), finder's fee w/ zone bonus + Ascension multiplier, Collection, auto Vault placement
 - PvP bonk (server hit detection), 4 Guardian types (Dire Wolf, Goblin Brute, Stone Golem, Giant
@@ -31,7 +31,9 @@ awaiting the phase-1 mobile playtest.
   region gates with danger stars + recommended strength, discovery rewards (Services/Exploration),
   secrets (Old Mine tunnel, Sky Ruins parkour, Catacombs) with hidden spawn points, balloon + smoke
   extraction markers
-- Music: public-domain classical playlist (Grieg, Tchaikovsky, Saint-Saens, Mozart, Beethoven,
+- Music: APM licensed-library classical playlist + Mountain King carry theme (our own uploads of
+  the playlist were rejected by Roblox moderation; the player now skips any track that fails to
+  load). Earlier: public-domain classical playlist (Grieg, Tchaikovsky, Saint-Saens, Mozart, Beethoven,
   Chopin, Joplin), "In the Hall of the Mountain King" while carrying, original success/fail
   stings; fetched + uploaded by .github/workflows/music.yml (credits in music/CREDITS.md)
 - Gadget framework (3 slots, server cooldowns): Speed Soda, Balloon, Bubble Blaster

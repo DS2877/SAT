@@ -98,7 +98,7 @@ function Economy.VaultIncome(displays, lookup, ascensionMultiplier: number, isNi
 	return math.floor(total * ascensionMultiplier * night + 0.5)
 end
 
--- Cash a Vault earned while its owner was offline, at the reduced away rate and capped.
+-- Cash a Vault earned while its owner was offline, at the reduced offline rate and capped.
 -- `income` = base $/s (day rate, all multipliers), times are os.time() seconds.
 -- Returns (amount, secondsCounted).
 function Economy.OfflineEarnings(income: number, lastOnline: number, now: number): (number, number)
@@ -110,7 +110,7 @@ function Economy.OfflineEarnings(income: number, lastOnline: number, now: number
 	if seconds < cfg.OfflineMinSeconds then
 		return 0, 0
 	end
-	return math.floor(income * cfg.AwayIncomeRate * seconds), seconds
+	return math.floor(income * cfg.OfflineIncomeRate * seconds), seconds
 end
 
 -- COLLECTION SETS -------------------------------------------------------------------------
