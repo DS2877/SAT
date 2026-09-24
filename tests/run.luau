@@ -276,6 +276,8 @@ test("adventure: boost pads and geysers are sane", function()
 	check(boost.SpeedMultiplier > 1.2 and boost.SpeedMultiplier < 1.8, "boost is noticeable but not absurd")
 	check(boost.Duration >= 2 and boost.Duration <= 6, "boost is a burst, not a mode")
 	check(boost.Cooldown >= 1, "no boost chaining on one pad")
+	check(boost.Count >= 12 and boost.Count <= 40, "enough rings to find, not a carpet")
+	check(boost.MinSpacing * boost.MinSpacing * boost.Count < math.pi * boost.MaxDistance ^ 2 * 0.5, "ring spacing leaves room to place them all")
 	check(boost.SpeedMultiplier * GameConfig.Player.BaseWalkSpeed < 30, "a boosted player can still be caught by a boosted chaser")
 	local cliffTop = WorldLayout.Waterfall.CliffCenter.Y + WorldLayout.Waterfall.CliffSize.Y / 2
 	local templeTop = WorldLayout.Temple.Center.Y + WorldLayout.Temple.Tiers * WorldLayout.Temple.TierHeight

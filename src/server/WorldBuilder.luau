@@ -396,7 +396,7 @@ end
 -- Stone wall around the District: the north gatehouse is the ONLY way to the Wilds.
 -- An invisible barrier above the wall stops Balloons/Grapples from skipping the gate.
 local nightGate: BasePart? = nil -- set by buildWall, handed to DayCycle
-local boostPads = {} -- set by buildWilds (Adventure), handed to BoostService
+local adventureAvoid = {} -- set by buildWilds (Adventure): marsh pools, geysers, lake
 
 local function buildWall(district: Folder): BasePart
 	local walls = folder("DistrictWall", district)
@@ -966,9 +966,9 @@ local function buildWilds(extraAvoid)
 		end
 	end
 
-	-- New regions' dressing, boost pads along the trails and the launch geysers.
-	local adventure = Adventure.Build(terrain, wilds, rng, groundAt, trails)
-	boostPads = adventure.BoostPads
+	-- New regions' dressing and the launch geysers (boost rings come last, see Build).
+	local adventure = Adventure.Build(terrain, wilds, rng, groundAt)
+	adventureAvoid = adventure.Avoid
 	for _, a in adventure.Avoid do
 		table.insert(avoid, a)
 	end
@@ -1688,6 +1688,9 @@ function WorldBuilder.Build()
 			PatrolRadius = info.PatrolRadius,
 		})
 	end
+
+	-- Boost rings last: random open clearings, clear of everything built above.
+	local boostPads = Adventure.BuildBoostRings(world, adventureAvoid)
 
 	return {
 		TreasureSpawns = spawns,

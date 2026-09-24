@@ -1,4 +1,4 @@
--- Speed BOOST PADS (built by World/Adventure along the trails). Server-authoritative: the
+-- Speed BOOST RINGS (scattered at random by World/Adventure). Server-authoritative: the
 -- server sees you on a pad and grants GameConfig.Boost.SpeedMultiplier for Duration seconds
 -- through Movement (so it stacks correctly with carry weight, soda, bubbles...). Works for
 -- carriers and chasers alike. Clients get a "Boosted" feedback for the whoosh / FOV / trail
@@ -17,7 +17,7 @@ local Combat = require(script.Parent.Combat)
 local BoostService = {}
 
 local cfg = GameConfig.Boost
-local pads: { { Position: Vector3, Forward: Vector3 } } = {}
+local pads: { { Position: Vector3 } } = {}
 local nextAllowed: { [Player]: number } = {}
 local boostToken: { [Player]: number } = {}
 
@@ -28,7 +28,7 @@ local function boost(player: Player, pad)
 	boostToken[player] = token
 	Movement.SetSpeed(player, "Boost", cfg.SpeedMultiplier)
 	player:SetAttribute("BoostUntil", workspace:GetServerTimeNow() + cfg.Duration)
-	Net.Fire("Feedback", player, { Type = "Boosted", Duration = cfg.Duration, Forward = pad.Forward })
+	Net.Fire("Feedback", player, { Type = "Boosted", Duration = cfg.Duration, Position = pad.Position })
 	task.delay(cfg.Duration, function()
 		if boostToken[player] == token then
 			Movement.SetSpeed(player, "Boost", nil)
@@ -45,7 +45,7 @@ local function tick()
 				local position = root.Position
 				for _, pad in pads do
 					local offset = position - pad.Position
-					if math.abs(offset.Y) < 6 and Vector2.new(offset.X, offset.Z).Magnitude <= cfg.Radius then
+					if offset.Y > -3 and offset.Y < 10 and Vector2.new(offset.X, offset.Z).Magnitude <= cfg.Radius then
 						boost(player, pad)
 						break
 					end

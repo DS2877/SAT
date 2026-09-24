@@ -519,11 +519,6 @@ local function vaultNav()
 	return if typeof(center) == "Vector3" then { Name = "YOUR VAULT", Position = center } else nil
 end
 
-local function carriedMutation(): string?
-	local mutation = player:GetAttribute("CarryingMutation")
-	return if type(mutation) == "string" and mutation ~= "" then mutation else nil
-end
-
 local function updateClock(serverNow: number)
 	local state = DayNight.State(serverNow)
 	local left = math.ceil(state.SecondsLeft)
@@ -644,11 +639,13 @@ local function refreshObjective()
 		if stability == "Shaken" then
 			line2 = "<font color=\"#ff4650\">⚠ SHAKEN — ONE MORE HIT AND YOU DROP IT</font>"
 		end
+		-- No name / rarity / income for the carrier (others see the tag over your head): the
+		-- panel is about getting it home.
 		setObjective(
-			("%s %s • CARRYING"):format(info.Glyph, carrying.Rarity:upper()),
-			carrying.Name:upper(),
+			"🎒 CARRYING TREASURE",
+			"GET IT HOME!",
 			info.Color,
-			("<font color=\"#78eb78\">%s/s</font>  •  WEIGHT %s"):format(Kit.shortCash(Economy.Income(carrying, carriedMutation())), Kit.bigNumber(carrying.Weight)),
+			("WEIGHT %s"):format(Kit.bigNumber(carrying.Weight)),
 			line2,
 			speed,
 			if speed >= 0.75 then Theme.Color.Safe elseif speed >= 0.45 then Theme.Color.Warn else Theme.Color.Danger

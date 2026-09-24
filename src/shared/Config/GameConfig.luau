@@ -95,10 +95,13 @@ GameConfig.Secrets = {
 GameConfig.Boost = {
 	SpeedMultiplier = 1.45,
 	Duration = 4, -- seconds
-	Radius = 5.5, -- studs from the pad centre
-	Cooldown = 2, -- per player, before the same player can trigger another pad
-	PadSpacing = 90, -- studs between pads along a trail
-	FirstPadDistance = 45,
+	Radius = 5.5, -- studs from the ring's centre line (horizontal)
+	Cooldown = 2, -- per player, before the same player can trigger another ring
+	-- Rings are scattered at random every server (World/Adventure).
+	Count = 24,
+	MaxPerArea = 6, -- per region, so every region gets a share
+	MinSpacing = 55, -- studs between rings
+	MaxDistance = 400, -- from the island centre
 }
 
 -- LAUNCH GEYSERS (WorldLayout.LaunchPads): straight up, then a guided glide onto the target.
@@ -177,7 +180,7 @@ GameConfig.Treasure = {
 	-- during the DAY too (Commons/Uncommons only), so a player who joins mid-day always finds a
 	-- first treasure. Everything else only spawns on the night wave.
 	StarterMaxRarity = "Uncommon",
-	CarriedLabelDistance = 60,
+	CarriedLabelDistance = 75, -- others see a carried treasure's tag (through walls) this close
 	SwiftSpeedBonus = 1.15, -- SpecialEffect "Swift": carrier speed multiplier
 	NocturnalMultiplier = 2, -- SpecialEffect "Nocturnal": Vault income multiplier at night
 	VaultLabelDistance = 22,

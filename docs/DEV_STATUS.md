@@ -202,8 +202,11 @@ awaiting the phase-1 mobile playtest.
 - Marsh: bog pools, lily pads, boardwalks, glow mushrooms, spores; Bog Spiders; secret
   Witch Hut on stilts. Frostpeak: ring of peaks around a frozen lake, pines, ice crystals,
   snowfall; Ice Golems; secret Frozen Grotto (tunnel in the ice). 10 new treasures.
-- **Boost pads** along every trail (every 90 studs): +45% speed for 4 s, FOV kick + trail.
-  Server-authoritative (Services/BoostService), visuals in World/Adventure + client Pads.
+- **Boost rings** (Sonic style): spinning blue-and-gold hoops over a glowing plate, scattered
+  at RANDOM open, flat, dry spots (new layout every server, max 6 per region, 55 studs apart).
+  +45% speed for 4 s, ring burst, FOV kick + trail. Server-authoritative (BoostService).
+- Carried treasure: the tag is hidden from the carrier (PlayerToHideFrom) and shown on top to
+  everyone within 75 studs. The carrier's HUD shows weight/speed/route, not name/rarity/$.
 - **Geysers** (launch pads): Cliff Geyser -> cliff top, Temple Geyser -> temple top,
   Witch Geyser -> the witch hut. Balance in GameConfig.Boost / GameConfig.Launch.
 - Validation: static + unit tests only; NOT yet playtested in a live server.

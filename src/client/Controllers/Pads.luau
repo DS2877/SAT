@@ -1,6 +1,6 @@
 -- Boost pads + launch geysers (built by World/Adventure).
---   BOOST: the server grants the speed (Services/BoostService); here the chevrons pulse
---   forward, and when YOU are boosted: whoosh, FOV kick, a cyan speed trail, status line.
+--   BOOST RINGS: the server grants the speed (Services/BoostService); here the rings spin and
+--   bob, and when YOU take one: the ring bursts, whoosh, FOV kick, a blue speed trail.
 --   GEYSERS (tag "LaunchPad", attribute Target): client-side because your character's physics
 --   is yours. Scripted flight: straight up past the cliff edge, then a guided glide that lands
 --   exactly on the target (heavy loot included - the geyser doesn't care).
@@ -22,7 +22,8 @@ local HUD = require(script.Parent.HUD)
 local Pads = {}
 
 local player = Players.LocalPlayer
-local BOOST_COLOR = Color3.fromRGB(60, 230, 255)
+local BOOST_COLOR = Color3.fromRGB(40, 170, 255) -- matches World/Adventure
+local RING_GOLD = Color3.fromRGB(255, 215, 60)
 local BASE_FOV = 70
 local boostToken = 0
 local launching = false
@@ -63,12 +64,84 @@ local function speedTrail(root: BasePart, duration: number)
 	end)
 end
 
+-- Boost rings spin (Sonic style) and bob. Only rings near the camera are animated.
+local SPIN_SPEED = 2.2 -- radians per second
+local ANIMATE_DISTANCE = 220
+local rings: { [Model]: CFrame } = {}
+
+local function addRing(inst: Instance)
+	if inst:IsA("Model") then
+		local home = inst:GetAttribute("Home")
+		if typeof(home) == "CFrame" then
+			rings[inst] = home
+		end
+	end
+end
+
+local function animateRings()
+	for _, inst in CollectionService:GetTagged("BoostRing") do
+		addRing(inst)
+	end
+	CollectionService:GetInstanceAddedSignal("BoostRing"):Connect(addRing)
+	CollectionService:GetInstanceRemovedSignal("BoostRing"):Connect(function(inst)
+		rings[inst :: Model] = nil
+	end)
+	RunService.RenderStepped:Connect(function()
+		local camera = workspace.CurrentCamera
+		local eye = camera and camera.CFrame.Position or Vector3.zero
+		local t = os.clock()
+		for model, home in rings do
+			local core = model.PrimaryPart
+			if core and (home.Position - eye).Magnitude < ANIMATE_DISTANCE then
+				-- Hoop + film spin about the vertical axis; the ground plate stays put.
+				local target = home * CFrame.new(0, math.sin(t * 2 + home.Position.X) * 0.35, 0) * CFrame.Angles(0, t * SPIN_SPEED, 0)
+				local delta = target * core.CFrame:Inverse()
+				for _, d in model:GetChildren() do
+					if d:IsA("BasePart") and not d.Name:match("^Plate") then
+						d.CFrame = delta * d.CFrame
+					end
+				end
+			end
+		end
+	end)
+end
+
+-- The ring you took flashes and bursts.
+local function burstRing(position: Vector3?)
+	if typeof(position) ~= "Vector3" then
+		return
+	end
+	local best, bestDistance = nil, 14
+	for model in rings do
+		local core = model.PrimaryPart
+		local distance = if core then (Vector2.new(core.Position.X, core.Position.Z) - Vector2.new(position.X, position.Z)).Magnitude else math.huge
+		if distance < bestDistance then
+			best, bestDistance = model, distance
+		end
+	end
+	local core = best and best.PrimaryPart
+	if not core then
+		return
+	end
+	local burst = core:FindFirstChild("Burst")
+	if burst and burst:IsA("ParticleEmitter") then
+		burst:Emit(40)
+	end
+	for _, d in (best :: Model):GetChildren() do
+		if d:IsA("BasePart") and (d.Name == "Hoop" or d.Name == "Inner") then
+			d.Color = Color3.new(1, 1, 1)
+			Kit.tween(d, TweenInfo.new(0.5, Enum.EasingStyle.Quad), { Color = if d.Name == "Hoop" then BOOST_COLOR else RING_GOLD })
+		end
+	end
+end
+
 local function onBoosted(payload)
 	local duration = tonumber(payload.Duration) or GameConfig.Boost.Duration
 	local root = character()
 	boostToken += 1
 	local token = boostToken
 	Sounds.Play("Boost")
+	burstRing(payload.Position)
 	HUD.ShowStatus("⚡ SPEED BOOST!", nil, BOOST_COLOR, 1.2)
 	local camera = workspace.CurrentCamera
 	Kit.tween(camera, TweenInfo.new(0.18, Enum.EasingStyle.Quad), { FieldOfView = BASE_FOV + 14 })
@@ -80,28 +153,6 @@ local function onBoosted(payload)
 	if root then
 		speedTrail(root, duration)
 	end
-end
-
--- Chevrons light up one after another, pointing the way.
-local function animateChevrons()
-	local chevrons: { BasePart } = {}
-	local function add(inst: Instance)
-		if inst:IsA("BasePart") then
-			table.insert(chevrons, inst)
-		end
-	end
-	for _, inst in CollectionService:GetTagged("BoostChevron") do
-		add(inst)
-	end
-	CollectionService:GetInstanceAddedSignal("BoostChevron"):Connect(add)
-	RunService.Heartbeat:Connect(function()
-		local phase = (os.clock() * 3) % 3
-		for _, chevron in chevrons do
-			local index = (chevron:GetAttribute("Index") or 1) - 1
-			local lit = math.clamp(1 - math.abs(((phase - index + 1.5) % 3) - 1.5), 0, 1)
-			chevron.Transparency = 0.75 - 0.7 * lit
-		end
-	end)
 end
 
 -- LAUNCH GEYSERS -----------------------------------------------------------------------
@@ -190,7 +241,7 @@ function Pads.Init()
 			onBoosted(payload)
 		end
 	end)
-	animateChevrons()
+	animateRings()
 	watchGeysers()
 end
 

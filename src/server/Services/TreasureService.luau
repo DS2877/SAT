@@ -408,8 +408,11 @@ function TreasureService.TryPickup(player: Player, uid: number): (boolean, strin
 	record.KnockedFrom = nil
 	record.Prompt.Enabled = false
 	clearMarker(record)
+	-- The carrier doesn't need their own tag in their face; everyone NEAR them sees it on top
+	-- of everything (through walls and bushes) - that's the bait that makes them chase.
+	record.Billboard.PlayerToHideFrom = player
 	record.Billboard.MaxDistance = if record.Def.SpecialEffect == "RevealsCarrier" then 2000 else cfg.CarriedLabelDistance
-	record.Billboard.AlwaysOnTop = record.Def.SpecialEffect == "RevealsCarrier"
+	record.Billboard.AlwaysOnTop = true
 	carrying[player] = record
 	setState(record, "Carried")
 	setPlayerCarryAttributes(player, record)
@@ -497,6 +500,7 @@ function TreasureService.Drop(player: Player, reason: string, knockedBy: Player?
 	record.ProtectedUntil = now + cfg.ReclaimProtection
 	record.KnockedFrom = if reason == "Knocked" then player else nil
 	record.Prompt.Enabled = true
+	record.Billboard.PlayerToHideFrom = nil
 	record.Billboard.MaxDistance = cfg.LabelDistance
 	record.Billboard.AlwaysOnTop = false
 	record.Model:SetAttribute("ProtectedUntil", workspace:GetServerTimeNow() + cfg.ReclaimProtection)

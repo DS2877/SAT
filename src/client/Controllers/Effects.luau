@@ -115,10 +115,10 @@ function handlers.PickedUp(payload)
 			Sounds.Play("BigReward")
 			Sounds.Play("RareDiscovery", 0.8)
 			shakeCamera(0.8, 0.35)
-			HUD.ShowStatus(("%s %s!"):format(def.Rarity:upper(), def.Name:upper()), "JACKPOT • NOW GET IT HOME!", info.Color, 2.4)
+			HUD.ShowStatus("💰 JACKPOT!", "NOW GET IT HOME!", info.Color, 2.4)
 		else
 			Sounds.Play("Pickup")
-			HUD.ShowStatus(("%s %s"):format(info.Glyph, def.Name:upper()), "NOW GET IT HOME!", info.Color, 1.6)
+			HUD.ShowStatus("🎒 GOT IT!", "NOW GET IT HOME!", info.Color, 1.6)
 		end
 	else
 		Sounds.Play("Pickup")

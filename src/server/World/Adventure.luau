@@ -1,7 +1,7 @@
 -- Adventure layer on top of the island:
 --   * GLOWSHROOM MARSH dressing: bog pools (swim-slow water), lily pads, boardwalks, glow lamps
 --   * FROSTPEAK dressing: frozen-lake markers, snowmen, blue lanterns
---   * BOOST PADS along every trail: step on one for a burst of speed (server: BoostService)
+--   * BOOST RINGS scattered at random: run through one for a burst of speed (BoostService)
 --   * LAUNCH GEYSERS that fling you onto high places (client: Controllers/Pads)
 -- Runs after the terrain; returns positions the vegetation must keep clear of.
 
@@ -153,78 +153,163 @@ end
 
 -- BOOST PADS --------------------------------------------------------------------------
 
-local BOOST = Color3.fromRGB(60, 230, 255)
+local BOOST = Color3.fromRGB(40, 170, 255) -- electric blue hoop
+local BOOST_GOLD = Color3.fromRGB(255, 215, 60) -- golden inner ring
+local RING_RADIUS = 4.6 -- hoop radius (studs); the trigger radius is GameConfig.Boost.Radius
+local RING_HEIGHT = 5.4 -- hoop centre above the ground
 
-local function buildBoostPad(parent: Instance, ground: Vector3, forward: Vector3)
-	local pad = folder("BoostPad", parent)
-	local cf = CFrame.lookAt(ground, ground + Vector3.new(forward.X, 0, forward.Z))
-	local base = part({ Name = "BoostBase", Size = Vector3.new(8, 0.5, 10), CFrame = cf * CFrame.new(0, 0.15, 0), Color = Color3.fromRGB(26, 32, 48), Material = Enum.Material.Slate, Parent = pad })
-	for _, x in { -3.85, 3.85 } do
-		part({ Name = "BoostRail", Size = Vector3.new(0.3, 0.15, 10), CFrame = cf * CFrame.new(x, 0.45, 0), Color = BOOST, Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = pad })
+-- A circle of `count` bricks in the hoop's local XY plane.
+local function hoop(model: Model, centre: CFrame, radius: number, count: number, thickness: number, color: Color3, name: string)
+	local segment = 2 * math.pi * radius / count * 1.08
+	for i = 1, count do
+		local angle = (i - 0.5) / count * 2 * math.pi
+		part({
+			Name = name,
+			Size = Vector3.new(segment, thickness, thickness),
+			CFrame = centre * CFrame.Angles(0, 0, angle) * CFrame.new(0, radius, 0),
+			Color = color,
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			CanQuery = false,
+			CastShadow = false,
+			Parent = model,
+		})
 	end
-	-- Three chevrons ( > ) pointing along the trail; the client lights them in sequence.
-	for i = 1, 3 do
-		local z = 3 - (i - 1) * 3
-		for _, side in { -1, 1 } do
-			local chevron = part({
-				Name = "BoostChevron",
-				Size = Vector3.new(0.6, 0.12, 3.2),
-				CFrame = cf * CFrame.new(side * 1.05, 0.45, z) * CFrame.Angles(0, math.rad(side * 38), 0),
-				Color = BOOST,
-				Material = Enum.Material.Neon,
-				Transparency = 0.35,
-				CanCollide = false,
-				CanQuery = false,
-				CastShadow = false,
-				Parent = pad,
-			})
-			chevron:SetAttribute("Index", i)
-			CollectionService:AddTag(chevron, "BoostChevron")
-		end
-	end
-	-- Arch over the pad.
-	for _, x in { -4.4, 4.4 } do
-		part({ Name = "ArchPost", Size = Vector3.new(0.6, 6, 0.6), CFrame = cf * CFrame.new(x, 3, 3.5), Color = Color3.fromRGB(40, 46, 70), Material = Enum.Material.Metal, CanCollide = false, Parent = pad })
-	end
-	part({ Name = "ArchTop", Size = Vector3.new(9.4, 0.5, 0.6), CFrame = cf * CFrame.new(0, 6, 3.5), Color = BOOST, Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = pad })
-	local sparks = Instance.new("ParticleEmitter")
-	sparks.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-	sparks.Color = ColorSequence.new(BOOST)
-	sparks.LightEmission = 1
-	sparks.Size = NumberSequence.new(0.4, 0)
-	sparks.Lifetime = NumberRange.new(0.6, 1)
-	sparks.Rate = 10
-	sparks.Speed = NumberRange.new(3, 6)
-	sparks.EmissionDirection = Enum.NormalId.Top
-	sparks.SpreadAngle = Vector2.new(20, 20)
-	sparks.Parent = base
-	light(base, BOOST, 14, 1.2)
-	CollectionService:AddTag(base, "BoostPad")
-	return { Position = ground, Forward = Vector3.new(forward.X, 0, forward.Z).Unit }
 end
 
--- Drops boost pads every PadSpacing studs along each trail (outside the District and away
--- from water / bridges), plus a few hand-placed ones.
-local function buildBoostPads(parent: Instance, trails, groundAt, avoid)
+-- Sonic-style BOOST RING: a floating, spinning blue-and-gold hoop over a round glowing launch
+-- plate. Run through it from any side. The client spins it (tag "BoostRing") and bursts it
+-- when you take it.
+local function buildBoostRing(parent: Instance, ground: Vector3, rng: Random)
+	local model = Instance.new("Model")
+	model.Name = "BoostRing"
+	local centre = CFrame.new(ground + Vector3.new(0, RING_HEIGHT, 0)) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0)
+	local core = part({
+		Name = "Core",
+		Size = Vector3.new(0.2, 0.2, 0.2),
+		CFrame = centre,
+		Transparency = 1,
+		CanCollide = false,
+		CanQuery = false,
+		Parent = model,
+	})
+	model.PrimaryPart = core
+	hoop(model, centre, RING_RADIUS, 16, 0.75, BOOST, "Hoop")
+	hoop(model, centre, RING_RADIUS - 0.75, 12, 0.35, BOOST_GOLD, "Inner")
+	-- Faint portal film inside the hoop.
+	part({
+		Name = "Film",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.1, (RING_RADIUS - 0.9) * 2, (RING_RADIUS - 0.9) * 2),
+		CFrame = centre * CFrame.Angles(0, math.rad(90), 0),
+		Color = BOOST,
+		Material = Enum.Material.ForceField,
+		Transparency = 0.2,
+		CanCollide = false,
+		CanQuery = false,
+		CastShadow = false,
+		Parent = model,
+	})
+	local sparkle = Instance.new("ParticleEmitter")
+	sparkle.Name = "Sparkle"
+	sparkle.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	sparkle.Color = ColorSequence.new(BOOST, BOOST_GOLD)
+	sparkle.LightEmission = 1
+	sparkle.LightInfluence = 0
+	sparkle.Size = NumberSequence.new(0.5, 0)
+	sparkle.Lifetime = NumberRange.new(0.5, 0.9)
+	sparkle.Rate = 12
+	sparkle.Speed = NumberRange.new(1, 3)
+	sparkle.SpreadAngle = Vector2.new(180, 180)
+	sparkle.Parent = core
+	local burst = sparkle:Clone()
+	burst.Name = "Burst" -- emitted by the client when the ring is taken
+	burst.Rate = 0
+	burst.Size = NumberSequence.new(1.1, 0)
+	burst.Speed = NumberRange.new(14, 26)
+	burst.Lifetime = NumberRange.new(0.4, 0.7)
+	burst.Parent = core
+	light(core, BOOST, 16, 1.6)
+
+	-- Round launch plate on the ground.
+	local plateCf = CFrame.new(ground) * CFrame.Angles(0, 0, math.rad(90))
+	part({ Name = "Plate", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.4, 10, 10), CFrame = plateCf * CFrame.new(0.15, 0, 0), Color = Color3.fromRGB(22, 28, 46), Material = Enum.Material.Slate, Parent = model })
+	part({ Name = "PlateRim", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.42, 10.6, 10.6), CFrame = plateCf * CFrame.new(0.1, 0, 0), Color = BOOST, Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = model })
+	part({ Name = "PlateGlow", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.45, 5, 5), CFrame = plateCf * CFrame.new(0.15, 0, 0), Color = BOOST_GOLD, Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = model })
+
+	model:SetAttribute("Home", centre)
+	model.Parent = parent
+	CollectionService:AddTag(model, "BoostRing")
+	return { Position = ground }
+end
+
+local SURFACE_PARAMS = RaycastParams.new()
+SURFACE_PARAMS.IgnoreWater = false
+
+-- Open, flat, dry TERRAIN at (x, z) (not a roof, not water, not a cliff face), or nil.
+local function openGround(x: number, z: number): Vector3?
+	local centre = workspace:Raycast(Vector3.new(x, 300, z), Vector3.new(0, -360, 0), SURFACE_PARAMS)
+	if not centre or not centre.Instance:IsA("Terrain") or centre.Material == Enum.Material.Water or centre.Position.Y < 6 then
+		return nil
+	end
+	for _, offset in { Vector2.new(6, 0), Vector2.new(-6, 0), Vector2.new(0, 6), Vector2.new(0, -6) } do
+		local hit = workspace:Raycast(Vector3.new(x + offset.X, 300, z + offset.Y), Vector3.new(0, -360, 0), SURFACE_PARAMS)
+		if not hit or not hit.Instance:IsA("Terrain") or math.abs(hit.Position.Y - centre.Position.Y) > 2.5 then
+			return nil
+		end
+	end
+	return centre.Position
+end
+
+-- Returns { { Position } } for BoostService.
+-- Scatters boost rings at RANDOM spots over the Wilds - a new layout every server - spread
+-- across every region and kept apart from each other and from landmarks.
+function Adventure.BuildBoostRings(parent: Instance, avoid)
 	local cfg = GameConfig.Boost
-	local folderPads = folder("BoostPads", parent)
-	local pads = {}
-	for _, trail in trails do
-		local delta = Vector3.new(trail[2].X - trail[1].X, 0, trail[2].Z - trail[1].Z)
-		local unit = delta.Unit
-		for d = cfg.FirstPadDistance, delta.Magnitude - 25, cfg.PadSpacing do
-			local p = trail[1] + unit * d
-			local nearBridge = (Vector2.new(p.X, p.Z) - Vector2.new(120, 10)).Magnitude < 22
-			if not Zones.InSafeZone(p) and not nearBridge then
-				local ground = groundAt(p.X, p.Z)
-				if ground.Y > 5 then
-					table.insert(pads, buildBoostPad(folderPads, ground, unit))
-					table.insert(avoid, { Vector2.new(p.X, p.Z), 9 })
+	local rng = Random.new()
+	local folderRings = folder("BoostRings", parent)
+	local rings = {}
+	local perArea: { [string]: number } = {}
+	local districtCentre = WorldLayout.District.Center
+	for _ = 1, cfg.Count * 80 do
+		if #rings >= cfg.Count then
+			break
+		end
+		local angle = rng:NextNumber(0, 2 * math.pi)
+		local distance = math.sqrt(rng:NextNumber()) * cfg.MaxDistance
+		local x, z = math.cos(angle) * distance, math.sin(angle) * distance
+		local flat = Vector2.new(x, z)
+		local probe = Vector3.new(x, 10, z)
+		local area = Zones.AreaId(probe)
+		local ok = (flat - Vector2.new(districtCentre.X, districtCentre.Z)).Magnitude > GameConfig.SafeZone.Radius + 20
+			and (perArea[area] or 0) < cfg.MaxPerArea
+		if ok then
+			for _, ring in rings do
+				if (Vector2.new(ring.Position.X, ring.Position.Z) - flat).Magnitude < cfg.MinSpacing then
+					ok = false
+					break
 				end
 			end
 		end
+		if ok then
+			for _, entry in avoid do
+				if (entry[1] - flat).Magnitude < entry[2] + 8 then
+					ok = false
+					break
+				end
+			end
+		end
+		local ground = if ok then openGround(x, z) else nil
+		if ground then
+			perArea[area] = (perArea[area] or 0) + 1
+			table.insert(rings, buildBoostRing(folderRings, ground, rng))
+			table.insert(avoid, { flat, 9 })
+		end
 	end
-	return pads
+	if #rings < cfg.Count then
+		warn(("[Adventure] placed %d of %d boost rings"):format(#rings, cfg.Count))
+	end
+	return rings
 end
 
 -- LAUNCH GEYSERS ----------------------------------------------------------------------
@@ -272,17 +357,17 @@ local function buildGeyser(parent: Instance, info, groundAt, avoid)
 	table.insert(avoid, { Vector2.new(ground.X, ground.Z), 10 })
 end
 
--- Returns { Avoid = {...}, BoostPads = { { Position, Forward } } }.
-function Adventure.Build(terrain: Terrain, parent: Instance, rng: Random, groundAt, trails)
+-- Returns { Avoid = {...} }. The boost rings are placed last (Adventure.BuildBoostRings), once
+-- everything else stands, so they land in open clearings.
+function Adventure.Build(terrain: Terrain, parent: Instance, rng: Random, groundAt)
 	local root = folder("Adventure", parent)
 	local avoid = {}
 	buildMarsh(terrain, root, rng, avoid)
 	buildFrost(root, rng, avoid, groundAt)
-	local pads = buildBoostPads(root, trails, groundAt, avoid)
 	for _, info in WorldLayout.LaunchPads do
 		buildGeyser(root, info, groundAt, avoid)
 	end
-	return { Avoid = avoid, BoostPads = pads }
+	return { Avoid = avoid }
 end
 
 return Adventure
