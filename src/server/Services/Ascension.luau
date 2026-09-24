@@ -66,7 +66,7 @@ end
 
 function Ascension.Init(altarPrompt: ProximityPrompt)
 	altarPrompt.Triggered:Connect(function(player)
-		Net.Fire("OpenMenu", player, { Menu = "Ascension" })
+		Net.Fire("OpenMenu", player, { Menu = "Ascension", Anchor = (altarPrompt.Parent :: BasePart).Position })
 	end)
 	Net.On("Ascend", onAscend, 1)
 end

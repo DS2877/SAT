@@ -80,13 +80,21 @@ function Vault.Build(root: Frame, controller)
 		local def = id and Treasures.Get(id)
 		local frame = Kit.panel({ LayoutOrder = slot, BackgroundColor3 = Theme.Color.PanelLight, Parent = grid }, { Kit.padding(6) })
 		if not def then
+			frame.BackgroundTransparency = 0.55
 			Kit.label({ Text = ("PEDESTAL %d"):format(slot), Size = UDim2.new(1, 0, 0, 20), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.TextDim, Parent = frame })
-			Kit.label({ Text = "EMPTY\nExtract a treasure to fill it", Position = UDim2.fromOffset(0, 30), Size = UDim2.new(1, 0, 0, 50), Font = Theme.Font.Bold, TextSize = Theme.TextSize.Small, TextColor3 = Theme.Color.TextDim, Parent = frame })
+			Kit.label({ Text = "+", Position = UDim2.fromOffset(0, 22), Size = UDim2.new(1, 0, 0, 40), Font = Theme.Font.Display, TextSize = 38, TextColor3 = Theme.Color.TextDim, Parent = frame })
+			Kit.label({ Text = "Extract a treasure to fill it", Position = UDim2.fromOffset(0, 66), Size = UDim2.new(1, 0, 0, 34), Font = Theme.Font.Bold, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.TextDim, Parent = frame })
 			return
 		end
 		local info = Rarities.Info[def.Rarity]
 		local mutationInfo = Mutations.Get(mutation)
-		Kit.stroke(info.Color, 2, 0.2).Parent = frame
+		Kit.stroke(info.Color, 2.5, 0.05).Parent = frame
+		-- Rarity glow: tinted from the top, fading into the card.
+		Kit.new("UIGradient", {
+			Rotation = 90,
+			Color = ColorSequence.new(Color3.new(1, 1, 1):Lerp(info.Color, 0.55), Color3.new(1, 1, 1)),
+			Parent = frame,
+		})
 		Kit.label({
 			Text = if mutationInfo then mutation :: string else " ",
 			Size = UDim2.new(1, 0, 0, 14),

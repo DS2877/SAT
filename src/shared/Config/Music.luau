@@ -13,6 +13,7 @@
 local Music = {}
 
 Music.Volume = 0.35 -- master music volume (players can mute in the HUD)
+Music.PlaylistVolume = 0.75 -- background tracks sit 25% under the master volume
 Music.CrossfadeSeconds = 1.5
 Music.Shuffle = true
 
@@ -35,7 +36,8 @@ Music.Playlist = {
 
 -- Grieg's "In the Hall of the Mountain King" (APM library recording). Our own upload of it,
 -- rbxassetid://97301792132141 (Musopen, approved), is the fallback if you ever want to switch.
-Music.CarryTheme = { Name = "In the Hall of the Mountain King", Id = "rbxassetid://1843564372" }
+-- Volume 1.1 = 10% louder than a normal track; StartAt skips the quiet intro (loops too).
+Music.CarryTheme = { Name = "In the Hall of the Mountain King", Id = "rbxassetid://1843564372", Volume = 1.1, StartAt = 15 }
 
 Music.SuccessSting = { Name = "Extraction Fanfare", Id = "rbxassetid://116829871483507", Volume = 0.9 }
 Music.FailSting = { Name = "Lost It", Id = "rbxassetid://97318551187594", Volume = 0.9 }

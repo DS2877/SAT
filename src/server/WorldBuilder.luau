@@ -622,8 +622,8 @@ local function buildShop(district: Folder)
 	for i, colorValue in { Color3.fromRGB(255, 120, 60), Color3.fromRGB(255, 70, 90), Color3.fromRGB(150, 220, 255) } do
 		part({ Name = "Display", Shape = Enum.PartType.Ball, Size = Vector3.new(2, 2, 2), CFrame = facing * CFrame.new(-5 + (i - 1) * 5, 6, 0), Color = colorValue, Material = Enum.Material.Neon, Parent = shop })
 	end
-	billboardSign(counter, "GADGET SHOP", "Toys for escapes & chaos", C.Teal, 160, 12, 14)
-	return prompt(counter, "Browse", "Gadget Shop", 0)
+	billboardSign(counter, "🛒 GADGET SHOP", "Buy & equip your gadgets HERE", C.Teal, 160, 12, 14)
+	return prompt(counter, "Buy & Equip", "Gadget Shop", 0)
 end
 
 local function buildAscensionAltar(district: Folder)
@@ -703,12 +703,14 @@ local function buildVaultPlots(district: Folder)
 		plotFolder:SetAttribute("VaultCenter", (cf * CFrame.new(0, 0.6, 0)).Position)
 		local terminal = part({ Name = "Terminal", Size = Vector3.new(2.2, 3.4, 2.2), CFrame = cf * CFrame.new(-8.5, 2.3, -half + 1.5), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
 		part({ Name = "TerminalScreen", Size = Vector3.new(1.8, 1.2, 0.2), CFrame = cf * CFrame.new(-8.5, 3.6, -half + 0.35) * CFrame.Angles(math.rad(-20), 0, 0), Color = Color3.fromRGB(120, 220, 255), Material = Enum.Material.Neon, CanCollide = false, Parent = plotFolder })
+		-- Vault management (sell, upgrade) only happens here, at your own terminal.
+		billboardSign(terminal, "🏆 MANAGE VAULT", "Sell • Upgrade", C.Gold, 45, 3.2, 7)
 		local displays = folder("Displays", plotFolder)
 		table.insert(plots, {
 			Index = i,
 			CFrame = cf * CFrame.new(0, 0.6, 0), -- floor surface
 			Sign = signLabel,
-			Prompt = prompt(terminal, "Edit Vault", "Vault", 0),
+			Prompt = prompt(terminal, "Manage Vault", "Sell • Upgrade", 0),
 			Displays = displays,
 			Owner = nil,
 		})

@@ -1,4 +1,5 @@
--- Gadget shop: BUY -> OWNED -> EQUIP to slot 1/2/3. No upgrade trees.
+-- Gadget shop (opened at the shop counter in the District): BUY -> OWNED -> EQUIP to slot
+-- 1/2/3. No upgrade trees.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -32,7 +33,31 @@ function Shop.Build(root: Frame)
 			BackgroundColor3 = Theme.Color.PanelLight,
 			Parent = scroller,
 		})
-		Kit.label({ Text = def.Icon, Position = UDim2.fromOffset(8, 0), Size = UDim2.fromOffset(80, 96), TextSize = 48, Parent = row })
+		-- Role colour: blue = escape tools (usable while carrying), orange = chaser tools.
+		local roleColor = if def.CanUseWhileCarrying then Color3.fromRGB(70, 170, 255) else Color3.fromRGB(255, 140, 60)
+		Kit.new("UIGradient", {
+			Rotation = 0,
+			Color = ColorSequence.new(Color3.new(1, 1, 1):Lerp(roleColor, 0.35), Color3.new(1, 1, 1)),
+			Parent = row,
+		})
+		local stroke = row:FindFirstChildOfClass("UIStroke")
+		if stroke then
+			stroke.Color = roleColor
+			stroke.Transparency = 0.45
+			stroke.Thickness = 2
+		end
+		local badge = Kit.new("Frame", {
+			AnchorPoint = Vector2.new(0, 0.5),
+			Position = UDim2.new(0, 10, 0.5, 0),
+			Size = UDim2.fromOffset(72, 72),
+			BackgroundColor3 = roleColor,
+			Parent = row,
+		}, {
+			Kit.corner(Theme.Radius.Round),
+			Kit.new("UIGradient", { Rotation = 90, Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(150, 150, 150)) }),
+		})
+		Kit.new("UIStroke", { Color = Color3.new(1, 1, 1), Thickness = 2, Transparency = 0.3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = badge })
+		Kit.label({ Text = def.Icon, Size = UDim2.fromScale(1, 1), TextSize = 40, Parent = badge })
 		Kit.label({ Text = def.Name:upper(), Position = UDim2.fromOffset(92, 10), Size = UDim2.new(0.5, -92, 0, 26), Font = Theme.Font.Display, TextSize = 24, TextXAlignment = Enum.TextXAlignment.Left, Parent = row })
 		local carryText = if def.CanUseWhileCarrying then "✔ usable while carrying" else "✖ not while carrying"
 		Kit.label({
@@ -119,9 +144,11 @@ function Shop.Build(root: Frame)
 			else
 				local affordable = data.Cash >= def.Price
 				row.Price.Text = Kit.formatCash(def.Price)
-				row.Price.TextColor3 = if affordable then Theme.Color.Cash else Theme.Color.Danger
+				row.Price.TextColor3 = if affordable then Theme.Color.Cash else Theme.Color.TextDim
 				row.Buy.Visible = true
-				row.Buy.BackgroundColor3 = if affordable then Theme.Color.Button else Theme.Color.Disabled
+				row.Buy.BackgroundColor3 = if affordable then Theme.Color.Safe else Theme.Color.Disabled
+				row.Buy.TextColor3 = if affordable then Color3.fromRGB(10, 40, 16) else Theme.Color.TextDim
+				row.Buy.Text = if affordable then "BUY" else ("NEED %s"):format(Kit.shortCash(def.Price - data.Cash))
 				row.EquipRow.Visible = false
 			end
 		end

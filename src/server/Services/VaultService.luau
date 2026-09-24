@@ -611,7 +611,7 @@ function VaultService.Init(builtPlots)
 	for _, plot in plots do
 		plot.Prompt.Triggered:Connect(function(player)
 			if plot.Owner == player then
-				Net.Fire("OpenMenu", player, { Menu = "Vault" })
+				Net.Fire("OpenMenu", player, { Menu = "Vault", Anchor = (plot.Prompt.Parent :: BasePart).Position })
 			elseif plot.Owner then
 				Net.Fire("Notify", player, {
 					Kind = "Toast",

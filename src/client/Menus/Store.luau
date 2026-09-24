@@ -19,6 +19,13 @@ local Store = {}
 local player = Players.LocalPlayer
 local ROBUX = "R$"
 
+-- Ribbons on the highlights of the store.
+local BADGES = {
+	DoubleCash = { Text = "⭐ BEST SELLER", Color = Color3.fromRGB(240, 150, 20) },
+	TreasureRain = { Text = "🔥 POPULAR", Color = Color3.fromRGB(230, 70, 90) },
+	CashLarge = { Text = "💎 BEST VALUE", Color = Color3.fromRGB(60, 170, 90) },
+}
+
 function Store.Build(root: Frame)
 	local scroller = Kit.new("ScrollingFrame", {
 		Size = UDim2.fromScale(1, 1),
@@ -65,6 +72,26 @@ function Store.Build(root: Frame)
 
 	local function row(kind: string, key: string, item)
 		local frame = Kit.panel({ LayoutOrder = nextOrder(), Size = UDim2.new(1, -8, 0, 74), BackgroundColor3 = Theme.Color.PanelLight, Parent = scroller })
+		local tint = if kind == "Pass" then Color3.fromRGB(255, 200, 60) elseif item.Kind == "ServerEvent" then Color3.fromRGB(230, 80, 200) else Color3.fromRGB(80, 200, 120)
+		Kit.new("UIGradient", { Color = ColorSequence.new(Color3.new(1, 1, 1):Lerp(tint, 0.3), Color3.new(1, 1, 1)), Parent = frame })
+		local frameStroke = frame:FindFirstChildOfClass("UIStroke")
+		if frameStroke then
+			frameStroke.Color = tint
+			frameStroke.Transparency = 0.5
+			frameStroke.Thickness = 2
+		end
+		local ribbon = BADGES[key]
+		if ribbon then
+			local tag = Kit.new("Frame", {
+				AnchorPoint = Vector2.new(1, 0),
+				Position = UDim2.new(1, -150, 0, -6),
+				Size = UDim2.fromOffset(112, 20),
+				BackgroundColor3 = ribbon.Color,
+				ZIndex = 3,
+				Parent = frame,
+			}, { Kit.corner(Theme.Radius.Round) })
+			Kit.label({ Text = ribbon.Text, Size = UDim2.fromScale(1, 1), Font = Theme.Font.Black, TextSize = 11, TextColor3 = Color3.new(1, 1, 1), ZIndex = 4, Parent = tag })
+		end
 		Kit.label({ Text = item.Icon, Position = UDim2.fromOffset(6, 0), Size = UDim2.fromOffset(64, 74), TextSize = 40, Parent = frame })
 		Kit.label({ Text = item.Name:upper(), Position = UDim2.fromOffset(74, 8), Size = UDim2.new(1, -220, 0, 24), Font = Theme.Font.Display, TextSize = 21, TextXAlignment = Enum.TextXAlignment.Left, Parent = frame })
 		local description = item.Description

@@ -133,6 +133,17 @@ function Kit.button(props, onClick: (() -> ())?): TextButton
 	end
 	local button = Kit.new("TextButton", defaults)
 	Kit.corner(props.Radius or Theme.Radius.Medium).Parent = button
+	-- Gloss: lighter at the top, a touch darker at the bottom (works with any colour).
+	Kit.new("UIGradient", {
+		Name = "Gloss",
+		Rotation = 90,
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+			ColorSequenceKeypoint.new(0.55, Color3.fromRGB(235, 235, 235)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(190, 190, 190)),
+		}),
+		Parent = button,
+	})
 	local scale = Kit.new("UIScale", { Parent = button })
 	button.MouseButton1Down:Connect(function()
 		Kit.tween(scale, Theme.Motion.Fast, { Scale = 0.92 })

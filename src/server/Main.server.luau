@@ -53,7 +53,7 @@ PlayerData.Loaded:Connect(function(player)
 end)
 
 world.ShopPrompt.Triggered:Connect(function(player)
-	Net.Fire("OpenMenu", player, { Menu = "Shop" })
+	Net.Fire("OpenMenu", player, { Menu = "Shop", Anchor = (world.ShopPrompt.Parent :: BasePart).Position })
 end)
 
 -- Player preferences. Only known boolean settings are accepted.

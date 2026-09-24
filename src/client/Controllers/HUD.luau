@@ -168,10 +168,12 @@ local function buildMenuButtons()
 		BackgroundTransparency = 1,
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 12, 0.62, 0),
-		Size = UDim2.fromOffset(64, 300),
+		Size = UDim2.fromOffset(64, 160),
 		Parent = gui,
 	}, { Kit.list(Enum.FillDirection.Vertical, 10, Enum.HorizontalAlignment.Left) })
-	for i, entry in { { "Collection", "📖" }, { "Vault", "🏆" }, { "Shop", "🛒" }, { "Store", "💎" } } do
+	-- Vault and Gadget Shop are NOT here on purpose: you manage them at your Vault terminal and
+	-- the shop counter in the District.
+	for i, entry in { { "Collection", "📖" }, { "Store", "💎" } } do
 		local button = Kit.button({
 			Name = entry[1],
 			Text = "",
@@ -963,9 +965,8 @@ function HUD.UseGadget(slot: number)
 	end
 	local id = data.EquippedGadgets[slot]
 	if not id or id == "" then
-		if HUD.OpenMenu then
-			HUD.OpenMenu("Shop")
-		end
+		-- Empty slot: gadgets are bought and equipped at the shop counter, not from anywhere.
+		HUD.ShowStatus("GET GADGETS AT THE 🛒 GADGET SHOP", nil, Theme.Color.Info, 2)
 		return
 	end
 	local def = Gadgets.Get(id)

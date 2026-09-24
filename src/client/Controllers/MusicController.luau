@@ -44,15 +44,27 @@ local function valid(track): boolean
 	return type(track) == "table" and type(track.Id) == "string" and track.Id ~= ""
 end
 
-local function makeSound(track, looped: boolean): Sound
+-- `volume`: the level this track fades up to (per-track mix under the master volume).
+local function makeSound(track, looped: boolean, volume: number?): Sound
 	local sound = Instance.new("Sound")
 	sound.Name = "Music_" .. tostring(track.Name or "Track")
 	sound.SoundId = track.Id
 	sound.Looped = looped
 	sound.Volume = 0
 	sound.SoundGroup = group
+	sound:SetAttribute("TargetVolume", volume or track.Volume or 1)
+	if track.StartAt then
+		-- Skip the intro, also on every loop.
+		sound.PlaybackRegionsEnabled = true
+		sound.PlaybackRegion = NumberRange.new(track.StartAt, 100000)
+		sound.LoopRegion = NumberRange.new(track.StartAt, 100000)
+	end
 	sound.Parent = SoundService
 	return sound
+end
+
+local function targetOf(sound: Sound): number
+	return tonumber(sound:GetAttribute("TargetVolume")) or 1
 end
 
 local function fade(sound: Sound, volume: number, andThen: (() -> ())?)
@@ -128,7 +140,7 @@ playNext = function()
 	end
 	chosen.TimePosition = 0
 	chosen:Play()
-	fade(chosen, 1)
+	fade(chosen, targetOf(chosen))
 end
 
 local function startCarry()
@@ -156,7 +168,7 @@ local function startCarry()
 	local sound = makeSound(track, true)
 	carrySound = sound
 	sound:Play()
-	fade(sound, 1)
+	fade(sound, targetOf(sound))
 end
 
 local function stopCarry()
@@ -175,7 +187,7 @@ local function stopCarry()
 		if not current.IsPlaying then
 			current:Resume()
 		end
-		fade(current, 1)
+		fade(current, targetOf(current))
 	else
 		playNext()
 	end
@@ -230,7 +242,7 @@ function MusicController.Init()
 
 	for _, track in Music.Playlist do
 		if valid(track) then
-			local sound = makeSound(track, false)
+			local sound = makeSound(track, false, Music.PlaylistVolume * (track.Volume or 1))
 			sound.Ended:Connect(playNext)
 			table.insert(playlist, sound)
 		end

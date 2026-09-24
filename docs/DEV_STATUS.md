@@ -7,6 +7,11 @@
   5 passes, 6 products (incl. server-wide Treasure Rain / Gold Rush gifts), free boosts
   (friends, Premium, group, daily streak). Pass/product ids still 0 until created on Roblox.
 
+- Menus restyled (accent header band per menu, glossy buttons, rarity-tinted Vault cards, store
+  ribbons). Gadget Shop, Vault management and Ascension open ONLY at their place in the world
+  (shop counter, your Vault terminal, the altar) and close when you walk away.
+- Music mix: playlist 25% under master; Mountain King +10% and starts 15 s in (also on loop).
+
 ## CURRENT PHASE
 Roadmap phase 1 — STABILISE the current build (see docs/ROADMAP.md). No big new features
 until the whole core loop passes the mobile checklist (docs/PLAYTEST_CHECKLIST.md).
