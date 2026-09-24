@@ -57,7 +57,8 @@
       "name": "Danse Macabre",
       "composer": "Camille Saint-Saens",
       "query": "Danse macabre Saint-Saens",
-      "file": "File:Saint-Saëns - Danse macabre (Fourestier, 1953).flac"
+      "file": "File:Saint-Saëns - Danse macabre (Fourestier, 1953).flac",
+      "assetId": "111142441082336"
     },
     {
       "key": "bumblebee",
@@ -65,7 +66,8 @@
       "name": "Flight of the Bumblebee",
       "composer": "Nikolai Rimsky-Korsakov",
       "query": "Flight of the Bumblebee",
-      "file": "File:Jaan Patterson - 02 - The Flight of the Bumblebee Nikolai Andrejewitsch Rimski-Korsakow.ogg"
+      "file": "File:Jaan Patterson - 02 - The Flight of the Bumblebee Nikolai Andrejewitsch Rimski-Korsakow.ogg",
+      "assetId": "106049612353448"
     },
     {
       "key": "turca",
@@ -73,7 +75,8 @@
       "name": "Rondo alla Turca",
       "composer": "Wolfgang Amadeus Mozart",
       "query": "Mozart Rondo alla Turca",
-      "file": "File:Rondo Alla Turka.ogg"
+      "file": "File:Rondo Alla Turka.ogg",
+      "assetId": "109763529271338"
     },
     {
       "key": "elise",
@@ -81,7 +84,8 @@
       "name": "Fur Elise",
       "composer": "Ludwig van Beethoven",
       "query": "Beethoven Fur Elise",
-      "file": "File:FurElise.ogg"
+      "file": "File:FurElise.ogg",
+      "assetId": "90914907253072"
     },
     {
       "key": "minute",
@@ -89,7 +93,8 @@
       "name": "Minute Waltz",
       "composer": "Frederic Chopin",
       "query": "Chopin Minute Waltz 64",
-      "file": "File:Chopin - Waltz No. 6 in D-flat major, Op. 64, No. 1 'Minute' (Olga Gurevich).flac"
+      "file": "File:Chopin - Waltz No. 6 in D-flat major, Op. 64, No. 1 'Minute' (Olga Gurevich).flac",
+      "assetId": "127639660640379"
     },
     {
       "key": "entertainer",
@@ -97,7 +102,8 @@
       "name": "The Entertainer",
       "composer": "Scott Joplin",
       "query": "Joplin The Entertainer",
-      "file": "File:Scott Joplin - 04 - The Entertainer 1902 piano roll.mp3"
+      "file": "File:Scott Joplin - 04 - The Entertainer 1902 piano roll.mp3",
+      "assetId": "102817718772248"
     }
   ]
 }

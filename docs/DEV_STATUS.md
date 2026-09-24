@@ -24,6 +24,9 @@ awaiting the phase-1 mobile playtest.
   region gates with danger stars + recommended strength, discovery rewards (Services/Exploration),
   secrets (Old Mine tunnel, Sky Ruins parkour, Catacombs) with hidden spawn points, balloon + smoke
   extraction markers
+- Music: public-domain classical playlist (Grieg, Tchaikovsky, Saint-Saens, Mozart, Beethoven,
+  Chopin, Joplin), "In the Hall of the Mountain King" while carrying, original success/fail
+  stings; fetched + uploaded by .github/workflows/music.yml (credits in music/CREDITS.md)
 - Gadget framework (3 slots, server cooldowns): Speed Soda, Balloon, Bubble Blaster
 - Physical Vault with pedestals that earn $/s, sell, tier upgrades; Ascension
 - HUD (stats, objective/next treasure, carried treasure, nav arrow, extraction bar, danger states, action cluster),

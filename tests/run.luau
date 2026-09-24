@@ -351,6 +351,16 @@ test("music config is well-formed", function()
 		check(track.Id == "" or track.Id:match("^rbxassetid://%d+$") ~= nil, "asset id format " .. tostring(track.Id))
 	end
 	check(type(Music.CarryTheme) == "table" and type(Music.CarryTheme.Id) == "string", "carry theme slot exists")
+	for _, slot in { "CarryTheme", "SuccessSting", "FailSting" } do
+		local track = (Music :: any)[slot]
+		check(type(track) == "table" and track.Id:match("^rbxassetid://%d+$") ~= nil, slot .. " has a real asset id")
+	end
+	check(#Music.Playlist >= 5, "playlist has enough variety")
+	local seen = {}
+	for _, track in Music.Playlist do
+		check(not seen[track.Id], "no duplicate playlist track: " .. track.Name)
+		seen[track.Id] = true
+	end
 end)
 
 test("collection sets and special treasures have a purpose", function()
