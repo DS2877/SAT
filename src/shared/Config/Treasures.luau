@@ -69,8 +69,15 @@ Treasures.List = {
 	{ Id = "spore_scepter", Name = "Spore Queen's Scepter", Rarity = "Epic", Value = 22000, Weight = 1400, SpawnArea = "Marsh", Shape = "Trident", Color = { 190, 90, 255 }, Material = "Neon", DisplaySize = "Medium", Lore = "One wave and the whole bog glows." },
 	{ Id = "moonshroom", Name = "Moonshroom", Rarity = "Legendary", Value = 80000, Weight = 2200, SpawnArea = "Marsh", Shape = "Egg", Color = { 150, 190, 255 }, Material = "Neon", DisplaySize = "Large", SpecialEffect = "Nocturnal", Lore = "Only blooms under the moon - and so does its price." },
 
+	-- DIVINE ($1,000,000-2,000,000)
+	{ Id = "aurora_crystal", Name = "Aurora Crystal", Rarity = "Divine", Value = 1200000, Weight = 5000, SpawnArea = "Frost", Shape = "Gem", Color = { 0, 229, 255 }, Material = "Neon", DisplaySize = "Large", Lore = "The northern lights, frozen mid-dance." },
+	{ Id = "seraph_feather", Name = "Seraph Feather", Rarity = "Divine", Value = 1600000, Weight = 3000, SpawnArea = "Falls", Shape = "Feather", Color = { 180, 250, 255 }, Material = "Neon", DisplaySize = "Large", SpecialEffect = "Swift", Lore = "Fell from somewhere much higher than the cliff." },
+
 	-- SECRET ($1,000,000+)
 	{ Id = "heart_of_the_island", Name = "Heart of the Island", Rarity = "Secret", Value = 2500000, Weight = 4000, SpawnArea = "Falls", Shape = "Orb", Color = { 255, 255, 255 }, Material = "Neon", DisplaySize = "Large", SpecialEffect = "Radiant", Lore = "They said it was a myth." },
+
+	-- OG ($5,000,000+) - the rarest thing on the island
+	{ Id = "first_doubloon", Name = "The First Doubloon", Rarity = "OG", Value = 5000000, Weight = 3500, SpawnArea = "Falls", Shape = "Disc", Color = { 255, 215, 0 }, Material = "Metal", DisplaySize = "Large", SpecialEffect = "Radiant", Lore = "The coin that started every treasure hunt. There is only one." },
 }
 
 Treasures.ById = {}

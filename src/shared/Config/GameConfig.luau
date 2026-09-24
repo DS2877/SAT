@@ -155,14 +155,18 @@ GameConfig.Treasure = {
 		Epic = 6,
 		Legendary = 1.6,
 		Mythic = 0.35,
+		Divine = 0.12,
 		Secret = 0.05,
+		OG = 0.012,
 	},
 	-- Max simultaneously active treasures of a rarity (server-wide). Keeps rare treasures rare.
 	RarityCaps = {
 		Epic = 2,
 		Legendary = 1,
 		Mythic = 1,
+		Divine = 1,
 		Secret = 1,
+		OG = 1,
 	},
 	-- Rarities announced to the whole server when picked up/stolen/extracted.
 	BroadcastMinRarity = "Epic",

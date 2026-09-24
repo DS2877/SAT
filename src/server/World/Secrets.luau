@@ -354,7 +354,7 @@ local function buildGrotto(terrain: Terrain, parent: Folder)
 		end
 	end
 	return {
-		Spawn = { Area = "Frost", Position = Vector3.new(c.X - 2, 12, c.Z), MinRarity = "Epic", MaxRarity = "Legendary", Secret = "frozen_grotto" },
+		Spawn = { Area = "Frost", Position = Vector3.new(c.X - 2, 12, c.Z), MinRarity = "Epic", MaxRarity = "Divine", Secret = "frozen_grotto" },
 		Avoid = { Vector2.new(c.X, c.Z), 34 },
 	}
 end

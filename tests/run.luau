@@ -21,7 +21,7 @@ DayNight.Use(GameConfig)
 Lifting.Use(GameConfig)
 local TerrainGen = require("../src/server/World/TerrainGen")
 
-local RARITY_ORDER = { "Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Secret" }
+local RARITY_ORDER = { "Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Divine", "Secret", "OG" }
 
 local passed, failed = 0, 0
 local currentTest = ""
@@ -366,7 +366,9 @@ test("vault income by rarity follows the genre ranges and mutations multiply it"
 		Epic = { 75, 500 },
 		Legendary = { 200, 2500 },
 		Mythic = { 2500, 20000 },
+		Divine = { 10000, 25000 },
 		Secret = { 10000, 100000 },
+		OG = { 40000, 200000 },
 	}
 	for _, def in Treasures.List do
 		local income = Economy.Income(def)
@@ -740,6 +742,37 @@ test("corrupt values are sanitised", function()
 end)
 
 -- CONTENT INVARIANTS -----------------------------------------------------------------
+test("rarity palette + every tier can spawn", function()
+	local source = require("@lune/fs").readFile("src/shared/Config/Rarities.luau")
+	local palette = {
+		Common = "#9E9E9E",
+		Uncommon = "#4CAF50",
+		Rare = "#2196F3",
+		Epic = "#9C27B0",
+		Legendary = "#FFC107",
+		Mythic = "#F44336",
+		Divine = "#00E5FF",
+		Secret = "#111111",
+		OG = "#FFD700",
+	}
+	for rarity, code in palette do
+		check(source:find(code, 1, true) ~= nil, "palette colour " .. rarity)
+	end
+	check(source:find('"Divine", "Secret", "OG" }', 1, true) ~= nil, "rarity order ends Divine > Secret > OG")
+	local weights = GameConfig.Treasure.RarityWeights
+	for i, rarity in RARITY_ORDER do
+		check((weights[rarity] or 0) > 0, "spawn weight " .. rarity)
+		if i > 1 then
+			check(weights[rarity] < weights[RARITY_ORDER[i - 1]], "rarer tier spawns less often " .. rarity)
+		end
+		local found = false
+		for _, def in Treasures.List do
+			found = found or def.Rarity == rarity
+		end
+		check(found, "at least one treasure of " .. rarity)
+	end
+end)
+
 test("30 treasures with unique ids and spec economy ranges", function()
 	check(#Treasures.List >= 34, "30 MVP treasures + the purposeful phase-4 additions")
 	local ranges = {
@@ -763,8 +796,12 @@ test("30 treasures with unique ids and spec economy ranges", function()
 		if r then
 			check(def.Value >= r[1] and def.Value <= r[2], "value in range " .. def.Id)
 			check(def.Weight >= r[3] and def.Weight <= r[4], "weight in range " .. def.Id)
+		elseif def.Rarity == "Divine" then
+			check(def.Value >= 1000000 and def.Value <= 2000000, "divine is $1-2M " .. def.Id)
 		elseif def.Rarity == "Secret" then
 			check(def.Value >= 1000000, "secret is $1M+")
+		elseif def.Rarity == "OG" then
+			check(def.Value >= 5000000, "OG is $5M+")
 		else
 			check(false, "unknown rarity " .. def.Rarity)
 		end

@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
+local TreasureLabel = require(Shared.TreasureLabel)
 local Rarities = require(Shared.Config.Rarities)
 local Treasures = require(Shared.Config.Treasures)
 local Regions = require(Shared.Config.Regions)
@@ -138,7 +139,7 @@ function Collection.Build(root: Frame)
 			local vp = viewport(def, discovered)
 			vp.Position = UDim2.fromOffset(0, 4)
 			vp.Parent = frame
-			Kit.label({
+			local rarityLabel = Kit.label({
 				Text = ("%s %s"):format(Rarities.PipString(def.Rarity), def.Rarity:upper()),
 				Position = UDim2.fromOffset(0, 100),
 				Size = UDim2.new(1, 0, 0, 16),
@@ -147,6 +148,7 @@ function Collection.Build(root: Frame)
 				TextColor3 = info.Color,
 				Parent = frame,
 			})
+			TreasureLabel.StyleRarity(rarityLabel, def.Rarity)
 			Kit.label({
 				Text = if discovered then def.Name else "???",
 				Position = UDim2.fromOffset(6, 116),

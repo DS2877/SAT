@@ -139,7 +139,7 @@ WorldLayout.TreasureSpawns = {
 	{ Area = "Frost", Position = Vector3.new(-330, 10, 205), MinRarity = "Common", MaxRarity = "Rare" },
 	{ Area = "Frost", Position = Vector3.new(-290, 10, 250), MinRarity = "Uncommon", MaxRarity = "Epic" },
 	{ Area = "Frost", Position = Vector3.new(-240, 10, 300), MinRarity = "Rare", MaxRarity = "Epic" },
-	{ Area = "Frost", Position = Vector3.new(-345, 10, 300), MinRarity = "Rare", MaxRarity = "Legendary" },
+	{ Area = "Frost", Position = Vector3.new(-345, 10, 300), MinRarity = "Rare", MaxRarity = "Divine" },
 	-- Glowshroom Marsh
 	{ Area = "Marsh", Position = Vector3.new(220, 10, 130), MinRarity = "Common", MaxRarity = "Uncommon" },
 	{ Area = "Marsh", Position = Vector3.new(300, 10, 120), MinRarity = "Common", MaxRarity = "Rare" },
@@ -148,8 +148,8 @@ WorldLayout.TreasureSpawns = {
 	{ Area = "Marsh", Position = Vector3.new(290, 10, 250), MinRarity = "Rare", MaxRarity = "Legendary" },
 	-- The Falls (waterfall, cliff top, hidden cave)
 	{ Area = "Falls", Position = Vector3.new(-58, 10, -282), MinRarity = "Epic", MaxRarity = "Legendary" },
-	{ Area = "Falls", Position = Vector3.new(-12, 10, -340), MinRarity = "Epic", MaxRarity = "Secret", RayFrom = 26 },
-	{ Area = "Falls", Position = Vector3.new(-40, 91, -345), MinRarity = "Epic", MaxRarity = "Mythic" },
+	{ Area = "Falls", Position = Vector3.new(-12, 10, -340), MinRarity = "Epic", MaxRarity = "OG", RayFrom = 26 },
+	{ Area = "Falls", Position = Vector3.new(-40, 91, -345), MinRarity = "Epic", MaxRarity = "Divine" },
 }
 
 -- Open areas where events (Treasure Rain, ...) take place.

@@ -2,7 +2,7 @@
 --
 --     Gold            <- mutation (only when mutated), in the mutation colour / rainbow
 --   Golden Crown      <- name, white
---    Legendary        <- rarity, in the rarity colour (Secret: black text, white outline)
+--    Legendary        <- rarity, in the rarity colour (Secret / OG: animated gradient)
 --     $1,500/s        <- income, green
 --
 -- Chunky cartoon font with thick black outlines, fixed pixel size, and it only appears when
@@ -13,7 +13,12 @@ local Treasures = require(script.Parent.Config.Treasures)
 local Mutations = require(script.Parent.Config.Mutations)
 local Economy = require(script.Parent.Logic.Economy)
 
+local CollectionService = game:GetService("CollectionService")
+
 local TreasureLabel = {}
+
+-- UIGradients with this tag slide across their text on every client (Controllers/Ambience).
+TreasureLabel.SHIMMER_TAG = "RarityShimmer"
 
 local FONT = Enum.Font.FredokaOne
 local BLACK = Color3.new(0, 0, 0)
@@ -36,6 +41,46 @@ local function rainbow(label: TextLabel)
 		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 80, 200)),
 	})
 	gradient.Parent = label
+end
+
+local function sequence(colors: { Color3 }): ColorSequence
+	local points = {}
+	for i, c in colors do
+		table.insert(points, ColorSequenceKeypoint.new((i - 1) / (#colors - 1), c))
+	end
+	return ColorSequence.new(points)
+end
+
+local function shimmer(parent: Instance, colors: { Color3 })
+	local gradient = Instance.new("UIGradient")
+	gradient.Name = "RarityGradient"
+	gradient.Color = sequence(colors)
+	gradient.Parent = parent
+	CollectionService:AddTag(gradient, TreasureLabel.SHIMMER_TAG)
+end
+
+-- Colours a rarity text label (name tags, menus): rarity colour + outline, and the animated
+-- gradient for Secret (black/white) and OG (gold shimmer).
+function TreasureLabel.StyleRarity(label: TextLabel, rarity: string)
+	local color, stroke = Rarities.LabelColors(rarity)
+	label.TextColor3 = color
+	local info = Rarities.Info[rarity]
+	local outline = label:FindFirstChildOfClass("UIStroke")
+	if not outline and info and info.Gradient then
+		-- A black/white name needs its (inverse) outline to read on any background.
+		outline = Instance.new("UIStroke")
+		outline.Thickness = 1.5
+		outline.Parent = label
+	end
+	if outline then
+		outline.Color = stroke
+	end
+	if info and info.Gradient then
+		shimmer(label, info.Gradient)
+		if outline and info.StrokeGradient then
+			shimmer(outline, info.StrokeGradient)
+		end
+	end
 end
 
 local function line(parent: Instance, order: number, text: string, color: Color3, stroke: Color3, size: number)
@@ -88,11 +133,8 @@ function TreasureLabel.Build(def, mutation: string?, opts): BillboardGui
 		end
 	end
 	line(frame, 2, def.Name, Color3.new(1, 1, 1), BLACK, LINE)
-	local rarityColor, rarityStroke = Rarities.LabelColors(def.Rarity)
-	local rarityLabel = line(frame, 3, def.Rarity, rarityColor, rarityStroke, LINE - 2)
-	if Rarities.Info[def.Rarity] and Rarities.Info[def.Rarity].Rainbow and not Rarities.Info[def.Rarity].LabelColor then
-		rainbow(rarityLabel)
-	end
+	local rarityLabel = line(frame, 3, def.Rarity, Color3.new(1, 1, 1), BLACK, LINE - 2)
+	TreasureLabel.StyleRarity(rarityLabel, def.Rarity)
 	local income = opts.Income or Economy.Income(def, mutation)
 	line(frame, 4, formatCash(income) .. "/s", CASH, BLACK, LINE - 2)
 	local effect = def.SpecialEffect and Treasures.EffectLabels[def.SpecialEffect]

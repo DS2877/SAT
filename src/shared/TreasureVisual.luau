@@ -185,7 +185,9 @@ local AURA = {
 	Epic = { Rate = 14, Size = 0.55, Speed = 2 },
 	Legendary = { Rate = 22, Size = 0.7, Speed = 2.5 },
 	Mythic = { Rate = 30, Size = 0.8, Speed = 3 },
+	Divine = { Rate = 36, Size = 0.85, Speed = 3 },
 	Secret = { Rate = 40, Size = 0.9, Speed = 3 },
+	OG = { Rate = 48, Size = 1, Speed = 3.5 },
 }
 
 -- Bigger for rarer treasure so a Legendary looks like a prize from far away.
@@ -203,7 +205,7 @@ function TreasureVisual.RarityAura(handle: BasePart, def)
 	local s = handle.Size.X
 	local emitter = Instance.new("ParticleEmitter")
 	emitter.Name = "RarityAura"
-	emitter.Color = ColorSequence.new(info.Color)
+	emitter.Color = if info.Aura then ColorSequence.new(info.Aura[1], info.Aura[2]) else ColorSequence.new(info.Color)
 	emitter.LightEmission = 0.8
 	emitter.LightInfluence = 0
 	emitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"

@@ -208,6 +208,15 @@ awaiting the phase-1 mobile playtest.
   Witch Geyser -> the witch hut. Balance in GameConfig.Boost / GameConfig.Launch.
 - Validation: static + unit tests only; NOT yet playtested in a live server.
 
+## RARITY PALETTE (official)
+- Common #9E9E9E, Uncommon #4CAF50, Rare #2196F3, Epic #9C27B0, Legendary #FFC107,
+  Mythic #F44336, Divine #00E5FF, Secret #111111 (black/white animated gradient),
+  OG #FFD700 (gold shimmer). Source of truth: Config/Rarities.luau (test-locked).
+- New tiers: Divine (Aurora Crystal - Frostpeak; Seraph Feather - Falls) and OG
+  (The First Doubloon - Falls waterfall cave, weight 0.012, cap 1).
+- Animated names: TreasureLabel.StyleRarity + UIGradients tagged "RarityShimmer",
+  animated per frame by Controllers/Ambience (name tags, Collection, Vault).
+
 ## KNOWN BUGS / RISKS
 - Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp
   slopes, IK arms on the bench, nightfall teleport, collect board placement on every plot.

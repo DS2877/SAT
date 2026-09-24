@@ -192,9 +192,10 @@ local function spawnAt(point, def, ground: Vector3?, mutation: string?)
 	}
 	record.Prompt = makePrompt(record)
 	record.Billboard = makeBillboard(record)
-	if def.SpecialEffect == "Radiant" or def.Rarity == "Secret" then
+	if def.SpecialEffect == "Radiant" or Rarities.AtLeast(def.Rarity, "Divine") then
 		local sparkles = Instance.new("Sparkles")
-		sparkles.SparkleColor = Color3.new(1, 1, 1)
+		local info = Rarities.Info[def.Rarity]
+		sparkles.SparkleColor = if info then info.Color else Color3.new(1, 1, 1)
 		sparkles.Parent = record.Handle
 	end
 	setState(record, "World")

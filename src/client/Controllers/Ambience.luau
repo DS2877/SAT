@@ -4,6 +4,7 @@
 --   * Nightfall countdown warnings (carried loot is lost at nightfall!) and banners when night
 --     falls (new loot is spawning) and when the sun rises (go hunt).
 --   * Rainbow-mutation treasures cycle their colours (tag "RainbowTreasure").
+--   * Secret / OG rarity names shimmer (UIGradients tagged TreasureLabel.SHIMMER_TAG).
 --   * Sell prompts on other players' Vault pedestals are hidden.
 
 local CollectionService = game:GetService("CollectionService")
@@ -15,6 +16,7 @@ local RunService = game:GetService("RunService")
 local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
 local DayNight = require(Shared.Logic.DayNight)
+local TreasureLabel = require(Shared.TreasureLabel)
 
 local Notifications = require(script.Parent.Notifications)
 local Sounds = require(script.Parent.Parent.UI.Sounds)
@@ -144,6 +146,17 @@ local function trackRainbow(model: Instance)
 	rainbowParts[model] = parts
 end
 
+-- RARITY SHIMMER ------------------------------------------------------------------------
+
+local SHIMMER_SPEED = 0.55 -- sweeps per second across the text
+local shimmers: { [UIGradient]: true } = {}
+
+local function trackShimmer(gradient: Instance)
+	if gradient:IsA("UIGradient") then
+		shimmers[gradient] = true
+	end
+end
+
 -- SELL PROMPTS ---------------------------------------------------------------------------
 
 local function filterPrompt(prompt: Instance)
@@ -174,6 +187,21 @@ function Ambience.Init()
 	end
 	CollectionService:GetInstanceAddedSignal("NightGate"):Connect(setupFogGate)
 	workspace.DescendantAdded:Connect(filterPrompt)
+
+	for _, gradient in CollectionService:GetTagged(TreasureLabel.SHIMMER_TAG) do
+		trackShimmer(gradient)
+	end
+	CollectionService:GetInstanceAddedSignal(TreasureLabel.SHIMMER_TAG):Connect(trackShimmer)
+	CollectionService:GetInstanceRemovedSignal(TreasureLabel.SHIMMER_TAG):Connect(function(gradient)
+		shimmers[gradient :: UIGradient] = nil
+	end)
+	-- Every frame (smooth), separate from the 10 Hz world update below.
+	RunService.RenderStepped:Connect(function()
+		local offset = Vector2.new((os.clock() * SHIMMER_SPEED) % 2 - 1, 0)
+		for gradient in shimmers do
+			gradient.Offset = offset
+		end
+	end)
 
 	local wasNight: boolean? = nil
 	local lastLeft = math.huge
