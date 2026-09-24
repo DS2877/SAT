@@ -72,7 +72,26 @@ secrets, hidden locations, better discovery moments, environmental storytelling.
 **Every new treasure needs a gameplay or economic purpose** (weight/value trade-off, special
 effect, set bonus, region identity) - not just another object.
 
-## 5. World expansion
+## 5. World expansion  ← SLICE 1 BUILT (awaiting playtest)
+Shipped (world overhaul):
+- Biomes: every region has its own ground, flora and mood. Wilds = sunny meadow (broadleaf
+  groves, flowers), Ruins = scorched desert (sandstone, cacti, dead trees, giant bones), Coast =
+  grey storm shore (slate cliffs, palms, driftwood, dune grass), Falls = dark jungle (towering
+  trees, ferns, glowing mushrooms), Volcano foothills = ash and charred trees. Colour grading +
+  haze shift per region on the client.
+- Progression: danger 1-4 stars + recommended strength per region (GameConfig.Regions), stone
+  gateways where the trails cross into Coast / Ruins / Falls, a cinematic title card when you
+  enter, and a one-time discovery bonus + server shout the first time you reach a region.
+- Secrets & tunnels: the Old Mine (lantern-lit tunnel through a hill = shortcut toward the Coast,
+  crystal cave with a Rare spawn), the Sky Ruins (pillar parkour to a floating island, Epic-
+  Legendary spawn), the Catacombs (stairs behind the temple to a burial hall, Legendary-Mythic
+  spawn, guarded by the Stone Golem). Each pays a one-time reward when found.
+- Guardians: 1.7-2.1x bigger with new designs (Dire Wolf, Goblin Brute, Giant Cave Spider) and a
+  new Stone Golem (slow, hits hard, throws you far). Eyes flare and a dark aura rises while they
+  hunt. Two guardians per region.
+- Extraction shrines are spotted by shape: a tethered hot-air balloon in the category colour, a
+  plume of coloured smoke and pennants (the Secret cave only gets a thin wisp). No light column.
+
 Improve existing areas first: shortcuts, verticality, hidden areas, risk/reward zones, more
 extraction choices, new landmarks, event locations. A big new region only after the current
 map is fun. No huge map before that.

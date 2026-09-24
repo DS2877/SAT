@@ -15,8 +15,11 @@ local WorldLayout = require(Shared.Config.WorldLayout)
 local Treasures = require(Shared.Config.Treasures)
 local TreasureVisual = require(Shared.TreasureVisual)
 
+local Regions = require(Shared.Config.Regions)
+
 local TerrainGen = require(script.Parent.World.TerrainGen)
 local Props = require(script.Parent.World.Props)
+local Secrets = require(script.Parent.World.Secrets)
 
 local WorldBuilder = {}
 
@@ -186,6 +189,7 @@ local function buildLighting()
 	bloom.Parent = Lighting
 
 	local color = Instance.new("ColorCorrectionEffect")
+	color.Name = "BaseGrade" -- retinted per region by the client (Controllers/Biomes)
 	color.Saturation = 0.18
 	color.Contrast = 0.1
 	color.Brightness = 0
@@ -214,12 +218,19 @@ local function buildTerrain()
 	terrain.WaterWaveSize = 0.15
 	terrain.WaterWaveSpeed = 9
 	terrain.WaterReflectance = 0.5
-	terrain:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(104, 178, 72))
-	terrain:SetMaterialColor(Enum.Material.LeafyGrass, Color3.fromRGB(86, 160, 66))
-	terrain:SetMaterialColor(Enum.Material.Sand, Color3.fromRGB(244, 224, 168))
-	terrain:SetMaterialColor(Enum.Material.Rock, Color3.fromRGB(128, 120, 112))
+	-- Biome palette (see TerrainGen.BIOME_MATERIALS): every region reads differently.
+	terrain:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(112, 188, 70)) -- Wilds: sunny meadow
 	terrain:SetMaterialColor(Enum.Material.Ground, Color3.fromRGB(150, 116, 80))
-	terrain:SetMaterialColor(Enum.Material.Basalt, Color3.fromRGB(70, 62, 60))
+	terrain:SetMaterialColor(Enum.Material.Sandstone, Color3.fromRGB(226, 170, 104)) -- Ruins: scorched desert
+	terrain:SetMaterialColor(Enum.Material.Limestone, Color3.fromRGB(206, 150, 96))
+	terrain:SetMaterialColor(Enum.Material.Salt, Color3.fromRGB(240, 214, 170))
+	terrain:SetMaterialColor(Enum.Material.Sand, Color3.fromRGB(236, 218, 170)) -- Coast: pale beaches
+	terrain:SetMaterialColor(Enum.Material.Slate, Color3.fromRGB(92, 100, 112)) -- Coast: grey storm cliffs
+	terrain:SetMaterialColor(Enum.Material.LeafyGrass, Color3.fromRGB(46, 112, 58)) -- Falls: dark jungle
+	terrain:SetMaterialColor(Enum.Material.Mud, Color3.fromRGB(78, 60, 44))
+	terrain:SetMaterialColor(Enum.Material.Rock, Color3.fromRGB(128, 120, 112))
+	terrain:SetMaterialColor(Enum.Material.Basalt, Color3.fromRGB(56, 50, 52)) -- Volcano: ash fields
+	terrain:SetMaterialColor(Enum.Material.CrackedLava, Color3.fromRGB(255, 96, 36))
 
 	-- Ocean (sea floor + water, top at y = 0)
 	terrain:FillBlock(CFrame.new(0, -32, 0), Vector3.new(1800, 16, 1800), Enum.Material.Sand)
@@ -265,7 +276,8 @@ local function paintPath(from: Vector3, to: Vector3, width: number)
 			Vector3.new(p.X + width / 2, 72, p.Z + width / 2)
 		):ExpandToGrid(4)
 		terrain:ReplaceMaterial(region, 4, Enum.Material.Grass, Enum.Material.Ground)
-		terrain:ReplaceMaterial(region, 4, Enum.Material.LeafyGrass, Enum.Material.Ground)
+		terrain:ReplaceMaterial(region, 4, Enum.Material.LeafyGrass, Enum.Material.Mud)
+		terrain:ReplaceMaterial(region, 4, Enum.Material.Salt, Enum.Material.Ground)
 	end
 end
 
@@ -758,6 +770,119 @@ local function buildLeaderboards(district: Folder)
 	return boards
 end
 
+-- REGION GATES ----------------------------------------------------------------------------
+-- Where a trail crosses into a harder region, a gateway announces it: region name, danger
+-- stars and the strength we recommend. Reaching one should feel like a milestone.
+
+local GATE_STYLE = {
+	Coast = { Pillar = Color3.fromRGB(150, 120, 90), Material = Enum.Material.Wood, Trim = Color3.fromRGB(70, 90, 110) },
+	Ruins = { Pillar = Color3.fromRGB(226, 186, 126), Material = Enum.Material.Sandstone, Trim = C.Gold },
+	Falls = { Pillar = Color3.fromRGB(96, 110, 96), Material = Enum.Material.Slate, Trim = Color3.fromRGB(60, 140, 70) },
+}
+
+local function shortNumber(n: number): string
+	if n >= 1e6 then
+		return (("%.1fM"):format(n / 1e6):gsub("%.0M", "M"))
+	elseif n >= 1e3 then
+		return (("%.1fK"):format(n / 1e3):gsub("%.0K", "K"))
+	end
+	return tostring(n)
+end
+
+local function gateLabel(sign: BasePart, face: Enum.NormalId, lines: { { Text: string, Color: Color3, Size: number } })
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = face
+	gui.PixelsPerStud = 30
+	gui.LightInfluence = 0.2
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	local list = Instance.new("UIListLayout")
+	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	list.VerticalAlignment = Enum.VerticalAlignment.Center
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Parent = gui
+	local total = 0
+	for _, line in lines do
+		total += line.Size
+	end
+	for i, line in lines do
+		local label = Instance.new("TextLabel")
+		label.LayoutOrder = i
+		label.BackgroundTransparency = 1
+		label.Size = UDim2.fromScale(0.94, line.Size / total * 0.9)
+		label.Font = Enum.Font.FredokaOne
+		label.TextScaled = true
+		label.TextColor3 = line.Color
+		label.Text = line.Text
+		local stroke = Instance.new("UIStroke")
+		stroke.Thickness = 3
+		stroke.Color = Color3.new(0, 0, 0)
+		stroke.Parent = label
+		label.Parent = gui
+	end
+	gui.Parent = sign
+end
+
+-- `at` = ground point on the trail, `forward` = direction of travel into the region.
+local function buildRegionGate(parent: Instance, area: string, at: Vector3, forward: Vector3)
+	local info = Regions.Info[area]
+	local balance = GameConfig.Regions[area]
+	local style = GATE_STYLE[area]
+	if not info or not balance or not style then
+		return
+	end
+	local color = Color3.fromRGB(info.Color[1], info.Color[2], info.Color[3])
+	local gate = folder(area .. "Gate", parent)
+	local cf = CFrame.lookAt(at, at + Vector3.new(forward.X, 0, forward.Z))
+	local height = 17
+	for _, x in { -8, 8 } do
+		part({ Name = "GatePillar", Size = Vector3.new(3, height, 3), CFrame = cf * CFrame.new(x, height / 2 - 1, 0), Color = style.Pillar, Material = style.Material, Parent = gate })
+		part({ Name = "GateCap", Size = Vector3.new(4, 1.2, 4), CFrame = cf * CFrame.new(x, height - 0.4, 0), Color = style.Trim, Material = Enum.Material.Metal, Parent = gate })
+		part({ Name = "GateSpike", Class = "WedgePart", Size = Vector3.new(1.2, 2.4, 1.2), CFrame = cf * CFrame.new(x, height + 1.4, 0), Color = style.Trim, Material = Enum.Material.Metal, Parent = gate })
+		-- Region-coloured banner hanging on the outside of each pillar.
+		part({ Name = "Banner", Size = Vector3.new(2.4, 7, 0.15), CFrame = cf * CFrame.new(x, height - 5, -1.6), Color = color, Material = Enum.Material.Fabric, CanCollide = false, Parent = gate })
+		Props.Brazier(gate, (cf * CFrame.new(x * 1.45, -1, -3)).Position)
+	end
+	part({ Name = "GateBeam", Size = Vector3.new(20, 1.6, 2.4), CFrame = cf * CFrame.new(0, height - 2.2, 0), Color = style.Pillar, Material = style.Material, Parent = gate })
+	local sign = part({ Name = "GateSign", Size = Vector3.new(15, 5, 0.6), CFrame = cf * CFrame.new(0, height - 5.6, 0), Color = Color3.fromRGB(40, 32, 28), Material = Enum.Material.Wood, CanCollide = false, Parent = gate })
+	local danger = Color3.fromRGB(255, 90, 70)
+	gateLabel(sign, Enum.NormalId.Back, {
+		{ Text = info.Title, Color = color, Size = 5 },
+		{ Text = "DANGER " .. Regions.Stars(balance.Danger), Color = danger, Size = 3.5 },
+		{ Text = ("RECOMMENDED STRENGTH %s"):format(shortNumber(balance.RecommendedStrength)), Color = Color3.fromRGB(255, 240, 200), Size = 2.6 },
+	})
+	gateLabel(sign, Enum.NormalId.Front, {
+		{ Text = "LEAVING " .. info.Title, Color = color, Size = 4 },
+		{ Text = "GET YOUR LOOT HOME!", Color = Color3.fromRGB(255, 240, 200), Size = 3 },
+	})
+	if balance.Danger >= 3 then
+		-- Skull on the beam: this is where it stops being easy.
+		part({ Name = "Skull", Size = Vector3.new(2.4, 2.2, 2.4), CFrame = cf * CFrame.new(0, height - 0.4, 0), Color = Color3.fromRGB(236, 226, 200), Parent = gate })
+		for _, x in { -0.5, 0.5 } do
+			part({ Name = "EyeSocket", Shape = Enum.PartType.Ball, Size = Vector3.new(0.7, 0.7, 0.3), CFrame = cf * CFrame.new(x, height - 0.2, 1.2), Color = danger, Material = Enum.Material.Neon, CanCollide = false, Parent = gate })
+		end
+	end
+end
+
+-- Walks every trail and drops a gate where it first enters a new region.
+local function buildRegionGates(parent: Instance, trails)
+	local built = {}
+	for _, trail in trails do
+		local delta = trail[2] - trail[1]
+		local unit = Vector3.new(delta.X, 0, delta.Z).Unit
+		local last = TerrainGen.Biome(trail[1].X, trail[1].Z)
+		for d = 0, delta.Magnitude, 2 do
+			local p = trail[1] + unit * d
+			local biome = TerrainGen.Biome(p.X, p.Z)
+			if biome ~= last and not built[biome] and GameConfig.Regions[biome] and biome ~= "Wilds" then
+				built[biome] = true
+				local at = p + unit * 6 -- just inside, so the sign reads as "you are entering"
+				buildRegionGate(parent, biome, groundAt(at.X, at.Z), unit)
+			end
+			last = biome
+		end
+	end
+end
+
 -- WILDS -------------------------------------------------------------------------
 
 local function tooClose(x: number, z: number, avoid): boolean
@@ -769,11 +894,13 @@ local function tooClose(x: number, z: number, avoid): boolean
 	return false
 end
 
-local function buildWilds()
+local function buildWilds(extraAvoid)
 	local wilds = folder("Wilds")
 	local avoid = {
 		{ Vector2.new(WorldLayout.District.Center.X, WorldLayout.District.Center.Z), WorldLayout.District.FloorRadius + 8 },
-		{ Vector2.new(WorldLayout.Temple.Center.X, WorldLayout.Temple.Center.Z - 20), 110 },
+		-- Temple + courtyard stay clear; the desert around them gets cacti and bones.
+		{ Vector2.new(WorldLayout.Temple.Center.X, WorldLayout.Temple.Center.Z), 62 },
+		{ Vector2.new(WorldLayout.Temple.Courtyard.X, WorldLayout.Temple.Courtyard.Z), 46 },
 		{ Vector2.new(0, -330), 70 },
 		{ Vector2.new(WorldLayout.Shipwreck.CoveCenter.X, WorldLayout.Shipwreck.CoveCenter.Z), 120 },
 		{ Vector2.new(0, 70), 25 }, -- camp
@@ -781,6 +908,9 @@ local function buildWilds()
 	}
 	for _, spawnInfo in WorldLayout.TreasureSpawns do
 		table.insert(avoid, { Vector2.new(spawnInfo.Position.X, spawnInfo.Position.Z), 8 })
+	end
+	for _, a in extraAvoid do
+		table.insert(avoid, a)
 	end
 	for _, zone in WorldLayout.ExtractionZones do
 		table.insert(avoid, { Vector2.new(zone.Position.X, zone.Position.Z), zone.Radius + 8 })
@@ -822,29 +952,91 @@ local function buildWilds()
 		end
 	end
 
+	-- Region gates first so the vegetation keeps clear of them.
+	buildRegionGates(wilds, trails)
+	for _, regionGate in wilds:GetChildren() do
+		if regionGate:IsA("Folder") and regionGate.Name:match("Gate$") then
+			local pivot = regionGate:GetChildren()[1] :: BasePart
+			table.insert(avoid, { Vector2.new(pivot.Position.X, pivot.Position.Z), 18 })
+		end
+	end
+
+	-- Every region has its own flora (TerrainGen.Biome matches the ground colours).
+	local function biomeOf(ground: Vector3): string
+		return TerrainGen.Biome(ground.X, ground.Z, 14)
+	end
 	local trees = folder("Trees", wilds)
-	-- Palms line the beaches, broadleaf trees fill the interior (clustered by noise into groves).
-	scatter(55, 9, function(ground, coast)
-		return ground.Y > 2.5 and ground.Y < 12 and coast > 0.08
+	local undergrowth = folder("Undergrowth", wilds)
+	-- Coast + beaches: palms, driftwood and dune grass.
+	scatter(60, 9, function(ground, coast)
+		return ground.Y > 2.5 and ground.Y < 12 and (coast > 0.08 or biomeOf(ground) == "Coast")
 	end, function(ground)
 		Props.Palm(trees, ground, rng)
 	end)
-	scatter(190, 9, function(ground, coast)
+	scatter(35, 8, function(ground, coast)
+		return ground.Y > 1 and ground.Y < 9 and (coast > 0.05 or biomeOf(ground) == "Coast")
+	end, function(ground)
+		Props.Driftwood(undergrowth, ground, rng)
+	end)
+	scatter(70, 5, function(ground)
+		return ground.Y > 3 and biomeOf(ground) == "Coast"
+	end, function(ground)
+		Props.DuneGrass(undergrowth, ground, rng)
+	end)
+	-- Wilds: sunny meadow with groves of broadleaf trees, bushes and flowers.
+	scatter(150, 9, function(ground, coast)
 		local grove = math.noise(ground.X / 90, ground.Z / 90, 3.7)
-		return ground.Y > 8 and coast < 0.15 and grove > -0.15
+		return ground.Y > 8 and coast < 0.15 and grove > -0.15 and biomeOf(ground) == "Wilds"
 	end, function(ground)
 		Props.Broadleaf(trees, ground, rng)
 	end)
-	local undergrowth = folder("Undergrowth", wilds)
-	scatter(150, 5, function(ground, coast)
-		return ground.Y > 8 and coast < 0.2
+	scatter(110, 5, function(ground, coast)
+		return ground.Y > 8 and coast < 0.2 and biomeOf(ground) == "Wilds"
 	end, function(ground)
 		Props.Bush(undergrowth, ground, rng)
 	end)
 	scatter(90, 6, function(ground, coast)
-		return ground.Y > 8.5 and coast < 0.1
+		return ground.Y > 8.5 and coast < 0.1 and biomeOf(ground) == "Wilds"
 	end, function(ground)
 		Props.Flowers(undergrowth, ground, rng)
+	end)
+	-- Ruins: scorched desert - cacti, dead trees and the bones of something enormous.
+	scatter(45, 9, function(ground)
+		return ground.Y > 8 and biomeOf(ground) == "Ruins"
+	end, function(ground)
+		Props.Cactus(trees, ground, rng)
+	end)
+	scatter(16, 14, function(ground)
+		return ground.Y > 8 and biomeOf(ground) == "Ruins"
+	end, function(ground)
+		Props.DeadTree(trees, ground, rng)
+	end)
+	scatter(6, 30, function(ground)
+		return ground.Y > 8 and biomeOf(ground) == "Ruins"
+	end, function(ground)
+		Props.Bones(undergrowth, ground, rng)
+	end)
+	-- Falls: dark jungle - towering trees, ferns and glowing mushrooms.
+	scatter(55, 11, function(ground, coast)
+		return ground.Y > 8 and coast < 0.2 and biomeOf(ground) == "Falls"
+	end, function(ground)
+		Props.JungleTree(trees, ground, rng)
+	end)
+	scatter(90, 5, function(ground, coast)
+		return ground.Y > 8 and coast < 0.25 and biomeOf(ground) == "Falls"
+	end, function(ground)
+		Props.Fern(undergrowth, ground, rng)
+	end)
+	scatter(24, 12, function(ground)
+		return ground.Y > 8 and biomeOf(ground) == "Falls"
+	end, function(ground)
+		Props.GiantMushroom(undergrowth, ground, rng)
+	end)
+	-- Volcano foothills: charred trees.
+	scatter(14, 14, function(ground)
+		return ground.Y > 6 and biomeOf(ground) == "Volcano"
+	end, function(ground)
+		Props.DeadTree(trees, ground, rng, Color3.fromRGB(40, 34, 32))
 	end)
 	scatter(45, 12, function(ground)
 		return ground.Y > 4
@@ -1079,27 +1271,54 @@ local function buildExtractionZones()
 			local crystal = part({ Name = "Crystal", Size = Vector3.new(0.9, 0.9, 0.9), CFrame = facing * CFrame.new(0, 8.2, 0) * CFrame.Angles(math.rad(45), 0, math.rad(45)), Color = color, Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = zf })
 			crystal:SetAttribute("Spin", 1)
 		end
-		-- Soft light column (a Beam, not a solid tube) fading out as it rises + rising motes.
-		local beamHeight = if secret then 18 else 90
+		-- Seen from afar by SHAPE, not by glow: a tethered hot-air balloon in the category colour
+		-- and a plume of coloured smoke (the Secret cave only gets a thin wisp - it's secret).
 		local anchor = part({ Name = "BeamAnchor", Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(top), Transparency = 1, CanCollide = false, CanQuery = false, CastShadow = false, Parent = zf })
-		local bottom = Instance.new("Attachment")
-		bottom.Parent = anchor
-		local upper = Instance.new("Attachment")
-		upper.Position = Vector3.new(0, beamHeight, 0)
-		upper.Parent = anchor
-		for _, spec in { { 7, 0.55 }, { 2.5, 0.25 } } do
-			local beam = Instance.new("Beam")
-			beam.Attachment0 = bottom
-			beam.Attachment1 = upper
-			beam.Color = ColorSequence.new(color)
-			beam.LightEmission = 1
-			beam.LightInfluence = 0
-			beam.FaceCamera = true
-			beam.Width0 = spec[1]
-			beam.Width1 = spec[1] * 0.6
-			beam.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, spec[2]), NumberSequenceKeypoint.new(0.7, 0.85), NumberSequenceKeypoint.new(1, 1) })
-			beam.Segments = 1
-			beam.Parent = anchor
+		local signal = Instance.new("ParticleEmitter")
+		signal.Name = "SignalSmoke"
+		signal.Texture = "rbxasset://textures/particles/smoke_main.dds"
+		signal.Color = ColorSequence.new(color, color:Lerp(Color3.new(1, 1, 1), 0.5))
+		signal.LightInfluence = 0.4
+		signal.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 3), NumberSequenceKeypoint.new(1, if secret then 5 else 14) })
+		signal.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.35), NumberSequenceKeypoint.new(0.7, 0.6), NumberSequenceKeypoint.new(1, 1) })
+		signal.Lifetime = NumberRange.new(if secret then 2.5 else 6, if secret then 3.5 else 9)
+		signal.Rate = if secret then 3 else 7
+		signal.Speed = NumberRange.new(if secret then 3 else 7, if secret then 4 else 10)
+		signal.SpreadAngle = Vector2.new(6, 6)
+		signal.Acceleration = Vector3.new(1.5, 0, 0.8) -- drifts with the wind
+		signal.RotSpeed = NumberRange.new(-20, 20)
+		signal.Rotation = NumberRange.new(0, 360)
+		signal.EmissionDirection = Enum.NormalId.Top
+		signal.Parent = anchor
+		if not secret then
+			local balloonAt = top + Vector3.new(0, 38, 0)
+			part({ Name = "Balloon", Shape = Enum.PartType.Ball, Size = Vector3.new(15, 17, 15), CFrame = CFrame.new(balloonAt), Color = color, Material = Enum.Material.Fabric, CanCollide = false, CanQuery = false, Parent = zf })
+			for _, y in { -2.5, 2.5 } do
+				cylinder(balloonAt + Vector3.new(0, y, 0), 1.2, 15.2 - math.abs(y) * 0.4, { Name = "BalloonStripe", Color = Color3.fromRGB(255, 250, 235), Material = Enum.Material.Fabric, CanCollide = false, CanQuery = false, Parent = zf })
+			end
+			cylinder(balloonAt + Vector3.new(0, -8.2, 0), 2.4, 5, { Name = "BalloonMouth", Color = color:Lerp(Color3.new(0, 0, 0), 0.35), Material = Enum.Material.Fabric, CanCollide = false, CanQuery = false, Parent = zf })
+			local basketAt = balloonAt + Vector3.new(0, -13, 0)
+			local basket = part({ Name = "Basket", Size = Vector3.new(3.6, 2.6, 3.6), CFrame = CFrame.new(basketAt), Color = Color3.fromRGB(150, 105, 60), Material = Enum.Material.Wood, CanCollide = false, CanQuery = false, Parent = zf })
+			local flame = Instance.new("Fire")
+			flame.Size = 3
+			flame.Heat = 12
+			flame.Color = Color3.fromRGB(255, 170, 60)
+			flame.Parent = basket
+			for _, corner in { Vector3.new(1, 0, 1), Vector3.new(-1, 0, 1), Vector3.new(1, 0, -1), Vector3.new(-1, 0, -1) } do
+				local from = basketAt + corner * 1.6 + Vector3.new(0, 1.3, 0)
+				local to = balloonAt + corner * 2.4 + Vector3.new(0, -8, 0)
+				part({ Name = "BalloonRope", Size = Vector3.new(0.15, 0.15, (to - from).Magnitude), CFrame = CFrame.lookAt((from + to) / 2, to), Color = Color3.fromRGB(90, 70, 50), CanCollide = false, CanQuery = false, CastShadow = false, Parent = zf })
+			end
+			-- Tether rope down to the shrine.
+			local tetherTop = basketAt - Vector3.new(0, 1.3, 0)
+			local tetherBottom = top + Vector3.new(zone.Radius * 0.7, 0, 0)
+			part({ Name = "Tether", Size = Vector3.new(0.2, 0.2, (tetherTop - tetherBottom).Magnitude), CFrame = CFrame.lookAt((tetherTop + tetherBottom) / 2, tetherTop), Color = Color3.fromRGB(110, 90, 66), CanCollide = false, CanQuery = false, CastShadow = false, Parent = zf })
+		end
+		-- Two pennant poles at the shrine entrance.
+		for _, side in { -1, 1 } do
+			local poleAt = top + Vector3.new(side * (zone.Radius + 2.5), 0, zone.Radius * 0.4)
+			cylinder(poleAt + Vector3.new(0, 7, 0), 14, 0.5, { Name = "FlagPole", Color = C.DarkWood, Material = Enum.Material.Wood, Parent = zf })
+			part({ Name = "Pennant", Class = "WedgePart", Size = Vector3.new(0.1, 3, 4.5), CFrame = CFrame.new(poleAt + Vector3.new(0, 12, -2.25)), Color = color, Material = Enum.Material.Fabric, CanCollide = false, CanQuery = false, Parent = zf })
 		end
 		local motes = Instance.new("ParticleEmitter")
 		motes.Texture = "rbxasset://textures/particles/sparkles_main.dds"
@@ -1109,7 +1328,7 @@ local function buildExtractionZones()
 		motes.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 0) })
 		motes.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
 		motes.Lifetime = NumberRange.new(2, 3.5)
-		motes.Rate = 14
+		motes.Rate = 6
 		motes.Speed = NumberRange.new(3, 6)
 		motes.SpreadAngle = Vector2.new(8, 8)
 		motes.Shape = Enum.ParticleEmitterShape.Cylinder
@@ -1119,8 +1338,8 @@ local function buildExtractionZones()
 		anchor.Size = Vector3.new(zone.Radius * 1.4, 0.2, zone.Radius * 1.4)
 		local light = Instance.new("PointLight")
 		light.Color = color
-		light.Range = zone.Radius * 1.6
-		light.Brightness = 1.4
+		light.Range = zone.Radius * 1.4
+		light.Brightness = 0.8
 		light.Shadows = false
 		light.Parent = anchor
 		-- Sign above the shrine: what you get for extracting here.
@@ -1392,7 +1611,8 @@ function WorldBuilder.Build()
 	buildTemple()
 	buildShipwreck()
 	buildLighthouse()
-	buildWilds()
+	local secrets = Secrets.Build(terrain, world, rng)
+	buildWilds(secrets.Avoid)
 	buildExtractionZones()
 	dressDistrict()
 	dressLandmarks()
@@ -1407,6 +1627,10 @@ function WorldBuilder.Build()
 			MinRarity = info.MinRarity,
 			MaxRarity = info.MaxRarity,
 		})
+	end
+	-- Secret spawn points are already exact (inside a hill / on a floating island / underground).
+	for _, info in secrets.Spawns do
+		table.insert(spawns, info)
 	end
 	local guardians = {}
 	for _, info in WorldLayout.GuardianSpawns do

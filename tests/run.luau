@@ -408,6 +408,108 @@ test("every treasure can actually spawn somewhere", function()
 	end
 end)
 
+-- WORLD OVERHAUL: biomes, guardians, regions, secrets --------------------------------------
+test("biome ground follows the gameplay regions", function()
+	local roblox = require("@lune/roblox") :: any
+	Vector3 = roblox.Vector3
+	local WorldLayout = require("../src/shared/Config/WorldLayout")
+	-- Reference copy of Zones.AreaId (Zones itself needs `script`).
+	local function areaId(x: number, z: number): string
+		local function within(c: Vector3, r: number): boolean
+			return (x - c.X) ^ 2 + (z - c.Z) ^ 2 < r * r
+		end
+		if (x - WorldLayout.District.Center.X) ^ 2 + (z - WorldLayout.District.Center.Z) ^ 2 <= GameConfig.SafeZone.Radius ^ 2 then
+			return "District"
+		elseif within(WorldLayout.Temple.Center, 150) then
+			return "Ruins"
+		elseif within(WorldLayout.Shipwreck.Center, 160) then
+			return "Coast"
+		elseif z < -240 then
+			return "Falls"
+		end
+		return "Wilds"
+	end
+	local centers = TerrainGen.BIOME_CENTERS
+	check(centers.Ruins[1] == WorldLayout.Temple.Center.X and centers.Ruins[2] == WorldLayout.Temple.Center.Z, "desert centred on the temple")
+	check(centers.Coast[1] == WorldLayout.Shipwreck.Center.X and centers.Coast[2] == WorldLayout.Shipwreck.Center.Z, "coast centred on the wreck")
+	check(centers.District[3] == GameConfig.SafeZone.Radius, "district biome = safe zone")
+	local mismatches = 0
+	for x = -500, 500, 10 do
+		for z = -500, 500, 10 do
+			local biome = TerrainGen.Biome(x, z)
+			if biome ~= "Volcano" and biome ~= areaId(x, z) then
+				mismatches += 1
+			end
+		end
+	end
+	check(mismatches == 0, ("terrain biome matches Zones everywhere (%d mismatches)"):format(mismatches))
+	for name, mats in TerrainGen.BIOME_MATERIALS do
+		check(#mats >= 3, "materials for " .. name)
+	end
+	check(TerrainGen.BIOME_MATERIALS.Ruins[1] ~= TerrainGen.BIOME_MATERIALS.Wilds[1], "desert looks different from the meadow")
+	check(TerrainGen.BIOME_MATERIALS.Falls[1] ~= TerrainGen.BIOME_MATERIALS.Wilds[1], "jungle looks different from the meadow")
+end)
+
+test("guardians are big, scary and still fair", function()
+	local roblox = require("@lune/roblox") :: any
+	Vector3 = roblox.Vector3
+	local Guardians = require("../src/shared/Config/Guardians")
+	local WorldLayout = require("../src/shared/Config/WorldLayout")
+	for id, def in Guardians do
+		check(def.Scale >= 1.5, id .. " is bigger than a player")
+		check(def.ChaseSpeed < GameConfig.Player.BaseWalkSpeed, id .. " can be outrun without a load")
+		local reach = def.AttackRange + def.Size[3] * def.Scale / 2
+		check(reach >= 5 and reach <= 10, ("%s reach %.1f is sane"):format(id, reach))
+		check(def.Damage < GameConfig.Player.MaxHealth / 3, id .. " never three-shots a player")
+		check(def.LeashRange > def.DetectRange, id .. " leash beyond detection")
+	end
+	check(Guardians.Golem ~= nil and Guardians.Golem.Scale > Guardians.Wolf.Scale, "the Golem towers over the rest")
+	for _, spawnInfo in WorldLayout.GuardianSpawns do
+		check(Guardians[spawnInfo.Type] ~= nil, "guardian type exists: " .. spawnInfo.Type)
+	end
+	local perArea = {}
+	for _, spawnInfo in WorldLayout.GuardianSpawns do
+		local biome = TerrainGen.Biome(spawnInfo.Position.X, spawnInfo.Position.Z)
+		perArea[biome] = (perArea[biome] or 0) + 1
+	end
+	for _, area in { "Wilds", "Coast", "Ruins", "Falls" } do
+		check((perArea[area] or 0) >= 2, ("%s is guarded (%d)"):format(area, perArea[area] or 0))
+	end
+	check((perArea.District or 0) == 0, "no guardian in the safe zone")
+end)
+
+test("regions escalate and secrets pay off", function()
+	local roblox = require("@lune/roblox") :: any
+	Vector3 = roblox.Vector3
+	local Regions = require("../src/shared/Config/Regions")
+	local previous = nil
+	for _, area in Regions.Order do
+		local balance = GameConfig.Regions[area]
+		check(balance ~= nil and Regions.Info[area] ~= nil, "configured: " .. area)
+		if previous then
+			check(balance.Danger > previous.Danger, area .. " is more dangerous")
+			check(balance.RecommendedStrength > previous.RecommendedStrength, area .. " asks for more strength")
+			check(balance.DiscoveryReward > previous.DiscoveryReward, area .. " pays more for discovery")
+		end
+		previous = balance
+	end
+	check(Regions.Stars(3) == "★★★☆", "danger stars")
+	for _, secret in Regions.Secrets do
+		check(GameConfig.Secrets[secret.Id] and GameConfig.Secrets[secret.Id].Reward > 0, "reward for " .. secret.Id)
+		check(TerrainGen.Biome(secret.Position.X, secret.Position.Z) == secret.Area, secret.Id .. " lies in " .. secret.Area)
+		check(TerrainGen.FlatMask(secret.Position.X, secret.Position.Z) == 0, secret.Id .. " sits in a flat zone")
+	end
+	-- Mirrors the spawn points in World/Secrets.luau: each must be able to roll something.
+	for _, point in {
+		{ Area = "Wilds", MinRarity = "Rare", MaxRarity = "Rare" },
+		{ Area = "Ruins", MinRarity = "Epic", MaxRarity = "Legendary" },
+		{ Area = "Ruins", MinRarity = "Legendary", MaxRarity = "Mythic" },
+	} do
+		local candidates = TreasureRoll.Candidates(Treasures.List, point, RARITY_ORDER, { Rare = 1, Epic = 1, Legendary = 1, Mythic = 1 }, {}, {})
+		check(#candidates > 0, ("secret spawn %s %s-%s can roll"):format(point.Area, point.MinRarity, point.MaxRarity))
+	end
+end)
+
 -- DATA ----------------------------------------------------------------------------
 test("first join gets defaults", function()
 	local data = DataSchema.Migrate(nil)

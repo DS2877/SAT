@@ -110,7 +110,8 @@ local function knock(victim: Player, st: Stability.State, attacker: Player?)
 	end)
 end
 
--- Applies a hit to a player. source = { Attacker: Player?, Guardian: string?, Damage: number, From: Vector3 }
+-- Applies a hit to a player.
+-- source = { Attacker: Player?, Guardian: string?, Damage: number, From: Vector3, Knockback: number? }
 function Combat.ApplyHit(victim: Player, source)
 	local root, humanoid = rootOf(victim)
 	if not root or not humanoid or hasSpawnProtection(victim) then
@@ -123,7 +124,7 @@ function Combat.ApplyHit(victim: Player, source)
 	local away = root.Position - source.From
 	away = Vector3.new(away.X, 0, away.Z)
 	away = if away.Magnitude > 0.01 then away.Unit else Vector3.new(0, 0, 1)
-	Net.Fire("Feedback", victim, { Type = "Knockback", Direction = away, Power = cfg.KnockbackPower })
+	Net.Fire("Feedback", victim, { Type = "Knockback", Direction = away, Power = cfg.KnockbackPower * (source.Knockback or 1) })
 
 	local result = "Hit"
 	if TreasureService.GetCarrying(victim) then

@@ -18,7 +18,12 @@ awaiting the phase-1 mobile playtest.
 - 30 data-driven treasures, spawn budget + rarity caps, pickup validation, carry weld, carry speed formula
 - Stability STABLE→SHAKEN→KNOCKED, knock immunity, reclaim protection, dropped timeout, theft detection
 - Extraction (10 s, interruptible), finder's fee w/ zone bonus + Ascension multiplier, Collection, auto Vault placement
-- PvP bonk (server hit detection), 3 Guardian types (Wolf, Goblin, Cave Spider), death/respawn
+- PvP bonk (server hit detection), 4 Guardian types (Dire Wolf, Goblin Brute, Stone Golem, Giant
+  Cave Spider; scaled-up models, eyes flare while hunting), death/respawn
+- World overhaul (roadmap phase 5, slice 1): per-region biomes (terrain, flora, colour grading),
+  region gates with danger stars + recommended strength, discovery rewards (Services/Exploration),
+  secrets (Old Mine tunnel, Sky Ruins parkour, Catacombs) with hidden spawn points, balloon + smoke
+  extraction markers
 - Gadget framework (3 slots, server cooldowns): Speed Soda, Balloon, Bubble Blaster
 - Physical Vault with pedestals that earn $/s, sell, tier upgrades; Ascension
 - HUD (stats, objective/next treasure, carried treasure, nav arrow, extraction bar, danger states, action cluster),

@@ -58,6 +58,27 @@ GameConfig.Collection = {
 	SetBonusPerSet = 0.10,
 }
 
+-- REGIONS: the island gets harder the further you go. Danger (1-4 stars) and the strength we
+-- recommend are shown on the region gates and the title card when you cross in; the first
+-- visit pays a one-time discovery bonus (Config/Regions has names, colours and moods).
+GameConfig.Regions = {
+	Wilds = { Danger = 1, RecommendedStrength = 1000, DiscoveryReward = 0 },
+	Coast = { Danger = 2, RecommendedStrength = 3000, DiscoveryReward = 1500 },
+	Ruins = { Danger = 3, RecommendedStrength = 8000, DiscoveryReward = 5000 },
+	Falls = { Danger = 4, RecommendedStrength = 20000, DiscoveryReward = 15000 },
+}
+
+-- Hidden places (Config/Regions.Secrets): one-time cash for finding each, plus a spawn point
+-- inside that only the explorers know about.
+GameConfig.Exploration = {
+	CheckInterval = 1, -- seconds between the server's region / secret checks
+}
+GameConfig.Secrets = {
+	old_mine = { Reward = 2500 },
+	sky_ruins = { Reward = 8000 },
+	catacombs = { Reward = 12000 },
+}
+
 GameConfig.Carry = {
 	-- Carry Ratio = Treasure Weight / Player Strength. First band whose MaxRatio >= ratio wins.
 	Bands = {

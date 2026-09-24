@@ -20,6 +20,7 @@ local GameFeel = require(Controllers.GameFeel)
 local WorldLife = require(Controllers.WorldLife)
 local MusicController = require(Controllers.MusicController)
 local Onboarding = require(Controllers.Onboarding)
+local Biomes = require(Controllers.Biomes)
 local MenuController = require(script.Parent.Menus.MenuController)
 
 local player = Players.LocalPlayer
@@ -58,6 +59,7 @@ GameFeel.Init()
 WorldLife.Init()
 MusicController.Init()
 Onboarding.Init(gui)
+Biomes.Init(gui)
 MenuController.Init(gui)
 HUD.OpenMenu = MenuController.Open
 

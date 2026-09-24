@@ -130,10 +130,16 @@ WorldLayout.EventSites = {
 
 WorldLayout.GuardianSpawns = {
 	{ Type = "Wolf", Position = Vector3.new(-110, 10, -60), PatrolRadius = 45 },
-	{ Type = "Wolf", Position = Vector3.new(110, 10, -190), PatrolRadius = 45 },
-	{ Type = "Goblin", Position = Vector3.new(230, 10, -60), PatrolRadius = 35 },
+	{ Type = "Wolf", Position = Vector3.new(60, 10, -150), PatrolRadius = 45 },
+	-- Shipwreck Coast: a goblin raiding party
 	{ Type = "Goblin", Position = Vector3.new(-300, 10, -20), PatrolRadius = 40 },
+	{ Type = "Goblin", Position = Vector3.new(-290, 10, 50), PatrolRadius = 30 },
+	-- Ancient Ruins: a goblin at the courtyard, the Stone Golem guarding the temple's back
+	{ Type = "Goblin", Position = Vector3.new(230, 10, -60), PatrolRadius = 35 },
+	{ Type = "Golem", Position = Vector3.new(230, 10, -200), PatrolRadius = 28 },
+	-- The Falls: the spiders' nest
 	{ Type = "Spider", Position = Vector3.new(30, 10, -290), PatrolRadius = 25 },
+	{ Type = "Spider", Position = Vector3.new(-60, 10, -275), PatrolRadius = 22 },
 }
 
 return WorldLayout

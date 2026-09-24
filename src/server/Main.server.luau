@@ -23,6 +23,7 @@ local LeaderboardService = require(Services.LeaderboardService)
 local EventService = require(Services.EventService)
 local DayCycle = require(Services.DayCycle)
 local Analytics = require(Services.Analytics)
+local Exploration = require(Services.Exploration)
 
 Net.Init()
 Players.RespawnTime = GameConfig.Player.RespawnTime
@@ -106,5 +107,6 @@ LeaderboardService.Start()
 EventService.StartScheduler()
 DayCycle.Init(world.NightGate)
 DayCycle.Start()
+Exploration.Start()
 
 print("[StealTheTreasure] server ready")

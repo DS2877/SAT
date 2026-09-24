@@ -22,6 +22,9 @@ TerrainGen.FLAT_ZONES = {
 	{ 120, 10, 28, 25 }, -- Ravine bridge
 	{ 360, 300, 24, 20 }, -- Lighthouse
 	{ 0, 100, 40, 30 }, -- District gate
+	{ -205, -125, 34, 25 }, -- Old Mine (secret tunnel through a rock mound)
+	{ 330, -165, 36, 25 }, -- Sky Ruins (parkour spiral)
+	{ 190, -230, 42, 30 }, -- Catacombs (stairs + burial hall under the ground)
 }
 
 -- Terrain under the Treasure District is sunk to y = 8 (an exact voxel boundary, so it is
@@ -95,6 +98,49 @@ function TerrainGen.Height(x: number, z: number): (number, number)
 	return base + inland, coast
 end
 
+-- BIOMES: every region has its own ground, so crossing into a new one is visible at a glance.
+-- Mirrors Zones.AreaName (District / Ruins / Coast / Falls / Wilds) plus the Volcano's ash
+-- fields, with a noisy border so the transition is ragged, not a perfect circle.
+TerrainGen.BIOME_CENTERS = {
+	District = { 0, 250, 150 },
+	Ruins = { 230, -140, 150 },
+	Coast = { -345, -10, 160 },
+	Volcano = { -280, -360, 175 },
+}
+TerrainGen.FALLS_Z = -240
+
+function TerrainGen.Biome(x: number, z: number, jitter: number?): string
+	local j = (jitter or 0) * noise2(x, z, 1 / 40, 71)
+	local function within(name: string): boolean
+		local c = TerrainGen.BIOME_CENTERS[name]
+		local d2, r2 = (x - c[1]) ^ 2 + (z - c[2]) ^ 2, (c[3] + j) ^ 2
+		-- Same edge rules as Zones: the safe zone includes its border, the others don't.
+		return if name == "District" then d2 <= r2 else d2 < r2
+	end
+	if within("District") then
+		return "District"
+	elseif within("Ruins") then
+		return "Ruins"
+	elseif within("Coast") then
+		return "Coast"
+	elseif within("Volcano") then
+		return "Volcano"
+	elseif z < TerrainGen.FALLS_Z + j then
+		return "Falls"
+	end
+	return "Wilds"
+end
+
+-- Surface material per biome: { flat, slope, steep, patch?, patchThreshold? }
+TerrainGen.BIOME_MATERIALS = {
+	District = { "Grass", "Ground", "Rock" },
+	Wilds = { "Grass", "Ground", "Rock", "Ground", 0.42 }, -- sunny meadow, a few dirt patches
+	Ruins = { "Sandstone", "Limestone", "Rock", "Salt", 0.3 }, -- scorched desert
+	Coast = { "Sand", "Slate", "Slate", "Salt", 0.25 }, -- grey storm shore
+	Falls = { "LeafyGrass", "Mud", "Slate", "Mud", 0.25 }, -- dark, wet jungle
+	Volcano = { "Basalt", "Basalt", "Rock", "CrackedLava", 0.45 }, -- ash fields
+}
+
 local function surfaceMaterial(height: number, coast: number, slope: number, x: number, z: number)
 	local zone = TerrainGen.SurfaceZone(x, z)
 	if zone then
@@ -102,16 +148,17 @@ local function surfaceMaterial(height: number, coast: number, slope: number, x: 
 	end
 	if height < 3 or (height < 8.5 and coast > 0.12) then
 		return Enum.Material.Sand
-	elseif slope > 0.95 then
-		return Enum.Material.Rock
+	end
+	local mats = TerrainGen.BIOME_MATERIALS[TerrainGen.Biome(x, z, 14)]
+	local name = mats[1]
+	if slope > 0.95 then
+		name = mats[3]
 	elseif slope > 0.6 then
-		return Enum.Material.Ground
+		name = mats[2]
+	elseif mats[4] and noise2(x, z, 1 / 55, 53) > mats[5] then
+		name = mats[4]
 	end
-	local patch = noise2(x, z, 1 / 55, 53)
-	if patch > 0.22 then
-		return Enum.Material.LeafyGrass
-	end
-	return Enum.Material.Grass
+	return (Enum.Material :: any)[name]
 end
 
 -- Runs synchronously on purpose: the server bootstrap must not yield before services connect

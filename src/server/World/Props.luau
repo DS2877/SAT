@@ -234,6 +234,152 @@ function Props.Rocks(parent: Instance, ground: Vector3, rng: Random)
 	end
 end
 
+-- BIOME VEGETATION --------------------------------------------------------------------
+-- Each region has its own flora so the island reads as distinct places: Wilds = meadow
+-- (Broadleaf, Bush, Flowers), Ruins = desert (Cactus, DeadTree, Bones), Coast = storm shore
+-- (Palm, DuneGrass, Driftwood), Falls = jungle (JungleTree, Fern, GiantMushroom).
+
+-- A block stretched between two points (branches, bones, roots).
+local function beam(a: Vector3, b: Vector3, thickness: number, props)
+	props.Size = Vector3.new(thickness, thickness, (b - a).Magnitude)
+	props.CFrame = CFrame.lookAt((a + b) / 2, b)
+	return Props.part(props)
+end
+
+function Props.Cactus(parent: Instance, ground: Vector3, rng: Random)
+	local green = Color3.fromRGB(72, 140, 76):Lerp(Color3.fromRGB(110, 150, 70), rng:NextNumber())
+	local height = rng:NextNumber(7, 13)
+	Props.cylinder(ground + Vector3.new(0, height / 2, 0), height, 2.2, { Name = "Cactus", Color = green, Material = Enum.Material.Grass, Parent = parent })
+	decor({ Name = "CactusTop", Shape = Enum.PartType.Ball, Size = Vector3.new(2.2, 2.2, 2.2), CFrame = CFrame.new(ground + Vector3.new(0, height, 0)), Color = green, Material = Enum.Material.Grass, Parent = parent })
+	for i = 1, rng:NextInteger(1, 2) do
+		local side = if i == 1 then 1 else -1
+		local yaw = CFrame.Angles(0, rng:NextNumber(0, 6.28), 0)
+		local armY = rng:NextNumber(height * 0.35, height * 0.6)
+		local out = (yaw * CFrame.new(side * 2.2, 0, 0)).Position
+		decor({ Name = "CactusArm", Size = Vector3.new(2.6, 1.5, 1.5), CFrame = CFrame.new(ground + Vector3.new(0, armY, 0) + out / 2) * yaw, Color = green, Material = Enum.Material.Grass, Parent = parent })
+		local up = rng:NextNumber(2.5, 4)
+		decor({ Name = "CactusArm", Shape = Enum.PartType.Cylinder, Size = Vector3.new(up, 1.5, 1.5), CFrame = CFrame.new(ground + Vector3.new(0, armY + up / 2, 0) + out) * CFrame.Angles(0, 0, math.rad(90)), Color = green, Material = Enum.Material.Grass, Parent = parent })
+		if rng:NextNumber() < 0.5 then
+			decor({ Name = "Blossom", Shape = Enum.PartType.Ball, Size = Vector3.new(0.9, 0.6, 0.9), CFrame = CFrame.new(ground + Vector3.new(0, armY + up + 0.3, 0) + out), Color = Color3.fromRGB(255, 90, 150), Parent = parent })
+		end
+	end
+end
+
+function Props.DeadTree(parent: Instance, ground: Vector3, rng: Random, color: Color3?)
+	local bark = color or Color3.fromRGB(120, 100, 84)
+	local height = rng:NextNumber(9, 15)
+	local lean = CFrame.Angles(math.rad(rng:NextNumber(-8, 8)), rng:NextNumber(0, 6.28), math.rad(rng:NextNumber(-8, 8)))
+	local base = CFrame.new(ground) * lean
+	local top = (base * CFrame.new(0, height, 0)).Position
+	beam(ground - Vector3.new(0, 0.5, 0), top, 1.5, { Name = "DeadTrunk", Color = bark, Material = Enum.Material.Wood, Parent = parent })
+	for _ = 1, rng:NextInteger(3, 5) do
+		local from = ground:Lerp(top, rng:NextNumber(0.45, 0.95))
+		local yaw = rng:NextNumber(0, 6.28)
+		local length = rng:NextNumber(3, 6)
+		local to = from + Vector3.new(math.cos(yaw) * length, rng:NextNumber(1.5, 4), math.sin(yaw) * length)
+		beam(from, to, 0.6, { Name = "Branch", Color = bark, Material = Enum.Material.Wood, CanCollide = false, CanQuery = false, Parent = parent })
+		local twig = to + Vector3.new(math.cos(yaw + 0.8) * 1.8, 1.4, math.sin(yaw + 0.8) * 1.8)
+		beam(to, twig, 0.35, { Name = "Twig", Color = bark, Material = Enum.Material.Wood, CanCollide = false, CanQuery = false, Parent = parent })
+	end
+end
+
+-- Bleached bones of something huge: a rib cage half-buried in the sand, and a skull.
+function Props.Bones(parent: Instance, ground: Vector3, rng: Random)
+	local bone = Color3.fromRGB(236, 226, 200)
+	local yaw = CFrame.new(ground) * CFrame.Angles(0, rng:NextNumber(0, 6.28), 0)
+	local ribs = rng:NextInteger(4, 6)
+	beam((yaw * CFrame.new(0, 0.4, -ribs * 1.1)).Position, (yaw * CFrame.new(0, 0.6, ribs * 1.1)).Position, 0.8, { Name = "Spine", Color = bone, Parent = parent })
+	for i = 1, ribs do
+		local z = (i - ribs / 2 - 0.5) * 2.1
+		local size = 4.5 - math.abs(i - ribs / 2 - 0.5) * 0.5
+		for _, side in { -1, 1 } do
+			local root = (yaw * CFrame.new(0, 0.6, z)).Position
+			local mid = (yaw * CFrame.new(side * size * 0.7, size * 0.9, z)).Position
+			local tip = (yaw * CFrame.new(side * size * 0.9, -0.2, z)).Position
+			beam(root, mid, 0.45, { Name = "Rib", Color = bone, CanCollide = false, CanQuery = false, Parent = parent })
+			beam(mid, tip, 0.4, { Name = "Rib", Color = bone, CanCollide = false, CanQuery = false, Parent = parent })
+		end
+	end
+	local skull = yaw * CFrame.new(0, 1.1, -ribs * 1.1 - 2.4)
+	Props.part({ Name = "Skull", Size = Vector3.new(2.6, 2, 3.4), CFrame = skull, Color = bone, Parent = parent })
+	for _, x in { -0.6, 0.6 } do
+		decor({ Name = "EyeSocket", Shape = Enum.PartType.Ball, Size = Vector3.new(0.9, 0.8, 0.4), CFrame = skull * CFrame.new(x, 0.3, -1.6), Color = Color3.fromRGB(30, 26, 24), Parent = parent })
+		beam((skull * CFrame.new(x * 1.6, 0.8, 0)).Position, (skull * CFrame.new(x * 3.2, 2.6, 1.2)).Position, 0.5, { Name = "Horn", Color = bone, CanCollide = false, CanQuery = false, Parent = parent })
+	end
+end
+
+function Props.DuneGrass(parent: Instance, ground: Vector3, rng: Random)
+	local color = Color3.fromRGB(190, 180, 110):Lerp(Color3.fromRGB(140, 150, 90), rng:NextNumber())
+	for _ = 1, rng:NextInteger(5, 9) do
+		local p = ground + Vector3.new(rng:NextNumber(-2.5, 2.5), 0, rng:NextNumber(-2.5, 2.5))
+		local h = rng:NextNumber(1.5, 3)
+		decor({ Name = "Blade", Size = Vector3.new(0.15, h, 0.4), CFrame = CFrame.new(p + Vector3.new(0, h / 2, 0)) * CFrame.Angles(rng:NextNumber(-0.4, 0.4), rng:NextNumber(0, 6.28), rng:NextNumber(-0.4, 0.4)), Color = color, Material = Enum.Material.Grass, CastShadow = false, Parent = parent })
+	end
+end
+
+function Props.Driftwood(parent: Instance, ground: Vector3, rng: Random)
+	local yaw = rng:NextNumber(0, 6.28)
+	local length = rng:NextNumber(6, 11)
+	local dir = Vector3.new(math.cos(yaw), 0, math.sin(yaw)) * length / 2
+	beam(ground - dir + Vector3.new(0, 0.5, 0), ground + dir + Vector3.new(0, 0.9, 0), rng:NextNumber(1, 1.6), { Name = "Driftwood", Color = Color3.fromRGB(176, 160, 140), Material = Enum.Material.Wood, Parent = parent })
+end
+
+-- Towering jungle tree: buttress roots, a straight dark trunk, a flat high canopy and vines.
+function Props.JungleTree(parent: Instance, ground: Vector3, rng: Random)
+	local height = rng:NextNumber(24, 34)
+	local bark = Color3.fromRGB(76, 60, 46)
+	Props.cylinder(ground + Vector3.new(0, height / 2 - 1, 0), height, rng:NextNumber(2.6, 3.4), { Name = "JungleTrunk", Color = bark, Material = Enum.Material.Wood, Parent = parent })
+	for i = 1, 4 do
+		local a = i * math.pi / 2 + rng:NextNumber(-0.3, 0.3)
+		local out = Vector3.new(math.cos(a), 0, math.sin(a))
+		beam(ground + Vector3.new(0, 4, 0) + out * 0.8, ground + out * 4.5 - Vector3.new(0, 0.3, 0), 0.9, { Name = "Buttress", Color = bark, Material = Enum.Material.Wood, CanCollide = false, CanQuery = false, Parent = parent })
+	end
+	local top = ground + Vector3.new(0, height, 0)
+	local greens = { Color3.fromRGB(34, 96, 48), Color3.fromRGB(46, 112, 52), Color3.fromRGB(28, 84, 56) }
+	for i = 1, rng:NextInteger(5, 7) do
+		local size = rng:NextNumber(10, 15)
+		local offset = if i == 1 then Vector3.new(0, 1, 0) else Vector3.new(rng:NextNumber(-7, 7), rng:NextNumber(-1.5, 1.5), rng:NextNumber(-7, 7))
+		decor({ Name = "Canopy", Shape = Enum.PartType.Ball, Size = Vector3.new(size, size * 0.45, size), CFrame = CFrame.new(top + offset), Color = pick(rng, greens), Material = Enum.Material.Grass, Parent = parent })
+	end
+	for _ = 1, rng:NextInteger(2, 4) do
+		local a = rng:NextNumber(0, 6.28)
+		Props.Vine(parent, top + Vector3.new(math.cos(a) * 5, -2, math.sin(a) * 5), rng:NextNumber(10, 18), rng)
+	end
+end
+
+function Props.Fern(parent: Instance, ground: Vector3, rng: Random)
+	local color = Color3.fromRGB(40, 120, 60):Lerp(Color3.fromRGB(70, 140, 50), rng:NextNumber())
+	for i = 1, rng:NextInteger(6, 9) do
+		local yaw = i / 8 * math.pi * 2 + rng:NextNumber(-0.2, 0.2)
+		decor({ Name = "Frond", Size = Vector3.new(1.1, 0.15, 4), CFrame = CFrame.new(ground + Vector3.new(0, 0.9, 0)) * CFrame.Angles(0, yaw, 0) * CFrame.new(0, 0, -1.8) * CFrame.Angles(math.rad(30), 0, 0), Color = color, Material = Enum.Material.Grass, CastShadow = false, Parent = parent })
+	end
+end
+
+-- Giant glowing mushroom: lights up the dark jungle floor.
+local SHROOM_GLOW = { Color3.fromRGB(80, 220, 255), Color3.fromRGB(190, 110, 255), Color3.fromRGB(120, 255, 170) }
+function Props.GiantMushroom(parent: Instance, ground: Vector3, rng: Random)
+	local glow = pick(rng, SHROOM_GLOW)
+	for i = 1, rng:NextInteger(1, 3) do
+		local scale = if i == 1 then rng:NextNumber(1, 1.6) else rng:NextNumber(0.4, 0.7)
+		local p = ground + (if i == 1 then Vector3.zero else Vector3.new(rng:NextNumber(-4, 4), 0, rng:NextNumber(-4, 4)))
+		local stem = 6 * scale
+		Props.cylinder(p + Vector3.new(0, stem / 2, 0), stem, 1.3 * scale, { Name = "MushroomStem", Color = Color3.fromRGB(226, 220, 200), Material = Enum.Material.SmoothPlastic, Parent = parent })
+		local cap = Props.part({ Name = "MushroomCap", Shape = Enum.PartType.Ball, Size = Vector3.new(7, 3, 7) * scale, CFrame = CFrame.new(p + Vector3.new(0, stem + 0.4 * scale, 0)), Color = glow:Lerp(Color3.new(0, 0, 0), 0.35), Material = Enum.Material.SmoothPlastic, Parent = parent })
+		for s = 1, 5 do
+			local a = s / 5 * math.pi * 2
+			decor({ Name = "Spot", Shape = Enum.PartType.Ball, Size = Vector3.new(1, 0.5, 1) * scale, CFrame = CFrame.new(p + Vector3.new(math.cos(a) * 2 * scale, stem + 1.4 * scale, math.sin(a) * 2 * scale)), Color = glow, Material = Enum.Material.Neon, CastShadow = false, Parent = parent })
+		end
+		if i == 1 then
+			local light = Instance.new("PointLight")
+			light.Color = glow
+			light.Range = 16
+			light.Brightness = 0.8
+			light.Shadows = false
+			light.Parent = cap
+		end
+	end
+end
+
 -- SETTLEMENT --------------------------------------------------------------------------
 
 local HOUSE_COLORS = {
