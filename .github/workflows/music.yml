@@ -1,0 +1,38 @@
+name: Music pipeline
+
+# Finds public-domain recordings on Wikimedia Commons and uploads chosen tracks to Roblox as
+# audio assets (see tools/music/pipeline.py). Runs when the track list or pipeline changes.
+on:
+  push:
+    branches: ["claude/**", main]
+    paths:
+      - "music/**"
+      - "tools/music/**"
+      - ".github/workflows/music.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: music-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  music:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ffmpeg
+        run: which ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+
+      - name: Discover / convert / upload
+        env:
+          ROBLOX_API_KEY: ${{ secrets.SAT_PUBLISHING_KEY }}
+          UNIVERSE_ID: ${{ vars.ROBLOX_TEST_UNIVERSE_ID || '10767602971' }}
+        run: python3 tools/music/pipeline.py
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: music-results
+          path: music-results.json
+          retention-days: 30

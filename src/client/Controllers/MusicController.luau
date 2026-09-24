@@ -3,6 +3,8 @@
 --   * Pick up a treasure -> the playlist pauses (fading out) and the carry theme starts from the
 --     top; drop / extract / lose it -> the carry theme fades out and the playlist fades back in
 --     exactly where it paused.
+--   * When the carry ends, a short sting says how it went: SuccessSting when you extracted it,
+--     FailSting when you dropped it, got knocked, had it stolen or lost it at nightfall.
 --   * Muting (HUD 🔊 button) is saved per player (data.Settings.Music).
 -- Tracks with empty ids are ignored, so nothing plays until real asset ids are configured.
 
@@ -29,6 +31,9 @@ local current: Sound? = nil
 local carrySound: Sound? = nil
 local carrying = false
 local muted = false
+local holding = false -- carrying anything (even with no carry theme configured)
+local lastExtracted = -math.huge -- os.clock() of the last "Extracted" feedback
+local STING_WAIT = 0.6 -- the Extracted event can land just after the carry attribute clears
 
 local function valid(track): boolean
 	return type(track) == "table" and type(track.Id) == "string" and track.Id ~= ""
@@ -143,6 +148,32 @@ local function stopCarry()
 	end
 end
 
+local function playSting(track)
+	if not valid(track) then
+		return
+	end
+	local sound = makeSound(track, false)
+	sound.Volume = track.Volume or 1
+	sound.Ended:Once(function()
+		sound:Destroy()
+	end)
+	sound:Play()
+end
+
+-- Called when the carry ends: extracted -> success, anything else -> fail.
+local function carryEnded()
+	task.delay(STING_WAIT, function()
+		if holding then
+			return -- picked something up again in the meantime
+		end
+		if os.clock() - lastExtracted <= STING_WAIT + 1 then
+			playSting(Music.SuccessSting)
+		else
+			playSting(Music.FailSting)
+		end
+	end)
+end
+
 local function applyMute()
 	group.Volume = if muted then 0 else Music.Volume
 	player:SetAttribute("MusicMuted", muted)
@@ -187,9 +218,19 @@ function MusicController.Init()
 	player:GetAttributeChangedSignal("CarryingId"):Connect(function()
 		local id = player:GetAttribute("CarryingId")
 		if type(id) == "string" and id ~= "" then
+			holding = true
 			startCarry()
 		else
 			stopCarry()
+			if holding then
+				holding = false
+				carryEnded()
+			end
+		end
+	end)
+	Net.Get("Feedback").OnClientEvent:Connect(function(payload)
+		if type(payload) == "table" and payload.Type == "Extracted" then
+			lastExtracted = os.clock()
 		end
 	end)
 

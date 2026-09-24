@@ -6,6 +6,10 @@
 --   CarryTheme: starts from the top the moment you pick up a treasure and loops while you carry
 --               it; drop / extract / lose it and the playlist fades back in where it left off.
 --   CarryByRarity (optional): a different carry theme for specific rarities, e.g. Legendary.
+--   SuccessSting / FailSting: short one-shots when a carry ends - extracted vs dropped / lost.
+--
+-- Tracks are public-domain recordings found and uploaded by the music pipeline
+-- (music/tracks.json, tools/music/pipeline.py, .github/workflows/music.yml); see music/CREDITS.md.
 
 local Music = {}
 
@@ -18,6 +22,9 @@ Music.Playlist = {
 }
 
 Music.CarryTheme = { Name = "The Getaway", Id = "" }
+
+Music.SuccessSting = { Name = "Extraction Fanfare", Id = "", Volume = 1 }
+Music.FailSting = { Name = "Lost It", Id = "", Volume = 1 }
 
 Music.CarryByRarity = {
 	-- Legendary = { Name = "Legendary Heist", Id = "rbxassetid://0000000000" },
