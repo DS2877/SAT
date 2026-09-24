@@ -627,6 +627,12 @@ function TreasureService.Init(points)
 			end)
 		end)
 	end)
+	-- Manual drop: put the treasure down (e.g. to grab a better one or run faster).
+	Net.On("DropTreasure", function(player)
+		if carrying[player] then
+			TreasureService.Drop(player, "Manual")
+		end
+	end, 2)
 end
 
 function TreasureService.Start()

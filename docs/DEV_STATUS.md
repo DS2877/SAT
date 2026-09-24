@@ -20,6 +20,9 @@ awaiting the phase-1 mobile playtest.
 - Ascension is a real fresh start: Strength, ALL Cash (incl. uncollected) and every gadget are
   wiped (Logic/AscensionReset); Vault, treasures, Collection, benches and titles are kept
 - 30 data-driven treasures, spawn budget + rarity caps, pickup validation, carry weld, carry speed formula
+- Manual drop (📦 button while carrying, G / D-pad down)
+- Away / offline income: 5% of Vault income while the app is backgrounded or idle 2 min, and
+  5% for time offline (capped 12 h) paid onto the collect pad with a "welcome back" banner
 - Stability STABLE→SHAKEN→KNOCKED, knock immunity, reclaim protection, dropped timeout, theft detection
 - Extraction (10 s, interruptible), finder's fee w/ zone bonus + Ascension multiplier, Collection, auto Vault placement
 - PvP bonk (server hit detection), 4 Guardian types (Dire Wolf, Goblin Brute, Stone Golem, Giant

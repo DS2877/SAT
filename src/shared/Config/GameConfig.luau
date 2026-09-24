@@ -31,6 +31,12 @@ GameConfig.Economy = {
 	SellIncomeSeconds = 60, -- sell price = one minute of that treasure's income
 	FindersFeeSeconds = 20, -- extraction pays 20 s of income up front (x zone bonus)
 	CollectRadius = 4, -- studs from the Vault's collect pad to cash out
+	-- AWAY: while a player is connected but not playing (app in the background, window unfocused
+	-- or idle for 2 min) and while offline, the Vault only earns this fraction of its income.
+	-- (A later monetisation lever: e.g. a pass that raises it.)
+	AwayIncomeRate = 0.05,
+	OfflineMaxHours = 12, -- offline earnings stop accruing after this long
+	OfflineMinSeconds = 60, -- shorter gaps (a quick rejoin) pay nothing
 }
 
 -- The island's heartbeat (Steal-an-Egg style): a 5-minute DAY to hunt and extract, then a

@@ -393,6 +393,25 @@ local function buildActions()
 	refs.AttackLabel = Kit.label({ Text = "BONK", Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, 1, -32), TextSize = 16, Font = Theme.Font.Black, Parent = attack })
 	refs.Attack = attack
 
+	-- DROP: only while carrying. Separate from BONK so mashing attack never drops your loot.
+	local drop = Kit.button({
+		Name = "Drop",
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -196, 1, -6),
+		Size = UDim2.fromOffset(72, 72),
+		BackgroundColor3 = Theme.Color.ButtonAlt,
+		TextColor3 = Theme.Color.Text,
+		Radius = Theme.Radius.Round,
+		Visible = false,
+		Parent = cluster,
+	}, function()
+		HUD.DropTreasure()
+	end)
+	Kit.stroke(Theme.Color.Warn, 2, 0.2).Parent = drop
+	Kit.label({ Text = "📦", Size = UDim2.new(1, 0, 0, 34), Position = UDim2.fromOffset(0, 8), TextSize = 28, Parent = drop })
+	Kit.label({ Text = if isTouch then "DROP" else "DROP [G]", Size = UDim2.new(1, 0, 0, 16), Position = UDim2.new(0, 0, 1, -24), TextSize = 12, Font = Theme.Font.Black, Parent = drop })
+	refs.Drop = drop
+
 	refs.Slots = {}
 	local positions = {
 		UDim2.new(1, -118, 1, -2),
@@ -795,6 +814,7 @@ local function refreshSlots()
 		end
 	end
 	refs.Reticle.Visible = aimed
+	refs.Drop.Visible = carrying ~= nil
 	refs.AttackLabel.Text = if carrying and not GameConfig.Combat.CarrierCanAttack then "RUN!" else "BONK"
 	refs.Attack.BackgroundColor3 = if carrying and not GameConfig.Combat.CarrierCanAttack then Theme.Color.Disabled else Theme.Color.Danger
 end
@@ -912,6 +932,12 @@ function HUD.FlashDanger(strength: number, duration: number)
 end
 
 local lastSwing = 0
+function HUD.DropTreasure()
+	if ClientState.Carrying() then
+		Net.Get("DropTreasure"):FireServer()
+	end
+end
+
 function HUD.Attack()
 	if os.clock() - lastSwing < GameConfig.Combat.AttackCooldown then
 		return
@@ -1013,6 +1039,8 @@ function HUD.Init(screenGui: ScreenGui)
 			HUD.UseGadget(2)
 		elseif key == Enum.KeyCode.Three or key == Enum.KeyCode.ButtonY then
 			HUD.UseGadget(3)
+		elseif key == Enum.KeyCode.G or key == Enum.KeyCode.DPadDown then
+			HUD.DropTreasure()
 		end
 	end)
 

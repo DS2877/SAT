@@ -204,6 +204,20 @@ test("training is a waiting game that rewards staying", function()
 	check(Lifting.ExpectedRate(10, 600) < 10 / cfg.RepPeriod * 5, "but it stays sane (< x5 base)")
 end)
 
+test("offline and away earnings are only a trickle", function()
+	local cfg = GameConfig.Economy
+	check(cfg.AwayIncomeRate > 0 and cfg.AwayIncomeRate <= 0.05, "away rate is at most 5%")
+	local amount, seconds = Economy.OfflineEarnings(1000, 1000000, 1000000 + 3600)
+	check(seconds == 3600 and amount == math.floor(1000 * cfg.AwayIncomeRate * 3600), "one hour offline at the away rate")
+	local capped = Economy.OfflineEarnings(1000, 1000000, 1000000 + 7 * 24 * 3600)
+	check(capped == math.floor(1000 * cfg.AwayIncomeRate * cfg.OfflineMaxHours * 3600), "capped at OfflineMaxHours")
+	check(Economy.OfflineEarnings(1000, 0, 5000000) == 0, "first join / old saves earn nothing")
+	check(Economy.OfflineEarnings(1000, 1000000, 1000000 + 20) == 0, "a quick rejoin earns nothing")
+	check(Economy.OfflineEarnings(1000, 2000000, 1000000) == 0, "clock going backwards earns nothing")
+	check(DataSchema.Default().LastOnline == 0, "LastOnline defaults to 0")
+	check(DataSchema.Migrate({ LastOnline = "junk" }).LastOnline == 0, "LastOnline sanitised")
+end)
+
 test("ascension is a real fresh start", function()
 	local data = DataSchema.Migrate({
 		Cash = 987654,

@@ -35,6 +35,8 @@ Net.ClientToServer = {
 	"StopTraining",
 	"TutorialProgress",
 	"SetSetting", -- (name, value) player preferences, e.g. Music on/off
+	"DropTreasure", -- put down the treasure you are carrying
+	"SetAway", -- (boolean) app backgrounded / idle: the Vault earns at the away rate
 }
 
 local FOLDER_NAME = "Remotes"

@@ -23,6 +23,7 @@ function DataSchema.Default()
 		OwnedCosmetics = {},
 		Titles = {},
 		SelectedTitle = "",
+		LastOnline = 0, -- os.time() of the last moment the player was in a server (offline earnings)
 		Stats = {
 			Extractions = 0,
 			Thefts = 0,
@@ -101,6 +102,7 @@ function DataSchema.Migrate(data)
 	data.Strength = math.max(1, tonumber(data.Strength) or 1000)
 	data.Ascension = math.max(0, math.floor(tonumber(data.Ascension) or 0))
 	data.Vault.Stored = math.max(0, tonumber(data.Vault.Stored) or 0)
+	data.LastOnline = math.max(0, math.floor(tonumber(data.LastOnline) or 0))
 	for i = 1, 3 do
 		if type(data.EquippedGadgets[i]) ~= "string" then
 			data.EquippedGadgets[i] = ""

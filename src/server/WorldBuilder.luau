@@ -453,7 +453,8 @@ local function buildWall(district: Folder): BasePart
 	for _, x in { -1, 1 } do
 		part({ Name = "GateDoor", Size = Vector3.new(d.GateHalfWidth - 1, height + 2, 1), CFrame = CFrame.new(gate + Vector3.new(x * (d.GateHalfWidth + 1), (height + 2) / 2, 5)) * CFrame.Angles(0, math.rad(x * 80), 0) * CFrame.new(x * (d.GateHalfWidth - 1) / 2, 0, 0), Color = C.Wood, Material = Enum.Material.WoodPlanks, Parent = walls })
 	end
-	billboardSign(arch, "THE WILDS", "Treasure awaits. Danger too.", C.Gold, 300, 5, 24)
+	-- High enough that the subtitle clears the arch (it used to sit half inside the stone).
+	billboardSign(arch, "THE WILDS", "Treasure awaits. Danger too.", C.Gold, 300, 9, 24)
 	-- Night fog: fills the gate opening. DayCycle makes it solid at night (the Wilds are closed
 	-- until dawn); clients draw the fog and the "DAWN IN" countdown (Ambience, tag NightGate).
 	local fog = part({

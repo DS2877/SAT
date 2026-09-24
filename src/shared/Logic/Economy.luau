@@ -98,6 +98,21 @@ function Economy.VaultIncome(displays, lookup, ascensionMultiplier: number, isNi
 	return math.floor(total * ascensionMultiplier * night + 0.5)
 end
 
+-- Cash a Vault earned while its owner was offline, at the reduced away rate and capped.
+-- `income` = base $/s (day rate, all multipliers), times are os.time() seconds.
+-- Returns (amount, secondsCounted).
+function Economy.OfflineEarnings(income: number, lastOnline: number, now: number): (number, number)
+	local cfg = GameConfig.Economy
+	if lastOnline <= 0 or now <= lastOnline then
+		return 0, 0
+	end
+	local seconds = math.min(now - lastOnline, cfg.OfflineMaxHours * 3600)
+	if seconds < cfg.OfflineMinSeconds then
+		return 0, 0
+	end
+	return math.floor(income * cfg.AwayIncomeRate * seconds), seconds
+end
+
 -- COLLECTION SETS -------------------------------------------------------------------------
 
 -- { [area] = { Found = n, Total = m } } for every region's set. `list` = Treasures.List.
