@@ -334,7 +334,7 @@ GameConfig.Gadgets = {
 
 GameConfig.Data = {
 	StoreName = "SAT_PlayerData",
-	Scope = "v1",
+	Scope = "launch1", -- fresh saves for launch (all test progress stays in scope "v1")
 	AutosaveInterval = 120,
 	SessionLockTimeout = 300, -- seconds before another server's lock is considered stale
 	LoadRetries = 4,
