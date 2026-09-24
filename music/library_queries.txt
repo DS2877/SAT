@@ -1,15 +1,23 @@
-# Searched in Roblox's licensed audio library by tools/music/library_search.py
-Morning Mood Grieg
-Anitra's Dance
+# Searched in Roblox's licensed audio library (asset type 3 = Audio) by tools/music/library_search.py
+Grieg
+Morning Mood
+Anitra
 Peer Gynt
-Sugar Plum Fairy
+Tchaikovsky
 Nutcracker
+Sugar Plum
+Saint-Saens
 Danse Macabre
-Flight of the Bumblebee
-Rondo alla Turca
+Rimsky-Korsakov
+Bumblebee
+Mozart
+Turkish March
+Beethoven
 Fur Elise
-Minute Waltz
-The Entertainer
-Hall of the Mountain King
-classical piano
-classical orchestra
+Chopin
+Joplin
+Entertainer
+ragtime
+classical
+APM classical
+sneaky

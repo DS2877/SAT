@@ -49,8 +49,8 @@ def details(ids):
 def search(query):
     q = urllib.parse.quote(query)
     attempts = [
-        (f"https://apis.roblox.com/toolbox-service/v1/marketplace/10?limit=30&keyword={q}&includeOnlyVerifiedCreators=true", False),
-        (f"https://apis.roblox.com/toolbox-service/v1/marketplace/10?limit=30&keyword={q}", False),
+        (f"https://apis.roblox.com/toolbox-service/v1/marketplace/3?limit=30&keyword={q}&includeOnlyVerifiedCreators=true", False),
+        (f"https://apis.roblox.com/toolbox-service/v1/marketplace/3?limit=30&keyword={q}", False),
         (f"https://apis.roblox.com/toolbox-service/v2/assets:search?searchCategoryType=Audio&query={q}&maxPageSize=30", True),
     ]
     for url, key in attempts:
