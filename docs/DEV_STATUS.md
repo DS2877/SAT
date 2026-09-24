@@ -22,7 +22,7 @@ awaiting the phase-1 mobile playtest.
 - 30 data-driven treasures, spawn budget + rarity caps, pickup validation, carry weld, carry speed formula
 - Manual drop (📦 button while carrying, G / D-pad down)
 - Offline income: full rate while in a server (AFK / benching included); while offline the
-  Vault earns 50% for at most 2 h, paid onto the collect pad with a "welcome back" banner
+  Vault earns 50% for at most 30 min, paid onto the collect pad with a "welcome back" banner
 - Stability STABLE→SHAKEN→KNOCKED, knock immunity, reclaim protection, dropped timeout, theft detection
 - Extraction (10 s, interruptible), finder's fee w/ zone bonus + Ascension multiplier, Collection, auto Vault placement
 - PvP bonk (server hit detection), 4 Guardian types (Dire Wolf, Goblin Brute, Stone Golem, Giant

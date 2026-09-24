@@ -36,7 +36,7 @@ GameConfig.Economy = {
 	-- for at most OfflineMaxHours, paid onto the collect pad when you come back.
 	-- (A later monetisation lever: e.g. a pass that raises the rate or the cap.)
 	OfflineIncomeRate = 0.5,
-	OfflineMaxHours = 2,
+	OfflineMaxHours = 0.5, -- 30 minutes
 	OfflineMinSeconds = 60, -- shorter gaps (a quick rejoin) pay nothing
 }
 
