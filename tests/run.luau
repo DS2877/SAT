@@ -500,6 +500,10 @@ test("music config is well-formed", function()
 		check(type(track) == "table" and track.Id:match("^rbxassetid://%d+$") ~= nil, slot .. " has a real asset id")
 	end
 	check(#Music.Playlist >= 5, "playlist has enough variety")
+	-- Mix: background at half volume, the carry theme 50% above full volume.
+	check(Music.PlaylistVolume == 0.5, "playlist at 50%")
+	check(Music.CarryTheme.Volume == 1.5, "carry theme at 150%")
+	check(Music.CarryTheme.StartAt == 15, "carry theme skips its first 15 s")
 	local seen = {}
 	for _, track in Music.Playlist do
 		check(not seen[track.Id], "no duplicate playlist track: " .. track.Name)
