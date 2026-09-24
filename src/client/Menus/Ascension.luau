@@ -1,4 +1,4 @@
--- Ascension: reset Strength for a permanent Cash multiplier. Everything else is kept.
+-- Ascension: start over (Strength, ALL Cash and every gadget) for a permanent multiplier.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -23,24 +23,42 @@ function Ascension.Build(root: Frame, controller)
 	local progress = Kit.label({ LayoutOrder = 4, Size = UDim2.new(1, 0, 0, 26), Font = Theme.Font.Black, TextSize = Theme.TextSize.Heading, Parent = column })
 	Kit.label({
 		LayoutOrder = 5,
-		Size = UDim2.new(0.9, 0, 0, 44),
+		Size = UDim2.new(0.9, 0, 0, 60),
 		Font = Theme.Font.Bold,
 		TextSize = Theme.TextSize.Body,
 		TextColor3 = Theme.Color.TextDim,
-		Text = ("Strength resets to %s, but you train faster forever. You KEEP your Collection, Vault, gadgets, benches and titles."):format(Kit.bigNumber(GameConfig.Strength.Start)),
+		Text = ("⚠ A FRESH START: Strength resets to %s, you LOSE ALL YOUR CASH and EVERY GADGET. You keep your Vault, treasures, Collection, benches and titles - and earn + train faster forever."):format(Kit.bigNumber(GameConfig.Strength.Start)),
 		Parent = column,
 	})
-	local ascend = Kit.button({ LayoutOrder = 6, Size = UDim2.fromOffset(260, 60), Text = "ASCEND", Font = Theme.Font.Display, TextSize = 30, BackgroundColor3 = Theme.Color.Secret, TextColor3 = Theme.Color.Text }, function()
+	-- Destructive: the first tap arms it (shows exactly what you lose), the second ascends.
+	local armed = false
+	local refresh
+	local ascend = Kit.button({ LayoutOrder = 6, Size = UDim2.fromOffset(340, 60), Text = "ASCEND", Font = Theme.Font.Display, TextSize = 26, BackgroundColor3 = Theme.Color.Secret, TextColor3 = Theme.Color.Text }, function()
 		local data = ClientState.Data
 		local affordable = data and data.Cash >= GameConfig.GetAscensionCost(data.Ascension + 1)
-		if data and affordable and data.Strength >= GameConfig.GetAscensionRequirement(data.Ascension) then
-			Net.Get("Ascend"):FireServer()
-			controller.Close()
+		if not (data and affordable and data.Strength >= GameConfig.GetAscensionRequirement(data.Ascension)) then
+			return
 		end
+		if not armed then
+			armed = true
+			refresh(data)
+			task.delay(4, function()
+				if armed then
+					armed = false
+					if ClientState.Data then
+						refresh(ClientState.Data)
+					end
+				end
+			end)
+			return
+		end
+		armed = false
+		Net.Get("Ascend"):FireServer()
+		controller.Close()
 	end)
 	ascend.Parent = column
 
-	local function refresh(data)
+	refresh = function(data)
 		local nextLevel = data.Ascension + 1
 		local cost = GameConfig.GetAscensionCost(nextLevel)
 		local required = GameConfig.GetAscensionRequirement(data.Ascension)
@@ -52,14 +70,21 @@ function Ascension.Build(root: Frame, controller)
 			GameConfig.GetTrainingMultiplier(data.Ascension),
 			GameConfig.GetTrainingMultiplier(nextLevel)
 		)
-		progress.Text = ("STRENGTH %s / %s  •  COST %s"):format(
+		progress.Text = ("STRENGTH %s / %s  •  NEED %s CASH"):format(
 			Kit.bigNumber(data.Strength),
 			Kit.bigNumber(required),
 			Kit.shortCash(cost)
 		)
 		progress.TextColor3 = if ready then Theme.Color.Safe else Theme.Color.Strength
 		ascend.BackgroundColor3 = if ready then Theme.Color.Secret else Theme.Color.Disabled
-		ascend.Text = if ready then "ASCEND" elseif strong then "NEED MORE CASH" else "KEEP TRAINING"
+		ascend.Text = if ready and armed
+			then ("TAP AGAIN: LOSE %s + GADGETS"):format(Kit.shortCash(data.Cash + (data.Vault.Stored or 0)))
+			elseif ready then "ASCEND"
+			elseif strong then "NEED MORE CASH"
+			else "KEEP TRAINING"
+		if ready and armed then
+			ascend.BackgroundColor3 = Theme.Color.Danger
+		end
 	end
 
 	return { Refresh = refresh }

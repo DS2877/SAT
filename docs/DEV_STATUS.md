@@ -14,7 +14,11 @@ awaiting the phase-1 mobile playtest.
   Wilds (trees, hills, trails, ravine bridge), Giant Waterfall + hidden cave, Ancient Temple + courtyard,
   Shipwreck Coast, Volcano + Lighthouse landmarks, 3 extraction zones (Safe / Dangerous / Secret)
 - Player data: session-locked DataStore, versioned migration + reconcile, autosave, BindToClose
-- Strength + AFK bench-press training (see REWARDING TRAINING below)
+- Strength + bench-press training as a pure waiting game (Logic/Lifting): no tapping; a PUMP
+  multiplier that heats up while you stay, set bonuses every 10 reps, MEGA / GOLDEN REP
+  jackpots, rolling counter, confetti, pump aura visible to the whole gym, next-lift ETA
+- Ascension is a real fresh start: Strength, ALL Cash (incl. uncollected) and every gadget are
+  wiped (Logic/AscensionReset); Vault, treasures, Collection, benches and titles are kept
 - 30 data-driven treasures, spawn budget + rarity caps, pickup validation, carry weld, carry speed formula
 - Stability STABLE→SHAKEN→KNOCKED, knock immunity, reclaim protection, dropped timeout, theft detection
 - Extraction (10 s, interruptible), finder's fee w/ zone bonus + Ascension multiplier, Collection, auto Vault placement

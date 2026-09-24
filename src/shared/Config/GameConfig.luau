@@ -185,24 +185,29 @@ GameConfig.SafeZone = {
 	Radius = 150, -- matches the District wall
 }
 
--- Bench-press training (AFK-friendly). Lie on a bench and every rep pays out Strength. Tapping
--- PUSH makes reps twice as fast and builds a combo; any rep can crit as a MEGA REP.
+-- Bench-press training. Lie on a bench and every rep pays out Strength - no tapping; staying is
+-- what pays (pump, set bonuses, MEGA / GOLDEN REP jackpots).
 GameConfig.Training = {
-	RepPeriod = 1.6, -- seconds per rep (halved while boosting)
-	SprintDuration = 1.5, -- seconds of boost per tap
-	MaxTapsPerSecond = 4,
+	-- Training is a waiting game (Logic/Lifting): lie down and the reps come by themselves.
+	RepPeriod = 1.6, -- seconds per rep
 	LeaveDistance = 6, -- studs from the bench before the session ends
-	-- Combo: every boosted rep in a row adds a stack (+ComboBonusPerStack each); a slow rep resets it.
-	ComboMax = 10,
-	ComboBonusPerStack = 0.1,
-	-- MEGA REP: random jackpot rep.
+	-- PUMP: each rep in a row adds PumpPerRep to the multiplier, up to PumpMax (reached after
+	-- ~40 s). Getting up resets it, so staying on the bench is what pays.
+	PumpPerRep = 0.03,
+	PumpMax = 1.75,
+	-- SETS: every SetSize reps completes a set and pays SetBonus x what the set earned.
+	SetSize = 10,
+	SetBonus = 0.25,
+	-- JACKPOTS: MEGA REP (x5) and the rare GOLDEN REP (x25).
 	CritChance = 0.08,
 	CritMultiplier = 5,
+	GoldenChance = 0.005,
+	GoldenMultiplier = 25,
 	-- Placeholder for a "2x Strength" game pass (0 = disabled). Multiplies all bench gains.
 	StrengthPassId = 0,
 	StrengthPassMultiplier = 2,
 	-- Benches are gated by ASCENSION (permanent), not Strength (which resets on every Ascension).
-	-- Strength per rep = RepGain x TrainingMultiplier(ascension) x combo x crit x pass.
+	-- Strength per rep = RepGain x TrainingMultiplier(ascension) x pump x jackpot x pass.
 	Benches = {
 		{ Id = "wooden", Name = "Wooden Bench", Price = 0, RequiredAscension = 0, RepGain = 5, Color = { 170, 120, 70 }, Count = 4 },
 		{ Id = "iron", Name = "Iron Bench", Price = 12000, RequiredAscension = 0, RepGain = 12, Color = { 150, 155, 170 }, Count = 4 },
@@ -238,13 +243,16 @@ GameConfig.Vault = {
 }
 
 GameConfig.Ascension = {
-	-- Strength needed to Ascend grows every time: Base x Growth^ascension (10K, 25K, 62.5K, 156K...)
-	BaseRequirement = 10000,
+	-- Strength needed to Ascend grows every time: Base x Growth^ascension (30K, 75K, 188K, 469K...)
+	BaseRequirement = 30000,
 	RequirementGrowth = 2.5,
 	-- ...but training speeds up every time too (compounding), so each climb stays reachable.
 	TrainingMultiplierPerLevel = 1.6,
-	-- Cash price per ascension (index = new level). Ties Ascension to the treasure loop, not just training.
+	-- Cash you must HAVE to ascend (index = new level). Ties Ascension to the treasure loop.
 	CashCost = { 150000, 1500000, 15000000, 100000000 },
+	-- A real restart: ascending wipes ALL your Cash and every gadget (Logic/AscensionReset).
+	ResetsCash = true,
+	ResetsGadgets = true,
 	CashCostGrowthAfterTable = 3,
 	Multipliers = { [0] = 1.0, [1] = 1.25, [2] = 1.5, [3] = 1.75, [4] = 2.0 },
 	MultiplierPerLevelAfterTable = 0.25,
@@ -331,7 +339,7 @@ function GameConfig.GetAscensionRequirement(level: number): number
 	return math.floor(a.BaseRequirement * a.RequirementGrowth ^ level)
 end
 
--- Strength per rep for a bench at an ascension level (before combo / crit / pass).
+-- Strength per rep for a bench at an ascension level (before pump / jackpots / pass).
 function GameConfig.GetRepGain(tier, level: number): number
 	return math.floor(tier.RepGain * GameConfig.GetTrainingMultiplier(level) + 0.5)
 end

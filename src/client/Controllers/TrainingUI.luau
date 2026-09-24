@@ -1,12 +1,14 @@
--- Bench-press panel. The server pays Strength out per rep ("TrainingRep"); this makes every rep
--- feel like a reward: a floating "+N 💪" pop (pitch rises with the combo), a combo meter that
--- fills while you keep tapping PUSH, MEGA REP jackpots, and a "next lift" goal that shows which
--- treasure you're training toward. Pushing the joystick / movement keys gets up.
--- While lying down every proximity prompt is hidden (no "Lift" button over your own bench).
--- Also announces "NEW LIFT!" whenever Strength (from any source) lets you carry a heavier
--- treasure at full speed. The lifting animation itself lives in BenchAnimator.
+-- Bench-press panel. Training is a waiting game: lie down and the reps come by themselves
+-- (server: Services/Training, maths: Logic/Lifting). This controller makes the wait feel great:
+--   * a big session total that rolls up like a slot counter on every rep
+--   * the PUMP meter heating up with every rep in a row (pitch and pop size rise with it)
+--   * set pips filling toward SET COMPLETE (confetti + bonus)
+--   * MEGA REP and the rare GOLDEN REP jackpots (flash, shake, fanfare)
+--   * a "next lift" goal with an ETA, so you always know what you are waiting for
+-- Pushing the joystick / movement keys (or ✕) gets up. While lying down every proximity prompt
+-- is hidden. Also announces "NEW LIFT!" whenever Strength (from any source) lets you carry a
+-- heavier treasure at full speed. The lifting animation itself lives in BenchAnimator.
 
-local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,6 +18,7 @@ local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
 local Rarities = require(Shared.Config.Rarities)
 local Treasures = require(Shared.Config.Treasures)
+local Lifting = require(Shared.Logic.Lifting)
 local Net = require(Shared.Net)
 
 local UI = script.Parent.Parent.UI
@@ -23,23 +26,31 @@ local Theme = require(UI.Theme)
 local Kit = require(UI.Kit)
 local Sounds = require(UI.Sounds)
 local Notifications = require(script.Parent.Notifications)
+local Effects = require(script.Parent.Effects)
 
 local TrainingUI = {}
 
+local cfg = GameConfig.Training
 local player = Players.LocalPlayer
 local gui: ScreenGui
 local panel: Frame
 local title: TextLabel
 local rateLabel: TextLabel
 local totalLabel: TextLabel
-local comboFill: Frame
-local comboLabel: TextLabel
+local pumpFill: Frame
+local pumpLabel: TextLabel
+local pumpGradient: UIGradient
+local pips: { Frame } = {}
+local setLabel: TextLabel
 local goalLabel: TextLabel
 local goalFill: Frame
-local pushButton: TextButton
+local flash: Frame
 local session = nil
 local heartbeat: RBXScriptConnection? = nil
-local ACTION = "SAT_BenchPush"
+
+local PUMP_COLD = Color3.fromRGB(255, 170, 80)
+local PUMP_HOT = Color3.fromRGB(255, 60, 40)
+local PIP_EMPTY = Color3.fromRGB(60, 52, 70)
 
 -- Treasures from lightest to heaviest: the "next lift" ladder.
 local ladder = table.clone(Treasures.List)
@@ -61,6 +72,15 @@ local function humanoid(): Humanoid?
 	return character and character:FindFirstChildOfClass("Humanoid")
 end
 
+local function formatDuration(seconds: number): string
+	if seconds < 60 then
+		return ("%ds"):format(math.max(1, math.ceil(seconds)))
+	elseif seconds < 3600 then
+		return ("%dm %02ds"):format(seconds // 60, math.floor(seconds % 60))
+	end
+	return ("%dh %02dm"):format(seconds // 3600, math.floor(seconds % 3600 / 60))
+end
+
 local function refreshGoal()
 	if not goalLabel then
 		return
@@ -70,12 +90,18 @@ local function refreshGoal()
 		local need = easyStrength(def.Weight)
 		if current < need then
 			local color = Rarities.Info[def.Rarity] and Rarities.Info[def.Rarity].Color or Theme.Color.Text
-			goalLabel.Text = ('NEXT LIFT: <font color="#%s">%s</font> at full speed  •  %s 💪'):format(
+			local eta = ""
+			if session and session.RepGain > 0 then
+				local rate = Lifting.ExpectedRate(session.RepGain, 600)
+				eta = ("  •  ⏱ %s"):format(formatDuration((need - current) / rate))
+			end
+			goalLabel.Text = ('NEXT: <font color="#%s">%s</font> at full speed  •  %s 💪%s'):format(
 				color:ToHex(),
 				def.Name:upper(),
-				Kit.bigNumber(need)
+				Kit.bigNumber(need),
+				eta
 			)
-			goalFill.Size = UDim2.fromScale(math.clamp(current / need, 0, 1), 1)
+			Kit.tween(goalFill, Theme.Motion.Fast, { Size = UDim2.fromScale(math.clamp(current / need, 0, 1), 1) })
 			return
 		end
 	end
@@ -83,27 +109,35 @@ local function refreshGoal()
 	goalFill.Size = UDim2.fromScale(1, 1)
 end
 
-local function setCombo(combo: number)
-	local max = GameConfig.Training.ComboMax
-	local bonus = math.floor(combo * GameConfig.Training.ComboBonusPerStack * 100 + 0.5)
-	Kit.tween(comboFill, Theme.Motion.Fast, { Size = UDim2.fromScale(combo / max, 1) })
-	comboFill.BackgroundColor3 = if combo >= max then Theme.Color.Gold else Theme.Color.Strength
-	if combo <= 0 then
-		comboLabel.Text = "TAP PUSH TO BUILD A COMBO"
-	elseif combo >= max then
-		comboLabel.Text = ("🔥 MAX COMBO x%d  •  +%d%%"):format(combo, bonus)
+local function setPump(pump: number)
+	local t = math.clamp((pump - 1) / (cfg.PumpMax - 1), 0, 1)
+	Kit.tween(pumpFill, TweenInfo.new(0.4, Enum.EasingStyle.Quad), { Size = UDim2.fromScale(math.max(0.04, t), 1) })
+	pumpFill.BackgroundColor3 = PUMP_COLD:Lerp(PUMP_HOT, t)
+	if t >= 1 then
+		pumpLabel.Text = ("🔥🔥 MAX PUMP  x%.2f"):format(pump)
+		pumpFill.BackgroundColor3 = Theme.Color.Gold
+	elseif t > 0 then
+		pumpLabel.Text = ("🔥 PUMP x%.2f  •  stay to heat up"):format(pump)
 	else
-		comboLabel.Text = ("COMBO x%d  •  +%d%%"):format(combo, bonus)
+		pumpLabel.Text = "PUMP x1.00  •  every rep in a row pays more"
+	end
+end
+
+local function setPips(reps: number)
+	local filled = reps % cfg.SetSize
+	for i, pip in pips do
+		local on = i <= filled
+		pip.BackgroundColor3 = if on then Theme.Color.Strength else PIP_EMPTY
 	end
 end
 
 -- Big floating reward text in the middle of the screen (above your lifter), so every rep lands.
-local function pop(text: string, color: Color3, size: number)
+local function pop(text: string, color: Color3, size: number, y: number?)
 	local label = Kit.label({
 		Text = text,
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5 + math.random(-12, 12) / 100, 0.4 + math.random(-4, 4) / 100),
-		Size = UDim2.fromOffset(420, size + 12),
+		Position = UDim2.fromScale(0.5 + math.random(-10, 10) / 100, (y or 0.4) + math.random(-3, 3) / 100),
+		Size = UDim2.fromOffset(520, size + 12),
 		Font = Theme.Font.Display,
 		TextSize = size,
 		TextColor3 = color,
@@ -116,7 +150,7 @@ local function pop(text: string, color: Color3, size: number)
 	Kit.tween(scale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
 	local rise = TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	Kit.tween(label, rise, { Position = label.Position - UDim2.fromScale(0, 0.14) })
-	task.delay(0.7, function()
+	task.delay(0.8, function()
 		local fade = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 		Kit.tween(label, fade, { TextTransparency = 1 })
 		local stroke = label:FindFirstChildOfClass("UIStroke")
@@ -124,8 +158,49 @@ local function pop(text: string, color: Color3, size: number)
 			Kit.tween(stroke, fade, { Transparency = 1 })
 		end
 	end)
-	task.delay(1.3, function()
+	task.delay(1.4, function()
 		label:Destroy()
+	end)
+end
+
+-- Confetti burst from a screen point: little spinning squares flying out and falling.
+local CONFETTI = {
+	Color3.fromRGB(255, 200, 60),
+	Color3.fromRGB(255, 110, 150),
+	Color3.fromRGB(110, 220, 255),
+	Color3.fromRGB(140, 255, 120),
+	Color3.fromRGB(255, 150, 70),
+}
+local function confetti(count: number, origin: UDim2)
+	for i = 1, count do
+		local piece = Kit.new("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = origin,
+			Size = UDim2.fromOffset(math.random(8, 14), math.random(5, 9)),
+			BackgroundColor3 = CONFETTI[i % #CONFETTI + 1],
+			BorderSizePixel = 0,
+			Rotation = math.random(0, 360),
+			ZIndex = 19,
+			Parent = gui,
+		})
+		local angle = math.random() * math.pi * 2
+		local distance = math.random(120, 320)
+		local target = origin + UDim2.fromOffset(math.cos(angle) * distance, math.sin(angle) * distance * 0.6 + 140)
+		local info = TweenInfo.new(math.random(9, 14) / 10, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		Kit.tween(piece, info, { Position = target, Rotation = piece.Rotation + math.random(-540, 540), BackgroundTransparency = 1 })
+		task.delay(1.5, function()
+			piece:Destroy()
+		end)
+	end
+end
+
+local function screenFlash(color: Color3, strength_: number)
+	flash.BackgroundColor3 = color
+	flash.BackgroundTransparency = 1 - strength_
+	flash.Visible = true
+	Kit.tween(flash, TweenInfo.new(0.7, Enum.EasingStyle.Quad), { BackgroundTransparency = 1 })
+	task.delay(0.72, function()
+		flash.Visible = false
 	end)
 end
 
@@ -133,34 +208,66 @@ local function onRep(payload)
 	if not session or type(payload) ~= "table" or type(payload.Amount) ~= "number" then
 		return
 	end
-	session.Total = payload.Total or (session.Total + payload.Amount)
-	totalLabel.Text = ("+%s 💪"):format(Kit.bigNumber(session.Total))
+	local pump = tonumber(payload.Pump) or 1
+	local wasMax = session.Pump >= cfg.PumpMax
+	session.Pump = pump
+	session.Reps = tonumber(payload.Reps) or (session.Reps + 1)
+	session.Target = tonumber(payload.Total) or (session.Target + payload.Amount)
+	setPump(pump)
+	setPips(session.Reps)
 	Kit.pulse(totalLabel)
-	local combo = tonumber(payload.Combo) or 0
-	setCombo(combo)
-	if payload.Crit then
-		pop(("MEGA REP!  +%s 💪"):format(Kit.bigNumber(payload.Amount)), Theme.Color.Gold, 60)
+
+	local heat = math.clamp((pump - 1) / (cfg.PumpMax - 1), 0, 1)
+	if payload.Kind == "Golden" then
+		pop(("✨ GOLDEN REP ✨  +%s 💪"):format(Kit.bigNumber(payload.Amount)), Theme.Color.Gold, 72, 0.34)
+		screenFlash(Theme.Color.Gold, 0.55)
+		confetti(40, UDim2.fromScale(0.5, 0.36))
+		Effects.Shake(1.2, 0.5)
+		Sounds.Play("GoldenRep")
+		Kit.pulse(panel)
+	elseif payload.Kind == "Mega" then
+		pop(("MEGA REP!  +%s 💪"):format(Kit.bigNumber(payload.Amount)), Theme.Color.Gold, 58)
+		Effects.Shake(0.5, 0.25)
 		Sounds.Play("MegaRep")
 		Kit.pulse(panel)
 	else
-		local color = if combo > 0 then Theme.Color.Gold else Theme.Color.Strength
-		pop(("+%s 💪"):format(Kit.bigNumber(payload.Amount)), color, 40 + 1.5 * math.min(combo, 10))
-		Sounds.Play("Rep", 1, 1 + combo * 0.06)
+		pop(("+%s 💪"):format(Kit.bigNumber(payload.Amount)), PUMP_COLD:Lerp(PUMP_HOT, heat), 38 + 14 * heat)
+		Sounds.Play("Rep", 0.8 + 0.3 * heat, 1 + 0.35 * heat)
 	end
-end
 
-local function push()
-	if not session then
-		return
+	local bonus = tonumber(payload.SetBonus) or 0
+	if bonus > 0 then
+		task.delay(0.35, function()
+			pop(("SET %d COMPLETE!  +%s BONUS"):format(tonumber(payload.Sets) or 0, Kit.bigNumber(bonus)), Theme.Color.Cash, 46, 0.3)
+			confetti(24, UDim2.fromScale(0.5, 0.3))
+			Sounds.Play("SetComplete")
+			for _, pip in pips do
+				pip.BackgroundColor3 = Theme.Color.Gold
+			end
+			task.delay(0.5, function()
+				if session then
+					setPips(session.Reps)
+				end
+			end)
+		end)
 	end
-	Net.Get("TrainingTap"):FireServer()
-	Kit.pulse(pushButton)
-	Sounds.Play("TrainGood", 0.4)
+	if not wasMax and pump >= cfg.PumpMax then
+		Notifications.Banner("🔥 MAX PUMP!", "Every rep now pays the most - keep lifting", "Reward", 2.5)
+		Sounds.Play("PumpMax")
+	end
+	refreshGoal()
 end
 
 local function stop()
-	if session and session.Total >= 1 then
-		Notifications.Toast(("+%s 💪 STRENGTH FROM %d REPS"):format(Kit.bigNumber(session.Total), session.Reps), "Reward")
+	if session and session.Target >= 1 then
+		Notifications.Toast(
+			("+%s 💪 FROM %d REPS%s"):format(
+				Kit.bigNumber(session.Target),
+				session.Reps,
+				if session.Sets > 0 then (" • %d SETS"):format(session.Sets) else ""
+			),
+			"Reward"
+		)
 	end
 	session = nil
 	panel.Visible = false
@@ -169,15 +276,16 @@ local function stop()
 		heartbeat:Disconnect()
 		heartbeat = nil
 	end
-	ContextActionService:UnbindAction(ACTION)
 end
 
 local function start(payload)
-	session = { Total = 0, Reps = 0, MovingFor = 0 }
+	session = { Target = 0, Shown = 0, Reps = 0, Sets = 0, Pump = 1, MovingFor = 0, RepGain = tonumber(payload.RepGain) or 0 }
 	title.Text = ("🏋 %s"):format(tostring(payload.Name):upper())
-	rateLabel.Text = ("+%s 💪 per rep  •  PUSH = 2x faster reps"):format(Kit.bigNumber(tonumber(payload.RepGain) or 0))
+	rateLabel.Text = ("+%s 💪 per rep  •  relax, the reps come by themselves"):format(Kit.bigNumber(session.RepGain))
 	totalLabel.Text = "+0 💪"
-	setCombo(0)
+	setPump(1)
+	setPips(0)
+	setLabel.Text = ("SET BONUS +%d%% EVERY %d REPS"):format(math.floor(cfg.SetBonus * 100 + 0.5), cfg.SetSize)
 	refreshGoal()
 	panel.Visible = true
 	ProximityPromptService.Enabled = false
@@ -189,6 +297,11 @@ local function start(payload)
 	heartbeat = RunService.Heartbeat:Connect(function(dt)
 		if not session then
 			return
+		end
+		-- Slot-machine counter: the total rolls up toward the server's figure.
+		if session.Shown < session.Target then
+			session.Shown = math.min(session.Target, session.Shown + math.max(1, (session.Target - session.Shown) * dt * 8))
+			totalLabel.Text = ("+%s 💪"):format(Kit.bigNumber(math.floor(session.Shown)))
 		end
 		-- Push the stick / movement keys to get up.
 		local hum = humanoid()
@@ -202,12 +315,6 @@ local function start(payload)
 			session.MovingFor = 0
 		end
 	end)
-	ContextActionService:BindActionAtPriority(ACTION, function(_, inputState)
-		if inputState == Enum.UserInputState.Begin then
-			push()
-		end
-		return Enum.ContextActionResult.Sink
-	end, false, Enum.ContextActionPriority.High.Value, Enum.KeyCode.Space, Enum.KeyCode.ButtonA)
 end
 
 -- "NEW LIFT!" when Strength (training, extraction...) crosses a treasure's full-speed mark.
@@ -231,60 +338,82 @@ local function watchLifts()
 		if unlocked then
 			Notifications.Banner("💪 NEW LIFT!", ("You now carry %s at full speed"):format(unlocked.Name:upper()), "Reward", 3)
 			Sounds.Play("BigReward", 0.7)
+			confetti(20, UDim2.fromScale(0.5, 0.22))
 		end
 	end)
 end
 
+local function bar(parent: Instance, y: number, height: number): (Frame, Frame)
+	local back = Kit.new("Frame", { Position = UDim2.fromOffset(0, y), Size = UDim2.new(1, 0, 0, height), BackgroundColor3 = Theme.Color.PanelLight, BorderSizePixel = 0, ClipsDescendants = true, Parent = parent })
+	Kit.corner(Theme.Radius.Round).Parent = back
+	local fill = Kit.new("Frame", { Size = UDim2.fromScale(0, 1), BorderSizePixel = 0, Parent = back })
+	Kit.corner(Theme.Radius.Round).Parent = fill
+	return back, fill
+end
+
 function TrainingUI.Init(screenGui: ScreenGui)
 	gui = screenGui
+	flash = Kit.new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false, ZIndex = 18, Parent = gui })
+
 	panel = Kit.panel({
 		Name = "BenchPress",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -24),
-		Size = UDim2.fromOffset(380, 176),
+		Size = UDim2.fromOffset(400, 172),
 		Visible = false,
 		Parent = gui,
 	}, { Kit.padding(10, 14) })
-	title = Kit.label({ Text = "", Size = UDim2.new(1, -130, 0, 24), Font = Theme.Font.Display, TextSize = 20, TextXAlignment = Enum.TextXAlignment.Left, Parent = panel })
-	rateLabel = Kit.label({ Text = "", Position = UDim2.fromOffset(0, 24), Size = UDim2.new(1, -120, 0, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.TextDim, TextXAlignment = Enum.TextXAlignment.Left, Parent = panel })
-	totalLabel = Kit.label({ Text = "+0 💪", AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0), Size = UDim2.fromOffset(150, 40), Font = Theme.Font.Display, TextSize = 28, TextColor3 = Theme.Color.Strength, TextXAlignment = Enum.TextXAlignment.Right, Parent = panel })
+	title = Kit.label({ Text = "", Size = UDim2.new(1, -170, 0, 24), Font = Theme.Font.Display, TextSize = 20, TextXAlignment = Enum.TextXAlignment.Left, Parent = panel })
+	rateLabel = Kit.label({ Text = "", Position = UDim2.fromOffset(0, 24), Size = UDim2.new(1, -150, 0, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.TextDim, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = true, Parent = panel })
+	totalLabel = Kit.label({ Text = "+0 💪", AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0), Size = UDim2.fromOffset(170, 42), Font = Theme.Font.Display, TextSize = 32, TextColor3 = Theme.Color.Strength, TextXAlignment = Enum.TextXAlignment.Right, Parent = panel })
+	Kit.stroke(Color3.fromRGB(40, 22, 8), 2, 0).Parent = totalLabel
 
-	-- Combo meter
-	local comboBar = Kit.new("Frame", { Name = "Combo", Position = UDim2.fromOffset(0, 46), Size = UDim2.new(1, 0, 0, 20), BackgroundColor3 = Theme.Color.PanelLight, BorderSizePixel = 0, ClipsDescendants = true, Parent = panel })
-	Kit.corner(Theme.Radius.Round).Parent = comboBar
-	comboFill = Kit.new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = Theme.Color.Strength, BorderSizePixel = 0, Parent = comboBar })
-	Kit.corner(Theme.Radius.Round).Parent = comboFill
-	comboLabel = Kit.label({ Text = "", Size = UDim2.fromScale(1, 1), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, ZIndex = 2, Parent = comboBar })
+	-- Pump meter
+	local pumpBar
+	pumpBar, pumpFill = bar(panel, 48, 22)
+	pumpGradient = Kit.new("UIGradient", {
+		Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.25), NumberSequenceKeypoint.new(0.5, 0), NumberSequenceKeypoint.new(1, 0.25) }),
+		Parent = pumpFill,
+	})
+	pumpLabel = Kit.label({ Text = "", Size = UDim2.fromScale(1, 1), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, ZIndex = 2, Parent = pumpBar })
 
-	-- Next lift goal
-	goalLabel = Kit.label({ Text = "", Position = UDim2.fromOffset(0, 70), Size = UDim2.new(1, 0, 0, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.TextDim, RichText = true, TextXAlignment = Enum.TextXAlignment.Left, Parent = panel })
-	local goalBar = Kit.new("Frame", { Name = "Goal", Position = UDim2.fromOffset(0, 88), Size = UDim2.new(1, 0, 0, 5), BackgroundColor3 = Theme.Color.PanelLight, BorderSizePixel = 0, Parent = panel })
-	Kit.corner(Theme.Radius.Round).Parent = goalBar
-	goalFill = Kit.new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = Theme.Color.Safe, BorderSizePixel = 0, Parent = goalBar })
-	Kit.corner(Theme.Radius.Round).Parent = goalFill
+	-- Set pips
+	local pipRow = Kit.new("Frame", { Position = UDim2.fromOffset(0, 76), Size = UDim2.new(1, 0, 0, 16), BackgroundTransparency = 1, Parent = panel }, {
+		Kit.list(Enum.FillDirection.Horizontal, 5, Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Center),
+	})
+	for i = 1, cfg.SetSize do
+		local pip = Kit.new("Frame", { LayoutOrder = i, Size = UDim2.fromOffset(14, 14), BackgroundColor3 = PIP_EMPTY, BorderSizePixel = 0, Parent = pipRow })
+		Kit.corner(UDim.new(1, 0)).Parent = pip
+		table.insert(pips, pip)
+	end
+	setLabel = Kit.label({ Text = "", LayoutOrder = 99, Size = UDim2.fromOffset(200, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.Cash, TextXAlignment = Enum.TextXAlignment.Left, Parent = pipRow })
 
-	pushButton = Kit.button({
-		Name = "Push",
-		AnchorPoint = Vector2.new(0, 1),
-		Position = UDim2.fromScale(0, 1),
-		Size = UDim2.new(1, -66, 0, 52),
-		Text = "PUSH! ⚡",
-		Font = Theme.Font.Display,
-		TextSize = 26,
-		Parent = panel,
-	}, push)
+	-- Next lift goal + ETA
+	goalLabel = Kit.label({ Text = "", Position = UDim2.fromOffset(0, 98), Size = UDim2.new(1, 0, 0, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.TextDim, RichText = true, TextXAlignment = Enum.TextXAlignment.Left, Parent = panel })
+	local _, fill = bar(panel, 117, 6)
+	goalFill = fill
+	goalFill.BackgroundColor3 = Theme.Color.Safe
+
 	Kit.button({
 		Name = "Stop",
-		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.fromScale(1, 1),
-		Size = UDim2.fromOffset(56, 52),
-		Text = "✕",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.fromScale(0.5, 1),
+		Size = UDim2.new(1, 0, 0, 30),
+		Text = "✕ GET UP",
+		TextSize = Theme.TextSize.Small,
 		BackgroundColor3 = Theme.Color.ButtonAlt,
 		TextColor3 = Theme.Color.Text,
 		Parent = panel,
 	}, function()
 		Net.Get("StopTraining"):FireServer()
 		stop()
+	end)
+
+	-- The pump bar shimmers while you train.
+	RunService.Heartbeat:Connect(function()
+		if session then
+			pumpGradient.Offset = Vector2.new(math.sin(os.clock() * 2.5) * 0.6, 0)
+		end
 	end)
 
 	Net.Get("TrainingState").OnClientEvent:Connect(function(payload)
@@ -296,15 +425,16 @@ function TrainingUI.Init(screenGui: ScreenGui)
 		else
 			if session then
 				-- Server totals are authoritative for the summary.
-				session.Total = tonumber(payload.Gained) or session.Total
+				session.Target = tonumber(payload.Gained) or session.Target
 				session.Reps = tonumber(payload.Reps) or session.Reps
+				session.Sets = tonumber(payload.Sets) or session.Sets
 			end
 			stop()
 		end
 	end)
 	Net.Get("TrainingRep").OnClientEvent:Connect(function(payload)
-		if session then
-			session.Reps += 1
+		if session and type(payload) == "table" then
+			session.Sets = tonumber(payload.Sets) or session.Sets
 		end
 		onRep(payload)
 	end)

@@ -16,7 +16,7 @@ Net.ServerToClient = {
 	"Feedback", -- gameplay feedback events: { Type = "...", ... }
 	"Notify", -- toast / banner / social feed messages
 	"TrainingState", -- training set start/stop
-	"TrainingRep", -- one bench rep paid out (amount, crit, combo)
+	"TrainingRep", -- one bench rep paid out (amount, jackpot kind, pump, set bonus)
 	"ExtractionState",
 	"GadgetState", -- cooldowns / effects
 	"OpenMenu",
@@ -32,7 +32,6 @@ Net.ClientToServer = {
 	"SellTreasure",
 	"UpgradeVault",
 	"Ascend",
-	"TrainingTap",
 	"StopTraining",
 	"TutorialProgress",
 	"SetSetting", -- (name, value) player preferences, e.g. Music on/off

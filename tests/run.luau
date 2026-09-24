@@ -11,10 +11,13 @@ local TreasureRoll = require("../src/shared/Logic/TreasureRoll")
 local DataSchema = require("../src/shared/Logic/DataSchema")
 local Economy = require("../src/shared/Logic/Economy")
 local DayNight = require("../src/shared/Logic/DayNight")
+local Lifting = require("../src/shared/Logic/Lifting")
+local AscensionReset = require("../src/shared/Logic/AscensionReset")
 local Mutations = require("../src/shared/Config/Mutations")
 local Music = require("../src/shared/Config/Music")
 Economy.Use(GameConfig, Mutations)
 DayNight.Use(GameConfig)
+Lifting.Use(GameConfig)
 local TerrainGen = require("../src/server/World/TerrainGen")
 
 local RARITY_ORDER = { "Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Secret" }
@@ -155,13 +158,14 @@ test("bench tiers: ordered, ascension-gated, and every ascension climb takes a s
 			check(tier.RequiredAscension >= tiers[i - 1].RequiredAscension, "gate never goes down " .. tier.Id)
 		end
 	end
-	-- AFK minutes to climb from a fresh reset to the next Ascension, on the best bench allowed.
+	-- Minutes on the bench (10-minute sessions: pump, sets and jackpots averaged in) to climb from a
+	-- fresh reset to the next Ascension, on the best bench allowed.
 	local previousRequirement = 0
 	for level = 0, 6 do
 		local best = 0
 		for _, tier in tiers do
 			if tier.RequiredAscension <= level then
-				best = math.max(best, GameConfig.GetRepGain(tier, level) / GameConfig.Training.RepPeriod)
+				best = math.max(best, Lifting.ExpectedRate(GameConfig.GetRepGain(tier, level), 600))
 			end
 		end
 		local requirement = GameConfig.GetAscensionRequirement(level)
@@ -173,6 +177,61 @@ test("bench tiers: ordered, ascension-gated, and every ascension climb takes a s
 	check(GameConfig.GetTrainingMultiplier(3) > GameConfig.GetTrainingMultiplier(2), "training speeds up every ascension")
 	check(GameConfig.GetRepGain(tiers[1], 0) >= 5, "even the first rep pays out a satisfying number")
 	check(GameConfig.Training.CritChance > 0 and GameConfig.Training.CritMultiplier > 1, "MEGA REP jackpot exists")
+end)
+
+test("training is a waiting game that rewards staying", function()
+	local cfg = GameConfig.Training
+	check(cfg.TapBoost == nil and cfg.ComboMax == nil, "no tapping mechanic left")
+	check(Lifting.Pump(1) == 1, "first rep is x1")
+	check(Lifting.Pump(10) > Lifting.Pump(2), "pump grows rep by rep")
+	check(Lifting.Pump(1000) == cfg.PumpMax, "pump is capped")
+	local toMax = Lifting.RepsToMaxPump() * cfg.RepPeriod
+	check(toMax >= 20 and toMax <= 90, ("max pump in %.0f s (20-90)"):format(toMax))
+	check(Lifting.RepAmount(10, 1, "Normal") == 10, "plain rep")
+	check(Lifting.RepAmount(10, 1, "Mega") == 10 * cfg.CritMultiplier, "mega rep")
+	check(Lifting.RepAmount(10, 1, "Golden") == 10 * cfg.GoldenMultiplier, "golden rep")
+	check(Lifting.RepAmount(0.1, 1, "Normal") == 1, "a rep always pays something")
+	check(not Lifting.IsSetComplete(cfg.SetSize - 1) and Lifting.IsSetComplete(cfg.SetSize), "set every SetSize reps")
+	check(Lifting.IsSetComplete(cfg.SetSize * 3) and not Lifting.IsSetComplete(0), "sets repeat, rep 0 is not a set")
+	check(Lifting.SetBonus(100) == math.floor(100 * cfg.SetBonus + 0.5), "set bonus")
+	-- Rolls: golden rarest, then mega, then normal.
+	check(Lifting.Roll(function() return 0 end) == "Golden", "lowest roll = golden")
+	check(Lifting.Roll(function() return cfg.GoldenChance + cfg.CritChance / 2 end) == "Mega", "mega band")
+	check(Lifting.Roll(function() return 0.99 end) == "Normal", "normal")
+	-- Staying longer is always worth more per second.
+	check(Lifting.ExpectedRate(10, 600) > Lifting.ExpectedRate(10, 60), "long sessions pay more per second")
+	check(Lifting.ExpectedRate(10, 60) > Lifting.ExpectedRate(10, 10), "even a minute beats hopping on and off")
+	check(Lifting.ExpectedRate(10, 600) < 10 / cfg.RepPeriod * 5, "but it stays sane (< x5 base)")
+end)
+
+test("ascension is a real fresh start", function()
+	local data = DataSchema.Migrate({
+		Cash = 987654,
+		Strength = 99999,
+		Ascension = 0,
+		OwnedGadgets = { balloon = true, speed_soda = true },
+		EquippedGadgets = { "balloon", "speed_soda", "" },
+		OwnedBenches = { iron = true },
+		Vault = { Tier = 2, Displays = { ["1"] = "golden_crown" }, Stored = 5000 },
+		Collection = { golden_crown = { Discovered = true, Count = 1 } },
+	})
+	AscensionReset.Apply(data, 1, "Ascended", GameConfig)
+	check(data.Ascension == 1 and data.SelectedTitle == "Ascended", "level + title")
+	check(data.Strength == GameConfig.Strength.Start, "strength reset")
+	check(data.Cash == 0 and data.Vault.Stored == 0, "ALL cash lost (incl. uncollected)")
+	check(next(data.OwnedGadgets) == nil, "every gadget lost")
+	check(data.EquippedGadgets[1] == "" and data.EquippedGadgets[2] == "" and data.EquippedGadgets[3] == "", "loadout cleared")
+	check(data.OwnedBenches.iron == true, "benches kept")
+	check(data.Vault.Tier == 2 and data.Vault.Displays["1"] == "golden_crown", "vault + treasures kept")
+	check(data.Collection.golden_crown ~= nil, "collection kept")
+	AscensionReset.Apply(data, 2, "Ascended", GameConfig)
+	local count = 0
+	for _, title in data.Titles do
+		if title == "Ascended" then
+			count += 1
+		end
+	end
+	check(count == 1, "titles not duplicated")
 end)
 
 test("uncapped strength keeps making carrying easier (within limits)", function()

@@ -603,7 +603,7 @@ local function buildGym(district: Folder)
 		CanQuery = false,
 		Parent = gym,
 	})
-	billboardSign(header, "🏋 STRENGTH GYM", "Lie down • Every rep = 💪 • Tap PUSH for combos", C.Gold, 200, 0, 26)
+	billboardSign(header, "🏋 STRENGTH GYM", "Lie down and relax • The longer you lift, the more you gain", C.Gold, 200, 0, 26)
 	return machines
 end
 

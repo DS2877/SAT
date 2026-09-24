@@ -26,6 +26,9 @@ local LIBRARY = {
 	TrainGood = { Id = "rbxasset://sounds/clickfast.wav", Volume = 0.6, Speed = 1 },
 	Rep = { Id = "rbxasset://sounds/electronicpingshort.wav", Volume = 0.35, Speed = 1.5 },
 	MegaRep = { Id = "rbxasset://sounds/electronicpingshort.wav", Volume = 1, Speed = 0.9 },
+	GoldenRep = { Id = "rbxasset://sounds/electronicpingshort.wav", Volume = 1, Speed = 0.5 },
+	SetComplete = { Id = "rbxasset://sounds/electronicpingshort.wav", Volume = 0.9, Speed = 1.25 },
+	PumpMax = { Id = "rbxasset://sounds/electronicpingshort.wav", Volume = 0.8, Speed = 0.7 },
 	HeavyStep = { Id = "rbxasset://sounds/action_jump_land.mp3", Volume = 0.5, Speed = 0.7 },
 	Heartbeat = { Id = "rbxasset://sounds/action_jump_land.mp3", Volume = 0.7, Speed = 0.45 },
 	TrainMiss = { Id = "rbxasset://sounds/action_get_up.mp3", Volume = 0.4, Speed = 1.5 },
@@ -36,7 +39,7 @@ local LIBRARY = {
 
 local cache: { [string]: Sound } = {}
 
--- speedScale shifts the pitch (e.g. rising pitch as a combo grows).
+-- speedScale shifts the pitch (e.g. rising pitch as the training pump builds).
 function Sounds.Play(name: string, volumeScale: number?, speedScale: number?)
 	local def = LIBRARY[name]
 	if not def then

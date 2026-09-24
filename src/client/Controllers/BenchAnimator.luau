@@ -3,7 +3,8 @@
 -- avatars whose joints are AnimationConstraints instead of Motor6Ds), and IKControls pull the
 -- hands onto the bar so the arms follow. Every server rep ("BenchRep" attribute) snaps the
 -- press to lockout, so the bar hits the top exactly when the Strength pops; other lifters get a
--- floating "+N 💪" over their head ("BenchGain") so the whole gym sees the gains.
+-- floating "+N 💪" over their head ("BenchGain") so the whole gym sees the gains, and a heat
+-- aura that grows with their PUMP ("BenchPump"): the longest lifter in the gym visibly glows.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,6 +22,8 @@ type Lifter = {
 	HiddenRack: BasePart?,
 	Phase: number,
 	Kick: number,
+	Aura: ParticleEmitter?,
+	Glow: PointLight?,
 }
 
 local localPlayer = Players.LocalPlayer
@@ -125,7 +128,28 @@ local function start(player: Player)
 	if rack then
 		rack.Transparency = 1 -- local only
 	end
-	lifters[player] = { Character = character, Bar = bar, Iks = iks, HiddenRack = rack, Phase = 0.5, Kick = 0 }
+	-- Heat aura: embers rising off the lifter, stronger as the pump builds.
+	local aura, glow = nil, nil
+	if root then
+		aura = Instance.new("ParticleEmitter")
+		aura.Name = "PumpAura"
+		aura.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		aura.Rate = 0
+		aura.Lifetime = NumberRange.new(0.8, 1.4)
+		aura.Speed = NumberRange.new(2, 4)
+		aura.SpreadAngle = Vector2.new(40, 40)
+		aura.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 0) })
+		aura.LightEmission = 1
+		aura.Color = ColorSequence.new(Color3.fromRGB(255, 200, 80), Color3.fromRGB(255, 70, 40))
+		aura.Parent = root
+		glow = Instance.new("PointLight")
+		glow.Name = "PumpGlow"
+		glow.Color = Color3.fromRGB(255, 140, 60)
+		glow.Range = 10
+		glow.Brightness = 0
+		glow.Parent = root
+	end
+	lifters[player] = { Character = character, Bar = bar, Iks = iks, HiddenRack = rack, Phase = 0.5, Kick = 0, Aura = aura, Glow = glow }
 end
 
 local function stop(player: Player)
@@ -140,6 +164,12 @@ local function stop(player: Player)
 	if lifter.HiddenRack then
 		lifter.HiddenRack.Transparency = 0
 	end
+	if lifter.Aura then
+		lifter.Aura:Destroy()
+	end
+	if lifter.Glow then
+		lifter.Glow:Destroy()
+	end
 	lifter.Bar:Destroy()
 end
 
@@ -153,7 +183,7 @@ local function refresh(player: Player)
 end
 
 -- "+N 💪" rising over another lifter's head.
-local function worldPop(lifter: Lifter, amount: number)
+local function worldPop(lifter: Lifter, amount: number, kind: string?)
 	local head = lifter.Character:FindFirstChild("Head") or lifter.Character:FindFirstChild("HumanoidRootPart")
 	if not head or not head:IsA("BasePart") then
 		return
@@ -169,9 +199,12 @@ local function worldPop(lifter: Lifter, amount: number)
 	label.Size = UDim2.fromScale(1, 1)
 	label.Font = Enum.Font.FredokaOne
 	label.TextScaled = true
-	label.TextColor3 = Color3.fromRGB(255, 170, 70)
+	label.TextColor3 = if kind == "Golden" or kind == "Mega" then Color3.fromRGB(255, 215, 60) else Color3.fromRGB(255, 170, 70)
 	label.TextStrokeTransparency = 0.2
-	label.Text = ("+%d 💪"):format(amount)
+	label.Text = if kind == "Golden" then ("✨ +%d 💪"):format(amount) else ("+%d 💪"):format(amount)
+	if kind == "Golden" then
+		gui.Size = UDim2.fromOffset(240, 60)
+	end
 	label.Parent = gui
 	gui.Adornee = head
 	gui.Parent = head
@@ -197,7 +230,8 @@ local function watch(player: Player)
 		lifter.Kick = 1
 		local gain = player:GetAttribute("BenchGain")
 		if player ~= localPlayer and type(gain) == "number" then
-			worldPop(lifter, gain)
+			local kind = player:GetAttribute("BenchKind")
+			worldPop(lifter, gain, if type(kind) == "string" then kind else nil)
 		end
 	end)
 	player.CharacterRemoving:Connect(function()
@@ -214,6 +248,7 @@ function BenchAnimator.Init()
 	Players.PlayerRemoving:Connect(stop)
 
 	local period = GameConfig.Training.RepPeriod
+	local pumpMax = GameConfig.Training.PumpMax
 	RunService.RenderStepped:Connect(function(dt)
 		for player, lifter in lifters do
 			local root = lifter.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
@@ -221,8 +256,15 @@ function BenchAnimator.Init()
 				stop(player)
 				continue
 			end
-			local boosting = player:GetAttribute("BenchBoost") == true
-			lifter.Phase = (lifter.Phase + dt / (if boosting then period / 2 else period)) % 1
+			lifter.Phase = (lifter.Phase + dt / period) % 1
+			local pump = tonumber(player:GetAttribute("BenchPump")) or 1
+			local heat = math.clamp((pump - 1) / (pumpMax - 1), 0, 1)
+			if lifter.Aura then
+				lifter.Aura.Rate = heat * 18
+			end
+			if lifter.Glow then
+				lifter.Glow.Brightness = heat * 1.6
+			end
 			lifter.Kick = math.max(0, lifter.Kick - dt * 5)
 			-- 0 = bar at the chest, 1 = arms locked out
 			local extend = 0.5 - 0.5 * math.cos(lifter.Phase * math.pi * 2)

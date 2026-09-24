@@ -62,6 +62,9 @@ local function shakeCamera(intensity: number, duration: number)
 	end)
 end
 
+-- Shared with other controllers (TrainingUI jackpots).
+Effects.Shake = shakeCamera
+
 local function swingEffect(root: BasePart)
 	local arc = Instance.new("Part")
 	arc.Anchored = true
@@ -329,7 +332,8 @@ end
 
 function handlers.Ascended(payload)
 	Sounds.Play("Ascend")
-	Notifications.Banner("ASCENDED!", ("%s • x%.2f CASH FOREVER"):format(tostring(payload.Title):upper(), payload.Multiplier or 1), "Reward", 4)
+	Notifications.Banner("ASCENDED!", ("%s • x%.2f CASH FOREVER • A FRESH START"):format(tostring(payload.Title):upper(), payload.Multiplier or 1), "Reward", 4)
+	shakeCamera(0.8, 0.6)
 end
 
 -- DISCOVERY + DROPPED TREASURE LABELS ------------------------------------------------
