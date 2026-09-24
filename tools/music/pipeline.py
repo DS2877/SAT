@@ -264,6 +264,28 @@ def main():
             print(f"  ERROR: {err}")
             results["errors"][key] = str(err)
 
+    # VERIFY: every uploaded track must be approved by Roblox moderation or it plays silence.
+    results["verify"] = {}
+    if API_KEY:
+        print("\n=== MODERATION STATUS ===")
+        for entry in tracks:
+            asset_id = entry.get("assetId") or results["uploaded"].get(entry["key"], {}).get("assetId")
+            if not asset_id:
+                continue
+            status, body = http(
+                f"https://apis.roblox.com/assets/v1/assets/{asset_id}?readMask=moderationResult,state,assetType,creationContext,displayName",
+                headers={"x-api-key": API_KEY},
+            )
+            if status == 200:
+                info = json.loads(body)
+                moderation = (info.get("moderationResult") or {}).get("moderationState", "?")
+                creator = json.dumps((info.get("creationContext") or {}).get("creator", {}))
+                line = f"{moderation} | state={info.get('state', '?')} | type={info.get('assetType', '?')} | creator={creator}"
+            else:
+                line = f"HTTP {status}: {body[:200].decode(errors='replace')}"
+            results["verify"][entry["key"]] = line
+            print(f"  {entry['key']:<12} {asset_id:<17} {line}")
+
     with open("music-results.json", "w") as f:
         json.dump(results, f, indent=2)
     print("\n=== RESULTS ===")
