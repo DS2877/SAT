@@ -31,6 +31,12 @@ jobs:
           ROBLOX_CREATOR: ${{ vars.ROBLOX_CREATOR }}
         run: python3 tools/music/pipeline.py
 
+      - name: Search Roblox's licensed audio library
+        continue-on-error: true
+        env:
+          ROBLOX_API_KEY: ${{ secrets.SAT_PUBLISHING_KEY }}
+        run: python3 tools/music/library_search.py
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
