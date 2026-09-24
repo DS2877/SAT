@@ -7,16 +7,16 @@
 --     the buyer gets the shout-out, the whole server gets the loot - viral, not pay-to-win.
 --   * Free players get generous free boosts too (daily streak, friends, Premium, group).
 --
--- Id = 0 means "not created on Roblox yet": the item is hidden in the store and any perk is
--- off. Create the passes / products (tools/monetization, workflow "Monetization setup") and
--- paste the ids here.
+-- Ids are the live Roblox game passes / developer products (created 2026-09-24 by the
+-- "Monetization setup" workflow). Id = 0 means "not created yet": shown as SOON, no perk.
+-- Prices here are for display; the real price is whatever is set on Roblox.
 
 local Monetization = {}
 
 -- One-time GAME PASSES.
 Monetization.Passes = {
 	VIP = {
-		Id = 0,
+		Id = 1994030514,
 		Price = 299,
 		Icon = "👑",
 		Name = "VIP",
@@ -25,7 +25,7 @@ Monetization.Passes = {
 		DailyRewardMultiplier = 2,
 	},
 	DoubleCash = {
-		Id = 0,
+		Id = 1996034488,
 		Price = 499,
 		Icon = "💰",
 		Name = "2x Cash",
@@ -33,7 +33,7 @@ Monetization.Passes = {
 		IncomeMultiplier = 2,
 	},
 	DoubleStrength = {
-		Id = 0,
+		Id = 1997222487,
 		Price = 349,
 		Icon = "💪",
 		Name = "2x Strength",
@@ -41,7 +41,7 @@ Monetization.Passes = {
 		TrainingMultiplier = 2,
 	},
 	OfflineVault = {
-		Id = 0,
+		Id = 1994660511,
 		Price = 149,
 		Icon = "🌙",
 		Name = "Night Shift",
@@ -50,7 +50,7 @@ Monetization.Passes = {
 		OfflineMaxHours = 4,
 	},
 	AutoCollect = {
-		Id = 0,
+		Id = 1995998488,
 		Price = 99,
 		Icon = "🧲",
 		Name = "Auto Collect",
@@ -62,12 +62,12 @@ Monetization.Passes = {
 -- Cash packs scale with YOUR income so they are always worth the same: `Minutes` of your
 -- current Vault income (with a floor so new players get a real boost too).
 Monetization.Products = {
-	CashSmall = { Id = 0, Price = 29, Icon = "💵", Name = "Pocket Cash", Kind = "Cash", Minutes = 10, Minimum = 5000 },
-	CashMedium = { Id = 0, Price = 99, Icon = "💰", Name = "Treasure Sack", Kind = "Cash", Minutes = 45, Minimum = 30000 },
-	CashLarge = { Id = 0, Price = 399, Icon = "🏦", Name = "Dragon Hoard", Kind = "Cash", Minutes = 240, Minimum = 250000 },
+	CashSmall = { Id = 3714570437, Price = 29, Icon = "💵", Name = "Pocket Cash", Kind = "Cash", Minutes = 10, Minimum = 5000 },
+	CashMedium = { Id = 3714570439, Price = 99, Icon = "💰", Name = "Treasure Sack", Kind = "Cash", Minutes = 45, Minimum = 30000 },
+	CashLarge = { Id = 3714570440, Price = 399, Icon = "🏦", Name = "Dragon Hoard", Kind = "Cash", Minutes = 240, Minimum = 250000 },
 	-- Server-wide: everyone profits, the buyer is celebrated.
 	TreasureRain = {
-		Id = 0,
+		Id = 3714570441,
 		Price = 149,
 		Icon = "🌧",
 		Name = "Treasure Rain",
@@ -76,7 +76,7 @@ Monetization.Products = {
 		Description = "Make it rain treasure for the WHOLE server (starts now, or at dawn).",
 	},
 	GoldRush = {
-		Id = 0,
+		Id = 3714570442,
 		Price = 99,
 		Icon = "✨",
 		Name = "Gold Rush",
@@ -85,7 +85,7 @@ Monetization.Products = {
 		Description = "Tonight's loot in one region is x6 more likely to be MUTATED - for everyone.",
 	},
 	StrengthSurge = {
-		Id = 0,
+		Id = 3714570443,
 		Price = 49,
 		Icon = "⚡",
 		Name = "Strength Surge",

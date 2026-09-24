@@ -76,10 +76,8 @@ attribute. Items with `Id = 0` are hidden as "SOON" and grant nothing.
 
 ## 3. Your action before launch
 
-1. **Create the passes + products**: GitHub → Actions → "Monetization setup" → Run workflow
-   with `dry_run = true` to review, then `false` to create. Your `SAT_PUBLISHING_KEY` needs the
-   `game-pass:write` and `developer-product:write` scopes. Paste the printed ids into
-   `src/shared/Config/Monetization.luau` (or ask Claude to). Add icons in the Creator Dashboard.
+1. ~~Create the passes + products~~ DONE 2026-09-24 (ids in Config/Monetization.luau).
+   Still to do: add icons to each pass / product in the Creator Dashboard.
 2. **Group**: create the community group and set `Monetization.Free.GroupId`.
 3. **Private servers**: enable them (Creator Dashboard → Access) for ~100 R$.
 4. **Experience questionnaire / maturity**: fill it in (mild cartoon violence: bonks).
