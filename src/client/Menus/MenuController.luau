@@ -1,7 +1,7 @@
 -- Modal menu shell: one menu open at a time, a coloured header band per menu (accent, icon,
 -- title, subtitle), refresh on data change.
 -- Menus opened from a place in the world (Gadget Shop counter, your Vault terminal, the
--- Ascension altar) carry that place as an Anchor and close when you walk away from it: those
+-- Ascension altar, the map board by the gate) carry that place as an Anchor and close when you walk away from it: those
 -- menus are deliberately NOT available from anywhere on the map.
 
 local Players = game:GetService("Players")
@@ -48,6 +48,13 @@ local MENUS = {
 		Icon = "✨",
 		Subtitle = "Start over stronger - forever",
 		Accent = Color3.fromRGB(170, 90, 255),
+	},
+	Map = {
+		Module = script.Parent.Map,
+		Title = "ISLAND MAP",
+		Icon = "🗺",
+		Subtitle = "More danger, rarer loot • check your strength before you go",
+		Accent = Color3.fromRGB(70, 170, 120),
 	},
 	Store = {
 		Module = script.Parent.Store,

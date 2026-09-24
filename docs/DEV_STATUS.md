@@ -237,6 +237,16 @@ awaiting the phase-1 mobile playtest.
 - Client Critters: rabbits / crabs / frogs / lizards / penguins by region, flee from you.
 - Validation: static + unit tests only; NOT yet walked through in a live server.
 
+## ISLAND MAP BOARD (by the Wilds gate)
+- World/MapBoard: a 16x9-stud framed board just inside the gate beside the avenue
+  (WorldLayout.MapBoard), facing players on their way out; prompt "Open Map".
+- UI/MapView draws it from config (never stale): regions with danger stars, typical loot,
+  recommended strength with YOUR check (✔ / orange), trails, exits (+cash %, mutation %),
+  geysers, secrets you found, pulsing YOU ARE HERE. Side panel: loot mix per danger level
+  (stacked rarity bars), "Mythic+ anywhere", exit payouts, night rule.
+- Map "up" = into the Wilds, so left/right match what you see at the gate.
+- Full screen via Menus/Map (world-anchored: closes when you walk away).
+
 ## KNOWN BUGS / RISKS
 - Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp
   slopes, IK arms on the bench, nightfall teleport, collect board placement on every plot.

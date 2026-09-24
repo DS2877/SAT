@@ -22,6 +22,7 @@ local Props = require(script.Parent.World.Props)
 local Secrets = require(script.Parent.World.Secrets)
 local Adventure = require(script.Parent.World.Adventure)
 local Settlements = require(script.Parent.World.Settlements)
+local MapBoard = require(script.Parent.World.MapBoard)
 
 local WorldBuilder = {}
 
@@ -527,6 +528,7 @@ local function buildDistrict()
 
 	buildSpawnPavilion(district)
 	nightGate = buildWall(district)
+	MapBoard.Build(district)
 
 	return district
 end

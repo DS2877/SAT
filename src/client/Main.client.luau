@@ -24,6 +24,7 @@ local Biomes = require(Controllers.Biomes)
 local ChatTags = require(Controllers.ChatTags)
 local Pads = require(Controllers.Pads)
 local Critters = require(Controllers.Critters)
+local MapBoard = require(Controllers.MapBoard)
 local MenuController = require(script.Parent.Menus.MenuController)
 
 local player = Players.LocalPlayer
@@ -66,6 +67,7 @@ Biomes.Init(gui)
 ChatTags.Init()
 Pads.Init()
 Critters.Init()
+MapBoard.Init()
 MenuController.Init(gui)
 HUD.OpenMenu = MenuController.Open
 TrainingUI.OpenStore = function()
