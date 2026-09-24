@@ -43,6 +43,8 @@ local AREA_COLORS = {
 	["ANCIENT RUINS"] = Theme.Color.Gold,
 	["SHIPWRECK COAST"] = Theme.Color.Info,
 	["THE FALLS"] = Color3.fromRGB(140, 230, 255),
+	["FROSTPEAK"] = Color3.fromRGB(190, 235, 255),
+	["GLOWSHROOM MARSH"] = Color3.fromRGB(200, 130, 255),
 }
 
 local function rarityColor(rarity: string): Color3

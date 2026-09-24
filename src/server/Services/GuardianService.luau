@@ -63,6 +63,8 @@ local function build(typeName: string, def, position: Vector3): (Model, BasePart
 	model.PrimaryPart = root
 
 	local body, accent, eye = rgb(def.BodyColor), rgb(def.AccentColor), rgb(def.EyeColor)
+	-- Region variants reuse a body design (def.Model) with their own colours.
+	local design = def.Model or typeName
 	local ground = -(def.Size[2] / 2 + def.HipHeight) -- design-unit y of the feet
 
 	local function add(name: string?, shape, sz: Vector3, color: Color3, material, offset: CFrame): BasePart
@@ -109,7 +111,7 @@ local function build(typeName: string, def, position: Vector3): (Model, BasePart
 		box(Vector3.new(width, 0.16, 0.3), BLACK, CFrame.new(x, y, z) * CFrame.Angles(0, 0, math.rad(if x > 0 then 22 else -22)))
 	end
 
-	if typeName == "Wolf" then
+	if design == "Wolf" then
 		-- DIRE WOLF: hunched shoulders, bristling spine, open fanged jaw.
 		box(Vector3.new(2.7, 2.7, 2.5), body, CFrame.new(0, 0.3, -0.9) * CFrame.Angles(math.rad(-8), 0, 0), Enum.Material.Fabric)
 		box(Vector3.new(2.2, 2.1, 2.5), body, CFrame.new(0, -0.1, 1.2), Enum.Material.Fabric)
@@ -143,7 +145,7 @@ local function build(typeName: string, def, position: Vector3): (Model, BasePart
 				end
 			end
 		end
-	elseif typeName == "Goblin" then
+	elseif design == "Goblin" then
 		-- GOBLIN BRUTE: huge hunched ogre-goblin with tusks, spiked pauldrons and a nail club.
 		ball(Vector3.new(3.2, 3.2, 2.8), body, CFrame.new(0, 0, 0))
 		box(Vector3.new(2.8, 0.9, 2.4), accent, CFrame.new(0, -1.3, 0), Enum.Material.Fabric) -- loincloth
@@ -180,9 +182,9 @@ local function build(typeName: string, def, position: Vector3): (Model, BasePart
 			local a = i * math.pi / 3
 			spike(Vector3.new(0.18, 0.5, 0.18), IRON, club * CFrame.new(0, 0, -3) * CFrame.Angles(a, 0, 0) * CFrame.new(0, 0.85, 0), Enum.Material.Metal)
 		end
-	elseif typeName == "Golem" then
+	elseif design == "Golem" then
 		-- STONE GOLEM: moss-covered boulder titan with a molten core.
-		local core = Color3.fromRGB(255, 110, 30)
+		local core = eye -- molten orange on the Stone Golem, frost blue on the Ice Golem
 		box(Vector3.new(3.8, 3.4, 2.8), body, CFrame.new(0, 0.3, 0) * CFrame.Angles(math.rad(-6), 0, 0), Enum.Material.Slate)
 		box(Vector3.new(3.2, 1.4, 2.4), body, CFrame.new(0, -1.5, 0.1), Enum.Material.Slate)
 		box(Vector3.new(0.35, 1.9, 0.12), core, CFrame.new(0.1, 0.5, -1.45) * CFrame.Angles(0, 0, math.rad(14)), Enum.Material.Neon)
@@ -207,7 +209,7 @@ local function build(typeName: string, def, position: Vector3): (Model, BasePart
 		end
 		-- Crystals growing out of its back.
 		for _, c in { { -0.8, 2.2, 1.2, -18 }, { 0, 2.6, 1.3, 0 }, { 0.8, 2.1, 1.2, 18 }, { 0.4, 1.4, 1.5, 30 } } do
-			spike(Vector3.new(0.5, 1.5, 0.5), Color3.fromRGB(255, 150, 60), CFrame.new(c[1], c[2], c[3]) * CFrame.Angles(math.rad(-25), 0, math.rad(c[4])), Enum.Material.Neon)
+			spike(Vector3.new(0.5, 1.5, 0.5), eye:Lerp(Color3.new(1, 1, 1), 0.2), CFrame.new(c[1], c[2], c[3]) * CFrame.Angles(math.rad(-25), 0, math.rad(c[4])), Enum.Material.Neon)
 		end
 		for _, m in { { -1.2, 0.9, -1.35 }, { 1.3, -0.6, -1.35 }, { -0.4, -1.4, -1.25 } } do
 			box(Vector3.new(0.9, 0.5, 0.2), accent, CFrame.new(m[1], m[2], m[3]), Enum.Material.Grass)

@@ -380,6 +380,81 @@ function Props.GiantMushroom(parent: Instance, ground: Vector3, rng: Random)
 	end
 end
 
+-- FROSTPEAK + MARSH -------------------------------------------------------------------
+
+-- Snowy pine: a dark trunk and stacked evergreen tiers, each dusted with snow.
+function Props.Pine(parent: Instance, ground: Vector3, rng: Random)
+	local height = rng:NextNumber(14, 22)
+	Props.cylinder(ground + Vector3.new(0, height * 0.3, 0), height * 0.6, 1.4, { Name = "PineTrunk", Color = Color3.fromRGB(90, 62, 44), Material = Enum.Material.Wood, Parent = parent })
+	local tiers = 4
+	local green = Color3.fromRGB(38, 88, 62):Lerp(Color3.fromRGB(52, 110, 76), rng:NextNumber())
+	for i = 1, tiers do
+		local t = (i - 1) / tiers
+		local y = height * (0.3 + t * 0.62)
+		local radius = (1 - t) * 6 + 1.4
+		local yaw = rng:NextNumber(0, 6.28)
+		-- Each tier: four wedges leaning outwards form a rough cone.
+		for k = 0, 3 do
+			local rot = CFrame.new(ground + Vector3.new(0, y, 0)) * CFrame.Angles(0, yaw + k * math.pi / 2, 0)
+			decor({ Name = "PineTier", Class = "WedgePart", Size = Vector3.new(radius * 1.5, height * 0.2, radius), CFrame = rot * CFrame.new(0, 0, -radius / 2) * CFrame.Angles(0, math.pi, 0), Color = green, Material = Enum.Material.Grass, Parent = parent })
+		end
+		decor({ Name = "Snow", Shape = Enum.PartType.Ball, Size = Vector3.new(radius * 1.2, 0.8, radius * 1.2), CFrame = CFrame.new(ground + Vector3.new(0, y + height * 0.1, 0)), Color = Color3.fromRGB(245, 250, 255), Material = Enum.Material.Snow, Parent = parent })
+	end
+end
+
+local ICE = { Color3.fromRGB(150, 220, 255), Color3.fromRGB(190, 240, 255), Color3.fromRGB(120, 190, 255) }
+function Props.IceCrystals(parent: Instance, ground: Vector3, rng: Random)
+	local color = pick(rng, ICE)
+	for i = 1, rng:NextInteger(3, 6) do
+		local h = if i == 1 then rng:NextNumber(6, 10) else rng:NextNumber(2.5, 5)
+		local offset = if i == 1 then Vector3.zero else Vector3.new(rng:NextNumber(-2.5, 2.5), 0, rng:NextNumber(-2.5, 2.5))
+		Props.part({
+			Name = "IceCrystal",
+			Class = "WedgePart",
+			Size = Vector3.new(h * 0.3, h, h * 0.3),
+			CFrame = CFrame.new(ground + offset + Vector3.new(0, h * 0.4, 0)) * CFrame.Angles(rng:NextNumber(-0.35, 0.35), rng:NextNumber(0, 6.28), rng:NextNumber(-0.35, 0.35)),
+			Color = color,
+			Material = Enum.Material.Glass,
+			Transparency = 0.2,
+			Parent = parent,
+		})
+	end
+end
+
+function Props.Reeds(parent: Instance, ground: Vector3, rng: Random)
+	for _ = 1, rng:NextInteger(6, 11) do
+		local h = rng:NextNumber(3, 6)
+		local p = ground + Vector3.new(rng:NextNumber(-2, 2), 0, rng:NextNumber(-2, 2))
+		decor({ Name = "Reed", Size = Vector3.new(0.2, h, 0.2), CFrame = CFrame.new(p + Vector3.new(0, h / 2, 0)) * CFrame.Angles(rng:NextNumber(-0.25, 0.25), 0, rng:NextNumber(-0.25, 0.25)), Color = Color3.fromRGB(96, 120, 70), Material = Enum.Material.Grass, CastShadow = false, Parent = parent })
+		if rng:NextNumber() < 0.5 then
+			decor({ Name = "Cattail", Size = Vector3.new(0.45, 1, 0.45), CFrame = CFrame.new(p + Vector3.new(0, h + 0.3, 0)), Color = Color3.fromRGB(110, 70, 40), Material = Enum.Material.Fabric, CastShadow = false, Parent = parent })
+		end
+	end
+end
+
+function Props.LilyPad(parent: Instance, position: Vector3, rng: Random)
+	local size = rng:NextNumber(2, 3.4)
+	Props.cylinder(position, 0.15, size, { Name = "LilyPad", Color = Color3.fromRGB(70, 150, 70), Material = Enum.Material.Grass, CanCollide = false, CanQuery = false, Parent = parent })
+	if rng:NextNumber() < 0.35 then
+		decor({ Name = "LilyFlower", Shape = Enum.PartType.Ball, Size = Vector3.new(0.8, 0.5, 0.8), CFrame = CFrame.new(position + Vector3.new(0.4, 0.3, 0)), Color = Color3.fromRGB(255, 170, 230), Material = Enum.Material.Neon, CastShadow = false, Parent = parent })
+	end
+end
+
+-- Wooden boardwalk between two points (walkable, on short posts).
+function Props.Boardwalk(parent: Instance, from: Vector3, to: Vector3, width: number)
+	local flat = Vector3.new(to.X - from.X, 0, to.Z - from.Z)
+	local length = flat.Magnitude
+	local cf = CFrame.lookAt(from, from + flat) * CFrame.new(0, 0, -length / 2)
+	for d = -length / 2, length / 2, 2.2 do
+		Props.part({ Name = "Plank", Size = Vector3.new(width, 0.4, 1.9), CFrame = cf * CFrame.new(0, 0, d), Color = Color3.fromRGB(120, 90, 60), Material = Enum.Material.WoodPlanks, Parent = parent })
+	end
+	for d = -length / 2, length / 2, 8 do
+		for _, x in { -width / 2, width / 2 } do
+			Props.part({ Name = "Post", Size = Vector3.new(0.6, 3, 0.6), CFrame = cf * CFrame.new(x, -1.2, d), Color = Color3.fromRGB(80, 60, 40), Material = Enum.Material.Wood, Parent = parent })
+		end
+	end
+end
+
 -- SETTLEMENT --------------------------------------------------------------------------
 
 local HOUSE_COLORS = {

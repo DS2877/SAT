@@ -71,7 +71,9 @@ GameConfig.Collection = {
 GameConfig.Regions = {
 	Wilds = { Danger = 1, RecommendedStrength = 1000, DiscoveryReward = 0 },
 	Coast = { Danger = 2, RecommendedStrength = 3000, DiscoveryReward = 5000 },
+	Marsh = { Danger = 2, RecommendedStrength = 5000, DiscoveryReward = 12000 },
 	Ruins = { Danger = 3, RecommendedStrength = 8000, DiscoveryReward = 25000 },
+	Frost = { Danger = 3, RecommendedStrength = 12000, DiscoveryReward = 50000 },
 	Falls = { Danger = 4, RecommendedStrength = 20000, DiscoveryReward = 100000 },
 }
 
@@ -84,6 +86,27 @@ GameConfig.Secrets = {
 	old_mine = { Reward = 10000 },
 	sky_ruins = { Reward = 50000 },
 	catacombs = { Reward = 150000 },
+	frozen_grotto = { Reward = 60000 },
+	witch_hut = { Reward = 30000 },
+}
+
+-- BOOST PADS along the trails: step on one for a burst of speed. Carriers AND chasers use them,
+-- so they shape chases rather than decide them.
+GameConfig.Boost = {
+	SpeedMultiplier = 1.45,
+	Duration = 4, -- seconds
+	Radius = 5.5, -- studs from the pad centre
+	Cooldown = 2, -- per player, before the same player can trigger another pad
+	PadSpacing = 90, -- studs between pads along a trail
+	FirstPadDistance = 45,
+}
+
+-- LAUNCH GEYSERS (WorldLayout.LaunchPads): straight up, then a guided glide onto the target.
+GameConfig.Launch = {
+	Radius = 4.5,
+	Cooldown = 1.5,
+	ApexExtra = 14, -- studs above the higher of start / target
+	GlideSeconds = 0.9, -- time from the apex to the landing
 }
 
 GameConfig.Carry = {
@@ -119,7 +142,7 @@ GameConfig.Stability = {
 GameConfig.Treasure = {
 	ReclaimProtection = 2,
 	DroppedTimeout = 30,
-	MaxActive = 20, -- loot per night wave (world + carried + dropped)
+	MaxActive = 26, -- loot per night wave (world + carried + dropped)
 	SpawnTick = 1, -- seconds between spawn checks during the night wave
 	RespawnDelayMin = 15,
 	RespawnDelayMax = 40,

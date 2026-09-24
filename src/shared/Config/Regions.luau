@@ -7,7 +7,7 @@
 local Regions = {}
 
 -- Order of the journey: the "easy" meadow first, the deadly jungle last.
-Regions.Order = { "Wilds", "Coast", "Ruins", "Falls" }
+Regions.Order = { "Wilds", "Coast", "Marsh", "Ruins", "Frost", "Falls" }
 
 Regions.Info = {
 	District = {
@@ -34,6 +34,18 @@ Regions.Info = {
 		Color = { 255, 176, 70 },
 		Mood = { Tint = { 255, 228, 188 }, Saturation = 0.2, Contrast = 0.14, Density = 0.3, Haze = 2 },
 	},
+	Marsh = {
+		Title = "GLOWSHROOM MARSH",
+		Tagline = "A glowing bog. Something with too many legs lives in the pools.",
+		Color = { 200, 130, 255 },
+		Mood = { Tint = { 232, 214, 255 }, Saturation = 0.12, Contrast = 0.18, Density = 0.42, Haze = 2.6 },
+	},
+	Frost = {
+		Title = "FROSTPEAK",
+		Tagline = "Frozen peaks and a lake of ice. The golems here never thaw.",
+		Color = { 190, 235, 255 },
+		Mood = { Tint = { 220, 238, 255 }, Saturation = -0.08, Contrast = 0.14, Density = 0.34, Haze = 1.8 },
+	},
 	Falls = {
 		Title = "THE FALLS",
 		Tagline = "Dark jungle. Giant spiders nest by the water.",
@@ -44,6 +56,22 @@ Regions.Info = {
 
 -- Secret places. Position = trigger centre (found when you get within Radius, incl. height).
 Regions.Secrets = {
+	{
+		Id = "frozen_grotto",
+		Title = "THE FROZEN GROTTO",
+		Text = "An ice tunnel into the mountain. It glows blue inside.",
+		Area = "Frost",
+		Position = Vector3.new(-215, 13, 330),
+		Radius = 12,
+	},
+	{
+		Id = "witch_hut",
+		Title = "THE WITCH'S HUT",
+		Text = "High above the bog. Ride the geyser - if you dare.",
+		Area = "Marsh",
+		Position = Vector3.new(330, 39, 150),
+		Radius = 12,
+	},
 	{
 		Id = "old_mine",
 		Title = "THE OLD MINE",

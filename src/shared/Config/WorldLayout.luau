@@ -81,6 +81,27 @@ WorldLayout.Shipwreck = {
 	CoveSize = Vector3.new(150, 20, 160),
 }
 
+-- FROSTPEAK (north-west of the District): snowy peaks around a frozen lake.
+WorldLayout.Frostpeak = {
+	Center = Vector3.new(-290, 10, 250),
+	Radius = 130, -- region size (Zones)
+	LakeRadius = 42, -- flat frozen lake (terrain Ice) in the middle
+}
+
+-- GLOWSHROOM MARSH (north-east of the District): a glowing bog of pools and boardwalks.
+WorldLayout.Marsh = {
+	Center = Vector3.new(270, 10, 180),
+	Radius = 125,
+}
+
+-- LAUNCH GEYSERS: step in and get flung onto a high place (client: Controllers/Pads).
+-- Target = where you land. Colour = steam / glow.
+WorldLayout.LaunchPads = {
+	{ Name = "Cliff Geyser", Position = Vector3.new(-40, 10, -292), Target = Vector3.new(-40, 92, -332), Color = { 90, 230, 255 } },
+	{ Name = "Temple Geyser", Position = Vector3.new(182, 10, -140), Target = Vector3.new(229, 51, -143), Color = { 255, 200, 80 } },
+	{ Name = "Witch Geyser", Position = Vector3.new(308, 10, 165), Target = Vector3.new(330, 39.5, 144), Color = { 200, 120, 255 } },
+}
+
 WorldLayout.Volcano = {
 	Center = Vector3.new(-280, 0, -360),
 	BaseRadius = 150,
@@ -113,6 +134,18 @@ WorldLayout.TreasureSpawns = {
 	{ Area = "Coast", Position = Vector3.new(-310, 10, 30), MinRarity = "Common", MaxRarity = "Rare" },
 	{ Area = "Coast", Position = Vector3.new(-330, 30, -10), MinRarity = "Uncommon", MaxRarity = "Legendary" },
 	{ Area = "Coast", Position = Vector3.new(-350, 10, -70), MinRarity = "Rare", MaxRarity = "Epic" },
+	-- Frostpeak
+	{ Area = "Frost", Position = Vector3.new(-250, 10, 190), MinRarity = "Common", MaxRarity = "Rare" },
+	{ Area = "Frost", Position = Vector3.new(-330, 10, 205), MinRarity = "Common", MaxRarity = "Rare" },
+	{ Area = "Frost", Position = Vector3.new(-290, 10, 250), MinRarity = "Uncommon", MaxRarity = "Epic" },
+	{ Area = "Frost", Position = Vector3.new(-240, 10, 300), MinRarity = "Rare", MaxRarity = "Epic" },
+	{ Area = "Frost", Position = Vector3.new(-345, 10, 300), MinRarity = "Rare", MaxRarity = "Legendary" },
+	-- Glowshroom Marsh
+	{ Area = "Marsh", Position = Vector3.new(220, 10, 130), MinRarity = "Common", MaxRarity = "Uncommon" },
+	{ Area = "Marsh", Position = Vector3.new(300, 10, 120), MinRarity = "Common", MaxRarity = "Rare" },
+	{ Area = "Marsh", Position = Vector3.new(250, 10, 215), MinRarity = "Uncommon", MaxRarity = "Rare" },
+	{ Area = "Marsh", Position = Vector3.new(320, 10, 200), MinRarity = "Rare", MaxRarity = "Epic" },
+	{ Area = "Marsh", Position = Vector3.new(290, 10, 250), MinRarity = "Rare", MaxRarity = "Legendary" },
 	-- The Falls (waterfall, cliff top, hidden cave)
 	{ Area = "Falls", Position = Vector3.new(-58, 10, -282), MinRarity = "Epic", MaxRarity = "Legendary" },
 	{ Area = "Falls", Position = Vector3.new(-12, 10, -340), MinRarity = "Epic", MaxRarity = "Secret", RayFrom = 26 },
@@ -126,6 +159,8 @@ WorldLayout.EventSites = {
 	{ Area = "Ruins", Name = "THE ANCIENT RUINS", Position = Vector3.new(160, 10, -30) },
 	{ Area = "Coast", Name = "SHIPWRECK COAST", Position = Vector3.new(-250, 10, 10) },
 	{ Area = "Falls", Name = "THE FALLS", Position = Vector3.new(20, 10, -240) },
+	{ Area = "Frost", Name = "FROSTPEAK", Position = Vector3.new(-280, 10, 215) },
+	{ Area = "Marsh", Name = "GLOWSHROOM MARSH", Position = Vector3.new(265, 10, 160) },
 }
 
 WorldLayout.GuardianSpawns = {
@@ -137,6 +172,12 @@ WorldLayout.GuardianSpawns = {
 	-- Ancient Ruins: a goblin at the courtyard, the Stone Golem guarding the temple's back
 	{ Type = "Goblin", Position = Vector3.new(230, 10, -60), PatrolRadius = 35 },
 	{ Type = "Golem", Position = Vector3.new(230, 10, -200), PatrolRadius = 28 },
+	-- Frostpeak: ice golems guard the lake
+	{ Type = "IceGolem", Position = Vector3.new(-290, 10, 285), PatrolRadius = 30 },
+	{ Type = "IceGolem", Position = Vector3.new(-250, 10, 215), PatrolRadius = 26 },
+	-- Glowshroom Marsh: bog spiders lurk between the pools
+	{ Type = "BogSpider", Position = Vector3.new(275, 10, 200), PatrolRadius = 28 },
+	{ Type = "BogSpider", Position = Vector3.new(235, 10, 150), PatrolRadius = 24 },
 	-- The Falls: the spiders' nest
 	{ Type = "Spider", Position = Vector3.new(30, 10, -290), PatrolRadius = 25 },
 	{ Type = "Spider", Position = Vector3.new(-60, 10, -275), PatrolRadius = 22 },

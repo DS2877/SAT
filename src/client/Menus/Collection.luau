@@ -6,6 +6,7 @@ local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
 local Rarities = require(Shared.Config.Rarities)
 local Treasures = require(Shared.Config.Treasures)
+local Regions = require(Shared.Config.Regions)
 local Economy = require(Shared.Logic.Economy)
 local TreasureVisual = require(Shared.TreasureVisual)
 
@@ -101,7 +102,7 @@ function Collection.Build(root: Frame)
 		header.Text = ("DISCOVERED %d / %d  •  Extract a treasure to add it forever"):format(found, total)
 		local parts = {}
 		local sets = Economy.SetProgress(data.Collection, Treasures.List)
-		for _, area in { "Wilds", "Ruins", "Coast", "Falls" } do
+		for _, area in Regions.Order do
 			local set = sets[area]
 			if set then
 				local done = set.Found >= set.Total

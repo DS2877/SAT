@@ -35,6 +35,8 @@ local LIBRARY = {
 	Gadget = { Id = "rbxasset://sounds/action_jump.mp3", Volume = 0.6, Speed = 1.3 },
 	Error = { Id = "rbxasset://sounds/clickfast.wav", Volume = 0.5, Speed = 0.6 },
 	Splash = { Id = "rbxasset://sounds/impact_water.mp3", Volume = 0.5, Speed = 1 },
+	Boost = { Id = "rbxasset://sounds/swordlunge.wav", Volume = 0.8, Speed = 0.7 },
+	Launch = { Id = "rbxasset://sounds/action_jump.mp3", Volume = 1, Speed = 0.55 },
 }
 
 local cache: { [string]: Sound } = {}

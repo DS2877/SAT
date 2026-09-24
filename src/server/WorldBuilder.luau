@@ -20,6 +20,7 @@ local Regions = require(Shared.Config.Regions)
 local TerrainGen = require(script.Parent.World.TerrainGen)
 local Props = require(script.Parent.World.Props)
 local Secrets = require(script.Parent.World.Secrets)
+local Adventure = require(script.Parent.World.Adventure)
 
 local WorldBuilder = {}
 
@@ -231,6 +232,11 @@ local function buildTerrain()
 	terrain:SetMaterialColor(Enum.Material.Rock, Color3.fromRGB(128, 120, 112))
 	terrain:SetMaterialColor(Enum.Material.Basalt, Color3.fromRGB(56, 50, 52)) -- Volcano: ash fields
 	terrain:SetMaterialColor(Enum.Material.CrackedLava, Color3.fromRGB(255, 96, 36))
+	terrain:SetMaterialColor(Enum.Material.Snow, Color3.fromRGB(238, 244, 255)) -- Frostpeak
+	terrain:SetMaterialColor(Enum.Material.Glacier, Color3.fromRGB(150, 205, 235))
+	terrain:SetMaterialColor(Enum.Material.Ice, Color3.fromRGB(175, 225, 250))
+	terrain:SetMaterialColor(Enum.Material.Asphalt, Color3.fromRGB(46, 58, 60)) -- Marsh: dark bog
+	terrain:SetMaterialColor(Enum.Material.Concrete, Color3.fromRGB(78, 104, 88)) -- Marsh: moss mats
 
 	-- Ocean (sea floor + water, top at y = 0)
 	terrain:FillBlock(CFrame.new(0, -32, 0), Vector3.new(1800, 16, 1800), Enum.Material.Sand)
@@ -390,6 +396,7 @@ end
 -- Stone wall around the District: the north gatehouse is the ONLY way to the Wilds.
 -- An invisible barrier above the wall stops Balloons/Grapples from skipping the gate.
 local nightGate: BasePart? = nil -- set by buildWall, handed to DayCycle
+local boostPads = {} -- set by buildWilds (Adventure), handed to BoostService
 
 local function buildWall(district: Folder): BasePart
 	local walls = folder("DistrictWall", district)
@@ -781,6 +788,8 @@ local GATE_STYLE = {
 	Coast = { Pillar = Color3.fromRGB(150, 120, 90), Material = Enum.Material.Wood, Trim = Color3.fromRGB(70, 90, 110) },
 	Ruins = { Pillar = Color3.fromRGB(226, 186, 126), Material = Enum.Material.Sandstone, Trim = C.Gold },
 	Falls = { Pillar = Color3.fromRGB(96, 110, 96), Material = Enum.Material.Slate, Trim = Color3.fromRGB(60, 140, 70) },
+	Frost = { Pillar = Color3.fromRGB(190, 225, 245), Material = Enum.Material.Glacier, Trim = Color3.fromRGB(90, 200, 255) },
+	Marsh = { Pillar = Color3.fromRGB(70, 60, 80), Material = Enum.Material.Wood, Trim = Color3.fromRGB(190, 110, 255) },
 }
 
 local function shortNumber(n: number): string
@@ -925,6 +934,8 @@ local function buildWilds(extraAvoid)
 		{ gate, Vector3.new(0, 10, -270) },
 		{ gate + Vector3.new(0, 0, -45), WorldLayout.Temple.Courtyard + Vector3.new(0, 0, 15) },
 		{ gate + Vector3.new(0, 0, -45), WorldLayout.Shipwreck.Center + Vector3.new(60, 0, 0) },
+		{ gate + Vector3.new(0, 0, -45), WorldLayout.Frostpeak.Center + Vector3.new(50, 0, -40) },
+		{ gate + Vector3.new(0, 0, -45), WorldLayout.Marsh.Center + Vector3.new(-60, 0, -40) },
 	}
 	for _, trail in trails do
 		local delta = trail[2] - trail[1]
@@ -953,6 +964,13 @@ local function buildWilds(extraAvoid)
 				end
 			end
 		end
+	end
+
+	-- New regions' dressing, boost pads along the trails and the launch geysers.
+	local adventure = Adventure.Build(terrain, wilds, rng, groundAt, trails)
+	boostPads = adventure.BoostPads
+	for _, a in adventure.Avoid do
+		table.insert(avoid, a)
 	end
 
 	-- Region gates first so the vegetation keeps clear of them.
@@ -1034,6 +1052,33 @@ local function buildWilds(extraAvoid)
 		return ground.Y > 8 and biomeOf(ground) == "Falls"
 	end, function(ground)
 		Props.GiantMushroom(undergrowth, ground, rng)
+	end)
+	-- Frostpeak: snowy pines, ice crystal clusters.
+	scatter(70, 10, function(ground)
+		return ground.Y > 8 and biomeOf(ground) == "Frost"
+	end, function(ground)
+		Props.Pine(trees, ground, rng)
+	end)
+	scatter(28, 12, function(ground)
+		return ground.Y > 8 and biomeOf(ground) == "Frost"
+	end, function(ground)
+		Props.IceCrystals(undergrowth, ground, rng)
+	end)
+	-- Glowshroom Marsh: giant glowing mushrooms, reeds, mossy dead trees.
+	scatter(34, 11, function(ground)
+		return ground.Y > 8 and biomeOf(ground) == "Marsh"
+	end, function(ground)
+		Props.GiantMushroom(undergrowth, ground, rng)
+	end)
+	scatter(50, 6, function(ground)
+		return ground.Y > 8 and biomeOf(ground) == "Marsh"
+	end, function(ground)
+		Props.Reeds(undergrowth, ground, rng)
+	end)
+	scatter(12, 16, function(ground)
+		return ground.Y > 8 and biomeOf(ground) == "Marsh"
+	end, function(ground)
+		Props.DeadTree(trees, ground, rng, Color3.fromRGB(70, 84, 64))
 	end)
 	-- Volcano foothills: charred trees.
 	scatter(14, 14, function(ground)
@@ -1653,6 +1698,7 @@ function WorldBuilder.Build()
 		VaultPlots = plots,
 		Leaderboards = leaderboards,
 		NightGate = nightGate,
+		BoostPads = boostPads,
 	}
 end
 

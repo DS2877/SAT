@@ -2,7 +2,7 @@
 -- drive the procedural TreasureVisual builder until real models exist.
 --
 -- SpawnArea must match an area used by spawn points in WorldLayout:
---   Wilds, Ruins, Coast, Falls
+--   Wilds, Ruins, Coast, Falls, Frost, Marsh
 -- SpecialEffect (optional): RevealsCarrier, RevealsTreasures, AttractsGuardians, Radiant,
 --   Swift (carrier +speed), Nocturnal (earns x2 at night in the Vault). Every special treasure
 --   has a gameplay/economic purpose; EffectLabels explains it on the name tag.
@@ -54,6 +54,20 @@ Treasures.List = {
 	-- MYTHIC ($250,000–1,000,000, weight 35–80)
 	{ Id = "cursed_skull", Name = "Cursed Skull", Rarity = "Mythic", Value = 400000, Weight = 6000, SpawnArea = "Ruins", Shape = "Skull", Color = { 90, 255, 120 }, Material = "Neon", DisplaySize = "Large", SpecialEffect = "AttractsGuardians", Lore = "Every Guardian on the island can hear it whisper." },
 	{ Id = "dragon_egg", Name = "Dragon Egg", Rarity = "Mythic", Value = 600000, Weight = 7000, SpawnArea = "Falls", Shape = "Egg", Color = { 200, 40, 40 }, Material = "Slate", DisplaySize = "Huge", Lore = "It's warm. It's moving. It's worth a fortune." },
+
+	-- FROSTPEAK (new region)
+	{ Id = "frosted_mug", Name = "Frosted Mug", Rarity = "Common", Value = 300, Weight = 300, SpawnArea = "Frost", Shape = "Goblet", Color = { 200, 230, 255 }, Material = "Glass", DisplaySize = "Small", Lore = "Still full of hot cocoa. Frozen solid." },
+	{ Id = "snowflake_brooch", Name = "Snowflake Brooch", Rarity = "Uncommon", Value = 1400, Weight = 300, SpawnArea = "Frost", Shape = "Ring", Color = { 230, 245, 255 }, Material = "Glass", DisplaySize = "Small", Lore = "No two are alike. This one is priceless." },
+	{ Id = "mammoth_tusk", Name = "Mammoth Tusk", Rarity = "Rare", Value = 8800, Weight = 2000, SpawnArea = "Frost", Shape = "Horn", Color = { 245, 235, 215 }, Material = "Marble", DisplaySize = "Large", Lore = "Ancient, enormous and very, very heavy." },
+	{ Id = "frozen_heart", Name = "Frozen Heart", Rarity = "Epic", Value = 30000, Weight = 1800, SpawnArea = "Frost", Shape = "Gem", Color = { 120, 210, 255 }, Material = "Glass", DisplaySize = "Medium", Lore = "It beats once a winter." },
+	{ Id = "yeti_crown", Name = "Yeti King's Crown", Rarity = "Legendary", Value = 120000, Weight = 3200, SpawnArea = "Frost", Shape = "Crown", Color = { 170, 225, 255 }, Material = "Glass", DisplaySize = "Large", Lore = "Carved from glacier ice for a king nobody saw twice." },
+
+	-- GLOWSHROOM MARSH (new region)
+	{ Id = "toad_totem", Name = "Toad Totem", Rarity = "Common", Value = 220, Weight = 300, SpawnArea = "Marsh", Shape = "Idol", Color = { 110, 170, 90 }, Material = "Wood", DisplaySize = "Small", Lore = "Croaks when nobody is looking." },
+	{ Id = "glow_jar", Name = "Glow Jar", Rarity = "Uncommon", Value = 1000, Weight = 300, SpawnArea = "Marsh", Shape = "Lantern", Color = { 200, 120, 255 }, Material = "Neon", DisplaySize = "Small", Lore = "Fireflies that never sleep." },
+	{ Id = "witch_cauldron", Name = "Witch's Cauldron", Rarity = "Rare", Value = 7000, Weight = 2000, SpawnArea = "Marsh", Shape = "Pot", Color = { 60, 55, 70 }, Material = "Metal", DisplaySize = "Large", Lore = "Still bubbling. Don't sniff it." },
+	{ Id = "spore_scepter", Name = "Spore Queen's Scepter", Rarity = "Epic", Value = 22000, Weight = 1400, SpawnArea = "Marsh", Shape = "Trident", Color = { 190, 90, 255 }, Material = "Neon", DisplaySize = "Medium", Lore = "One wave and the whole bog glows." },
+	{ Id = "moonshroom", Name = "Moonshroom", Rarity = "Legendary", Value = 80000, Weight = 2200, SpawnArea = "Marsh", Shape = "Egg", Color = { 150, 190, 255 }, Material = "Neon", DisplaySize = "Large", SpecialEffect = "Nocturnal", Lore = "Only blooms under the moon - and so does its price." },
 
 	-- SECRET ($1,000,000+)
 	{ Id = "heart_of_the_island", Name = "Heart of the Island", Rarity = "Secret", Value = 2500000, Weight = 4000, SpawnArea = "Falls", Shape = "Orb", Color = { 255, 255, 255 }, Material = "Neon", DisplaySize = "Large", SpecialEffect = "Radiant", Lore = "They said it was a myth." },

@@ -143,7 +143,8 @@ test("every spawn area referenced by treasures can spawn something", function()
 		areas[def.SpawnArea] = true
 	end
 	for area in areas do
-		check(area == "Wilds" or area == "Ruins" or area == "Coast" or area == "Falls", "known area " .. area)
+		local known = { Wilds = true, Ruins = true, Coast = true, Falls = true, Frost = true, Marsh = true }
+		check(known[area] == true, "known area " .. area)
 	end
 end)
 
@@ -265,6 +266,35 @@ test("monetisation is fair, scaled and idempotent-friendly", function()
 	check(Monetization.Free.Daily[#Monetization.Free.Daily].Jackpot == true, "last day is the jackpot")
 	-- Id 0 = not created yet: never matched.
 	check(Monetization.PassById(0) == nil and Monetization.ProductById(0) == nil, "placeholder ids never match")
+end)
+
+test("adventure: boost pads and geysers are sane", function()
+	local roblox = require("@lune/roblox") :: any
+	Vector3 = roblox.Vector3
+	local WorldLayout = require("../src/shared/Config/WorldLayout")
+	local boost = GameConfig.Boost
+	check(boost.SpeedMultiplier > 1.2 and boost.SpeedMultiplier < 1.8, "boost is noticeable but not absurd")
+	check(boost.Duration >= 2 and boost.Duration <= 6, "boost is a burst, not a mode")
+	check(boost.Cooldown >= 1, "no boost chaining on one pad")
+	check(boost.SpeedMultiplier * GameConfig.Player.BaseWalkSpeed < 30, "a boosted player can still be caught by a boosted chaser")
+	local cliffTop = WorldLayout.Waterfall.CliffCenter.Y + WorldLayout.Waterfall.CliffSize.Y / 2
+	local templeTop = WorldLayout.Temple.Center.Y + WorldLayout.Temple.Tiers * WorldLayout.Temple.TierHeight
+	local found = {}
+	for _, pad in WorldLayout.LaunchPads do
+		found[pad.Name] = pad
+		local dy = pad.Target.Y - pad.Position.Y
+		check(dy > 0 and dy < 100, pad.Name .. " launches upward within reason")
+		local flat = Vector3.new(pad.Target.X - pad.Position.X, 0, pad.Target.Z - pad.Position.Z).Magnitude
+		check(flat > 10 and flat < 70, pad.Name .. " lands near, not across the map")
+	end
+	check(found["Cliff Geyser"] and math.abs(found["Cliff Geyser"].Target.Y - cliffTop) <= 3, "cliff geyser lands on the cliff top")
+	check(found["Temple Geyser"] and math.abs(found["Temple Geyser"].Target.Y - templeTop) <= 2, "temple geyser lands on the temple top")
+	-- Frostpeak and the Marsh sit beside the District without touching its wall.
+	for _, region in { WorldLayout.Frostpeak, WorldLayout.Marsh } do
+		local d = Vector3.new(region.Center.X - WorldLayout.District.Center.X, 0, region.Center.Z - WorldLayout.District.Center.Z).Magnitude
+		check(d > GameConfig.SafeZone.Radius + 60, "new region centre is well outside the District")
+		check(Vector3.new(region.Center.X, 0, region.Center.Z).Magnitude + region.Radius * 0.5 < 470, "new region fits on the island")
+	end
 end)
 
 test("offline earnings are capped and reduced", function()
@@ -582,6 +612,10 @@ test("biome ground follows the gameplay regions", function()
 			return "Ruins"
 		elseif within(WorldLayout.Shipwreck.Center, 160) then
 			return "Coast"
+		elseif within(WorldLayout.Frostpeak.Center, WorldLayout.Frostpeak.Radius) then
+			return "Frost"
+		elseif within(WorldLayout.Marsh.Center, WorldLayout.Marsh.Radius) then
+			return "Marsh"
 		elseif z < -240 then
 			return "Falls"
 		end
@@ -630,7 +664,7 @@ test("guardians are big, scary and still fair", function()
 		local biome = TerrainGen.Biome(spawnInfo.Position.X, spawnInfo.Position.Z)
 		perArea[biome] = (perArea[biome] or 0) + 1
 	end
-	for _, area in { "Wilds", "Coast", "Ruins", "Falls" } do
+	for _, area in { "Wilds", "Coast", "Ruins", "Falls", "Frost", "Marsh" } do
 		check((perArea[area] or 0) >= 2, ("%s is guarded (%d)"):format(area, perArea[area] or 0))
 	end
 	check((perArea.District or 0) == 0, "no guardian in the safe zone")
@@ -645,7 +679,7 @@ test("regions escalate and secrets pay off", function()
 		local balance = GameConfig.Regions[area]
 		check(balance ~= nil and Regions.Info[area] ~= nil, "configured: " .. area)
 		if previous then
-			check(balance.Danger > previous.Danger, area .. " is more dangerous")
+			check(balance.Danger >= previous.Danger, area .. " is never safer than the region before")
 			check(balance.RecommendedStrength > previous.RecommendedStrength, area .. " asks for more strength")
 			check(balance.DiscoveryReward > previous.DiscoveryReward, area .. " pays more for discovery")
 		end

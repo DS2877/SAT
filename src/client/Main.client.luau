@@ -22,6 +22,7 @@ local MusicController = require(Controllers.MusicController)
 local Onboarding = require(Controllers.Onboarding)
 local Biomes = require(Controllers.Biomes)
 local ChatTags = require(Controllers.ChatTags)
+local Pads = require(Controllers.Pads)
 local MenuController = require(script.Parent.Menus.MenuController)
 
 local player = Players.LocalPlayer
@@ -62,6 +63,7 @@ MusicController.Init()
 Onboarding.Init(gui)
 Biomes.Init(gui)
 ChatTags.Init()
+Pads.Init()
 MenuController.Init(gui)
 HUD.OpenMenu = MenuController.Open
 TrainingUI.OpenStore = function()

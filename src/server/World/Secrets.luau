@@ -5,6 +5,8 @@
 --   SKY RUINS   - a spiral of broken pillars east of the temple, climbing to a floating island.
 --   CATACOMBS   - stone stairs behind the temple down to a torch-lit burial hall. The Stone
 --                 Golem patrols the entrance.
+--   FROZEN GROTTO - an ice tunnel into a snowy hill in Frostpeak, glowing crystal chamber.
+--   WITCH'S HUT - on stilts above the Glowshroom Marsh; the Witch Geyser flings you up.
 -- Build() runs after the terrain and before vegetation (its Avoid list keeps trees out).
 
 local Props = require(script.Parent.Props)
@@ -313,6 +315,96 @@ local function buildCatacombs(terrain: Terrain, parent: Folder, rng: Random)
 	}
 end
 
+-- FROZEN GROTTO (Frostpeak) ------------------------------------------------------------
+
+local GROTTO = Vector3.new(-215, 12, 330) -- chamber floor centre
+
+local function buildGrotto(terrain: Terrain, parent: Folder)
+	local folder = Instance.new("Folder")
+	folder.Name = "FrozenGrotto"
+	folder.Parent = parent
+	local c = GROTTO
+	-- An ice hill (snow shell, glacier inside) with a tunnel from the east and a chamber.
+	terrain:FillBall(Vector3.new(c.X, 2, c.Z), 28, Enum.Material.Snow)
+	terrain:FillBall(Vector3.new(c.X, 2, c.Z), 24, Enum.Material.Glacier)
+	terrain:FillBlock(CFrame.new(c.X + 18, 17, c.Z), Vector3.new(36, 10, 9), Enum.Material.Air)
+	terrain:FillBall(Vector3.new(c.X, 18, c.Z), 9, Enum.Material.Air)
+	terrain:FillBlock(CFrame.new(c.X, 10, c.Z), Vector3.new(20, 4, 20), Enum.Material.Glacier)
+	part({ Name = "GrottoFloor", Size = Vector3.new(34, 1, 7), CFrame = CFrame.new(c.X + 17, 11.6, c.Z), Color = Color3.fromRGB(170, 220, 245), Material = Enum.Material.Ice, Parent = folder })
+	part({ Name = "GrottoRamp", Class = "WedgePart", Size = Vector3.new(7, 2.2, 8), CFrame = CFrame.new(c.X + 38, 11, c.Z) * CFrame.Angles(0, math.rad(-90), 0), Color = Color3.fromRGB(170, 220, 245), Material = Enum.Material.Ice, Parent = folder })
+	-- Icicles on the roof and glowing crystals in the chamber.
+	for i = 1, 8 do
+		local x = c.X + 4 + i * 3.5
+		part({ Name = "Icicle", Class = "WedgePart", Size = Vector3.new(0.6, 2.4, 0.6), CFrame = CFrame.new(x, 20.6, c.Z + (i % 2 == 0 and 2 or -2)) * CFrame.Angles(math.rad(180), 0, 0), Color = Color3.fromRGB(200, 240, 255), Material = Enum.Material.Glass, Transparency = 0.25, CanCollide = false, Parent = folder })
+	end
+	for i = 1, 7 do
+		local a = i / 7 * math.pi * 2
+		local crystal = part({
+			Name = "Crystal",
+			Class = "WedgePart",
+			Size = Vector3.new(1, 3.4, 1),
+			CFrame = CFrame.new(c.X + math.cos(a) * 7.5, 13.5, c.Z + math.sin(a) * 7.5) * CFrame.Angles(0, -a, math.rad(15)),
+			Color = Color3.fromRGB(110, 210, 255),
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			Parent = folder,
+		})
+		if i % 2 == 0 then
+			light(crystal, Color3.fromRGB(120, 210, 255), 16, 1.1)
+		end
+	end
+	return {
+		Spawn = { Area = "Frost", Position = Vector3.new(c.X - 2, 12, c.Z), MinRarity = "Epic", MaxRarity = "Legendary", Secret = "frozen_grotto" },
+		Avoid = { Vector2.new(c.X, c.Z), 34 },
+	}
+end
+
+-- WITCH'S HUT (Glowshroom Marsh) --------------------------------------------------------
+
+local HUT = Vector3.new(330, 38, 150) -- platform top centre
+
+local function buildWitchHut(parent: Folder, rng: Random)
+	local folder = Instance.new("Folder")
+	folder.Name = "WitchHut"
+	folder.Parent = parent
+	local c = HUT
+	local wood = Color3.fromRGB(78, 58, 44)
+	-- Crooked stilts and the platform.
+	for _, x in { -8, 8 } do
+		for _, z in { -8, 8 } do
+			local foot = Vector3.new(c.X + x * 1.1, 10, c.Z + z * 1.1)
+			local top = Vector3.new(c.X + x, c.Y - 1, c.Z + z)
+			part({ Name = "Stilt", Size = Vector3.new(1.3, 1.3, (top - foot).Magnitude), CFrame = CFrame.lookAt((foot + top) / 2, top), Color = wood, Material = Enum.Material.Wood, Parent = folder })
+		end
+	end
+	part({ Name = "Platform", Size = Vector3.new(20, 1, 20), CFrame = CFrame.new(c.X, c.Y - 0.5, c.Z), Color = Color3.fromRGB(110, 84, 60), Material = Enum.Material.WoodPlanks, Parent = folder })
+	-- The hut on the back half (+Z), a porch in front.
+	local hut = CFrame.new(c.X, c.Y, c.Z + 5)
+	part({ Name = "HutBack", Size = Vector3.new(14, 9, 1), CFrame = hut * CFrame.new(0, 4.5, 4.5), Color = wood, Material = Enum.Material.WoodPlanks, Parent = folder })
+	for _, x in { -1, 1 } do
+		part({ Name = "HutSide", Size = Vector3.new(1, 9, 10), CFrame = hut * CFrame.new(x * 6.5, 4.5, 0), Color = wood, Material = Enum.Material.WoodPlanks, Parent = folder })
+		part({ Name = "HutFront", Size = Vector3.new(4, 9, 1), CFrame = hut * CFrame.new(x * 5, 4.5, -4.5), Color = wood, Material = Enum.Material.WoodPlanks, Parent = folder })
+		part({ Name = "Roof", Size = Vector3.new(9, 1, 13), CFrame = hut * CFrame.new(x * 3.6, 10.6, 0) * CFrame.Angles(0, 0, math.rad(x * -28)), Color = Color3.fromRGB(90, 60, 110), Material = Enum.Material.Fabric, Parent = folder })
+	end
+	-- Bubbling cauldron with green fire on the porch.
+	local cauldron = part({ Name = "Cauldron", Shape = Enum.PartType.Ball, Size = Vector3.new(4, 3.4, 4), CFrame = CFrame.new(c.X + 5, c.Y + 1.6, c.Z - 5), Color = Color3.fromRGB(40, 40, 46), Material = Enum.Material.Metal, Parent = folder })
+	local brew = part({ Name = "Brew", Size = Vector3.new(3, 0.2, 3), CFrame = CFrame.new(c.X + 5, c.Y + 3.2, c.Z - 5), Color = Color3.fromRGB(120, 255, 90), Material = Enum.Material.Neon, CanCollide = false, Parent = folder })
+	local fire = Instance.new("Fire")
+	fire.Color = Color3.fromRGB(120, 255, 90)
+	fire.SecondaryColor = Color3.fromRGB(40, 140, 30)
+	fire.Size = 3
+	fire.Parent = cauldron
+	light(brew, Color3.fromRGB(140, 255, 110), 20, 1.4)
+	-- Hanging charms.
+	for i = 1, 4 do
+		Props.Vine(folder, Vector3.new(c.X - 8 + i * 3.2, c.Y - 1, c.Z - 10), rng:NextNumber(3, 6), rng)
+	end
+	return {
+		Spawn = { Area = "Marsh", Position = Vector3.new(c.X - 3, c.Y, c.Z - 4), MinRarity = "Epic", MaxRarity = "Legendary", Secret = "witch_hut" },
+		Avoid = { Vector2.new(c.X, c.Z), 16 },
+	}
+end
+
 -- Returns { Spawns = { spawn point }, Avoid = { { Vector2, radius } } }. Spawn positions are
 -- final (not ground-resolved: a raycast from the sky would land on the hill / island).
 function Secrets.Build(terrain: Terrain, parent: Instance, rng: Random)
@@ -324,6 +416,8 @@ function Secrets.Build(terrain: Terrain, parent: Instance, rng: Random)
 		buildMine(terrain, folder),
 		buildSkyRuins(folder, rng),
 		buildCatacombs(terrain, folder, rng),
+		buildGrotto(terrain, folder),
+		buildWitchHut(folder, rng),
 	} do
 		table.insert(result.Spawns, built.Spawn)
 		table.insert(result.Avoid, built.Avoid)

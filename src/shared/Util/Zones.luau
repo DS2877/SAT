@@ -29,12 +29,15 @@ function Zones.ExtractionZoneAt(position: Vector3)
 	return nil
 end
 
--- Region id used by spawns and events: "District" | "Ruins" | "Coast" | "Falls" | "Wilds".
+-- Region id used by spawns and events:
+-- "District" | "Ruins" | "Coast" | "Frost" | "Marsh" | "Falls" | "Wilds".
 local AREA_IDS = {
 	["TREASURE DISTRICT"] = "District",
 	["ANCIENT RUINS"] = "Ruins",
 	["SHIPWRECK COAST"] = "Coast",
 	["THE FALLS"] = "Falls",
+	["FROSTPEAK"] = "Frost",
+	["GLOWSHROOM MARSH"] = "Marsh",
 	["THE WILDS"] = "Wilds",
 }
 
@@ -52,6 +55,12 @@ function Zones.AreaName(position: Vector3): string
 	end
 	if flatDistance(position, WorldLayout.Shipwreck.Center) < 160 then
 		return "SHIPWRECK COAST"
+	end
+	if flatDistance(position, WorldLayout.Frostpeak.Center) < WorldLayout.Frostpeak.Radius then
+		return "FROSTPEAK"
+	end
+	if flatDistance(position, WorldLayout.Marsh.Center) < WorldLayout.Marsh.Radius then
+		return "GLOWSHROOM MARSH"
 	end
 	if position.Z < -240 then
 		return "THE FALLS"

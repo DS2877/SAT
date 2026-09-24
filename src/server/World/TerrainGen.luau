@@ -25,7 +25,15 @@ TerrainGen.FLAT_ZONES = {
 	{ -205, -125, 34, 25 }, -- Old Mine (secret tunnel through a rock mound)
 	{ 330, -165, 36, 25 }, -- Sky Ruins (parkour spiral)
 	{ 190, -230, 42, 30 }, -- Catacombs (stairs + burial hall under the ground)
+	{ -290, 250, 50, 30 }, -- Frostpeak frozen lake
+	{ -195, 190, 20, 22 }, -- Frostpeak mountain pass (the trail's way through the peaks)
+	{ -232, 218, 18, 20 },
+	{ -215, 330, 30, 20 }, -- Frozen Grotto (secret)
+	{ 270, 180, 95, 30 }, -- Glowshroom Marsh (a flat bog of pools and boardwalks)
 }
+
+-- FROSTPEAK peaks: extra-tall hills in a ring around the frozen lake.
+TerrainGen.FROST = { X = -290, Z = 250, Inner = 60, Outer = 135, Height = 55 }
 
 -- Terrain under the Treasure District is sunk to y = 8 (an exact voxel boundary, so it is
 -- perfectly flat) and hidden by the District's plaza slab (top at y = 11). With ground at 10
@@ -41,6 +49,7 @@ TerrainGen.SURFACE_ZONES = {
 	{ 230, -45, 44, "Sandstone" }, -- Temple courtyard
 	{ 230, -140, 55, "Sandstone" }, -- Temple base
 	{ -345, -10, 70, "Sand" }, -- Shipwreck beach
+	{ -290, 250, 44, "Ice" }, -- Frostpeak frozen lake
 }
 
 function TerrainGen.SurfaceZone(x: number, z: number): string?
@@ -90,7 +99,11 @@ function TerrainGen.Height(x: number, z: number): (number, number)
 	local base = GROUND + (SEA_FLOOR - GROUND) * coast
 	local rolling = fbm(x, z) * 10
 	local hills = math.max(0, noise2(x, z, 1 / 150, 29) + 0.02) * 62
-	local inland = (rolling + hills) * (1 - coast) * TerrainGen.FlatMask(x, z)
+	local frost = TerrainGen.FROST
+	local frostDistance = math.sqrt((x - frost.X) ^ 2 + (z - frost.Z) ^ 2)
+	local frostRing = smoothstep((frostDistance - frost.Inner) / 30) * (1 - smoothstep((frostDistance - frost.Outer) / 25))
+	local peaks = math.max(0, noise2(x, z, 1 / 60, 91) + 0.15) * frost.Height * frostRing
+	local inland = (rolling + hills + peaks) * (1 - coast) * TerrainGen.FlatMask(x, z)
 	local sunken = TerrainGen.SUNKEN
 	if (x - sunken.X) ^ 2 + (z - sunken.Z) ^ 2 < sunken.Radius ^ 2 then
 		return sunken.Height, coast
@@ -99,13 +112,15 @@ function TerrainGen.Height(x: number, z: number): (number, number)
 end
 
 -- BIOMES: every region has its own ground, so crossing into a new one is visible at a glance.
--- Mirrors Zones.AreaName (District / Ruins / Coast / Falls / Wilds) plus the Volcano's ash
+-- Mirrors Zones.AreaName (District / Ruins / Coast / Frost / Marsh / Falls / Wilds) plus the Volcano's ash
 -- fields, with a noisy border so the transition is ragged, not a perfect circle.
 TerrainGen.BIOME_CENTERS = {
 	District = { 0, 250, 150 },
 	Ruins = { 230, -140, 150 },
 	Coast = { -345, -10, 160 },
 	Volcano = { -280, -360, 175 },
+	Frost = { -290, 250, 130 },
+	Marsh = { 270, 180, 125 },
 }
 TerrainGen.FALLS_Z = -240
 
@@ -123,6 +138,10 @@ function TerrainGen.Biome(x: number, z: number, jitter: number?): string
 		return "Ruins"
 	elseif within("Coast") then
 		return "Coast"
+	elseif within("Frost") then
+		return "Frost"
+	elseif within("Marsh") then
+		return "Marsh"
 	elseif within("Volcano") then
 		return "Volcano"
 	elseif z < TerrainGen.FALLS_Z + j then
@@ -139,6 +158,8 @@ TerrainGen.BIOME_MATERIALS = {
 	Coast = { "Sand", "Slate", "Slate", "Salt", 0.25 }, -- grey storm shore
 	Falls = { "LeafyGrass", "Mud", "Slate", "Mud", 0.25 }, -- dark, wet jungle
 	Volcano = { "Basalt", "Basalt", "Rock", "CrackedLava", 0.45 }, -- ash fields
+	Frost = { "Snow", "Glacier", "Rock", "Glacier", 0.45 }, -- snowfields and blue ice cliffs
+	Marsh = { "Asphalt", "Mud", "Slate", "Concrete", 0.2 }, -- dark glowing bog (recoloured)
 }
 
 local function surfaceMaterial(height: number, coast: number, slope: number, x: number, z: number)

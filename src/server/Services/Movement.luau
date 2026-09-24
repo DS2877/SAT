@@ -77,6 +77,7 @@ function Movement.ResetTemporary(player: Player)
 	local entry = entryFor(player)
 	entry.Locks = {}
 	entry.Speed.SpeedSoda = nil
+	entry.Speed.Boost = nil
 	entry.Speed.Bees = nil
 	Movement.Refresh(player)
 end
