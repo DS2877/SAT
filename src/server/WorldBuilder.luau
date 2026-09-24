@@ -21,6 +21,7 @@ local TerrainGen = require(script.Parent.World.TerrainGen)
 local Props = require(script.Parent.World.Props)
 local Secrets = require(script.Parent.World.Secrets)
 local Adventure = require(script.Parent.World.Adventure)
+local Settlements = require(script.Parent.World.Settlements)
 
 local WorldBuilder = {}
 
@@ -971,6 +972,12 @@ local function buildWilds(extraAvoid)
 	adventureAvoid = adventure.Avoid
 	for _, a in adventure.Avoid do
 		table.insert(avoid, a)
+	end
+	-- Farms, villages, cabins, towers... (World/Settlements).
+	local settlements = Settlements.Build(wilds, rng, groundAt)
+	for _, a in settlements.Avoid do
+		table.insert(avoid, a)
+		table.insert(adventureAvoid, a)
 	end
 
 	-- Region gates first so the vegetation keeps clear of them.

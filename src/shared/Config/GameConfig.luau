@@ -88,6 +88,9 @@ GameConfig.Secrets = {
 	catacombs = { Reward = 150000 },
 	frozen_grotto = { Reward = 60000 },
 	witch_hut = { Reward = 30000 },
+	hollow_oak = { Reward = 8000 },
+	smugglers_den = { Reward = 20000 },
+	eagles_nest = { Reward = 120000 },
 }
 
 -- BOOST PADS along the trails: step on one for a burst of speed. Carriers AND chasers use them,
@@ -145,27 +148,32 @@ GameConfig.Stability = {
 GameConfig.Treasure = {
 	ReclaimProtection = 2,
 	DroppedTimeout = 30,
-	MaxActive = 26, -- loot per night wave (world + carried + dropped)
+	MaxActive = 30, -- loot per night wave (world + carried + dropped)
 	SpawnTick = 1, -- seconds between spawn checks during the night wave
 	RespawnDelayMin = 15,
 	RespawnDelayMax = 40,
 	InitialFillFraction = 0.75, -- fraction of MaxActive spawned immediately at server start
-	-- Relative roll weights. A spawn point's MinRarity/MaxRarity clamps which are eligible.
-	RarityWeights = {
-		Common = 100,
-		Uncommon = 45,
-		Rare = 18,
-		Epic = 6,
-		Legendary = 1.6,
-		Mythic = 0.35,
-		Divine = 0.12,
-		Secret = 0.05,
-		OG = 0.012,
+	-- WHAT SPAWNS WHERE. Common..Legendary follow the region's Danger (weights per ~100 rolls):
+	-- easy regions are mostly Common/Uncommon with the odd Epic, hard regions are mostly
+	-- Rare/Epic but still drop some Uncommons. Mythic and above ignore the region: they can
+	-- turn up ANYWHERE on the island (AnywhereWeights, same odds everywhere).
+	-- A spawn point's optional MinRarity/MaxRarity still clamps it (starter spots, secrets).
+	RarityByDanger = {
+		[1] = { Common = 58, Uncommon = 30, Rare = 10, Epic = 1.7, Legendary = 0.3 },
+		[2] = { Common = 30, Uncommon = 36, Rare = 25, Epic = 7.5, Legendary = 1.5 },
+		[3] = { Common = 8, Uncommon = 22, Rare = 38, Epic = 25, Legendary = 7 },
+		[4] = { Common = 0, Uncommon = 12, Rare = 33, Epic = 40, Legendary = 15 },
+	},
+	AnywhereWeights = {
+		Mythic = 0.2,
+		Divine = 0.07,
+		Secret = 0.03,
+		OG = 0.007,
 	},
 	-- Max simultaneously active treasures of a rarity (server-wide). Keeps rare treasures rare.
 	RarityCaps = {
-		Epic = 2,
-		Legendary = 1,
+		Epic = 3,
+		Legendary = 2,
 		Mythic = 1,
 		Divine = 1,
 		Secret = 1,

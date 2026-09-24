@@ -225,7 +225,8 @@ function TreasureService.SetRegionBoost(boost: RegionBoost?)
 end
 
 local function weightsFor(area: string)
-	local weights = table.clone(cfg.RarityWeights)
+	local region = GameConfig.Regions[area]
+	local weights, anywhere = TreasureRoll.WeightsFor(cfg, if region then region.Danger else 1)
 	local function apply(mults)
 		for rarity, mult in mults do
 			if weights[rarity] then
@@ -236,7 +237,7 @@ local function weightsFor(area: string)
 	if regionBoost and regionBoost.Area == area and regionBoost.Rarity then
 		apply(regionBoost.Rarity)
 	end
-	return weights
+	return weights, anywhere
 end
 
 local function rollMutation(area: string?): string?
@@ -268,8 +269,8 @@ local function trySpawnOne(starterOnly: boolean?): boolean
 	-- Try a few random free points (some may have no eligible treasure due to caps).
 	for _ = 1, math.min(#free, 6) do
 		local point = table.remove(free, rng:NextInteger(1, #free))
-		local candidates =
-			TreasureRoll.Candidates(Treasures.List, point, Rarities.Order, weightsFor(point.Area), cfg.RarityCaps, counts)
+		local weights, anywhere = weightsFor(point.Area)
+		local candidates = TreasureRoll.Candidates(Treasures.List, point, Rarities.Order, weights, cfg.RarityCaps, counts, anywhere)
 		local def = TreasureRoll.Pick(candidates, function()
 			return rng:NextNumber()
 		end)

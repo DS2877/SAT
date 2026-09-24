@@ -30,6 +30,15 @@ TerrainGen.FLAT_ZONES = {
 	{ -232, 218, 18, 20 },
 	{ -215, 330, 30, 20 }, -- Frozen Grotto (secret)
 	{ 270, 180, 95, 30 }, -- Glowshroom Marsh (a flat bog of pools and boardwalks)
+	-- Settlements + new secrets (World/Settlements, World/Secrets)
+	{ -100, 75, 32, 20 }, -- Wilds farmstead
+	{ 60, -110, 14, 14 }, -- ranger watchtower
+	{ -60, -200, 18, 15 }, -- campsite
+	{ -60, -90, 18, 15 }, -- Hollow Oak (secret)
+	{ -385, 90, 32, 18 }, -- fishing village + Smugglers' Den (secret)
+	{ -240, 280, 16, 14 }, -- trapper's cabin
+	{ -320, 185, 18, 16 }, -- mining outpost
+	{ 110, -270, 20, 15 }, -- Eagle's Nest (secret)
 }
 
 -- FROSTPEAK peaks: extra-tall hills in a ring around the frozen lake.

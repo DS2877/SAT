@@ -220,6 +220,23 @@ awaiting the phase-1 mobile playtest.
 - Animated names: TreasureLabel.StyleRarity + UIGradients tagged "RarityShimmer",
   animated per frame by Controllers/Ambience (name tags, Collection, Vault).
 
+## LIVING WORLD 2 (settlements, secrets, loot by danger)
+- Loot follows danger (GameConfig.Treasure.RarityByDanger, per ~100 rolls):
+  danger 1 Wilds ~58% Common / 1.7% Epic; danger 2 Coast+Marsh; danger 3 Ruins+Frost
+  (~63% Rare/Epic); danger 4 Falls (no Commons, 12% Uncommon, 40% Epic, 15% Legendary).
+  Mythic/Divine/Secret/OG roam: same small odds in EVERY region (AnywhereWeights).
+  Caps: Epic 3, Legendary 2; MaxActive 30. Spawn clamps only on starter + secret spots.
+- 57 spawn points (was 33), several inside buildings (RayFrom under the roof).
+- World/Settlements: farmstead + windmill, watchtower, campsite (Wilds); fishing village +
+  pier (Coast); stilt village + rope bridge, drowned chapel (Marsh); aqueduct, obelisk
+  circle (Ruins); trapper's cabin, mining outpost, ice-fishing huts (Frost); hermit's hut
+  on the cliff (Falls). Chimney smoke, lanterns (NightLamp), turning sails/wheel ("Spinner").
+- New secrets: Hollow Oak (Wilds), Smugglers' Den (Coast, trapdoor cellar), Eagle's Nest
+  (Falls, ledge climb up a rock spire). New treasures: Oak King's Chest (Wilds Epic), Mist
+  Flask + River Stone Charm (Falls Uncommon), Storm Eagle Feather + Cliffside Tablet (Falls Rare).
+- Client Critters: rabbits / crabs / frogs / lizards / penguins by region, flee from you.
+- Validation: static + unit tests only; NOT yet walked through in a live server.
+
 ## KNOWN BUGS / RISKS
 - Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp
   slopes, IK arms on the bench, nightfall teleport, collect board placement on every plot.

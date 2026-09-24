@@ -96,6 +96,30 @@ Regions.Secrets = {
 		Position = Vector3.new(190, -11, -254),
 		Radius = 16,
 	},
+	{
+		Id = "hollow_oak",
+		Title = "THE HOLLOW OAK",
+		Text = "Something lives in this tree. Something shiny.",
+		Area = "Wilds",
+		Position = Vector3.new(-60, 35, -88),
+		Radius = 12,
+	},
+	{
+		Id = "smugglers_den",
+		Title = "THE SMUGGLERS' DEN",
+		Text = "Just a net shed. Unless you look under the floor.",
+		Area = "Coast",
+		Position = Vector3.new(-372, 3, 100),
+		Radius = 10,
+	},
+	{
+		Id = "eagles_nest",
+		Title = "THE EAGLE'S NEST",
+		Text = "The highest point at the Falls. Don't look down.",
+		Area = "Falls",
+		Position = Vector3.new(110, 63, -270),
+		Radius = 14,
+	},
 }
 
 function Regions.Stars(danger: number): string

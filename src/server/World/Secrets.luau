@@ -7,6 +7,9 @@
 --                 Golem patrols the entrance.
 --   FROZEN GROTTO - an ice tunnel into a snowy hill in Frostpeak, glowing crystal chamber.
 --   WITCH'S HUT - on stilts above the Glowshroom Marsh; the Witch Geyser flings you up.
+--   HOLLOW OAK  - a giant hollow tree in the Wilds; a ladder inside climbs to a hidden deck.
+--   SMUGGLERS' DEN - a trapdoor in the fishing village's net shed, down to a cellar.
+--   EAGLE'S NEST - a rock spire at the Falls, climbed ledge by ledge to a nest at the top.
 -- Build() runs after the terrain and before vegetation (its Avoid list keeps trees out).
 
 local Props = require(script.Parent.Props)
@@ -129,7 +132,7 @@ local function buildMine(terrain: Terrain, parent: Folder)
 	part({ Name = "Ore", Shape = Enum.PartType.Ball, Size = Vector3.new(3, 1.6, 2.2), CFrame = cart * CFrame.new(0, 1.2, 0), Color = GOLD, Material = Enum.Material.Foil, CanCollide = false, Parent = folder })
 
 	return {
-		Spawn = { Area = "Wilds", Position = Vector3.new(c.X + 3, 12, c.Z - 4), MinRarity = "Rare", MaxRarity = "Rare", Secret = "old_mine" },
+		Spawn = { Area = "Wilds", Position = Vector3.new(c.X + 3, 12, c.Z - 4), MinRarity = "Rare", Secret = "old_mine" },
 		Avoid = { Vector2.new(c.X, c.Z), 46 },
 	}
 end
@@ -210,7 +213,7 @@ local function buildSkyRuins(parent: Folder, rng: Random)
 		Props.Vine(folder, centre + Vector3.new(math.cos(a) * 14, -2, math.sin(a) * 14), rng:NextNumber(6, 14), rng)
 	end
 	return {
-		Spawn = { Area = "Ruins", Position = centre + Vector3.new(0, 1, 0), MinRarity = "Epic", MaxRarity = "Legendary", Secret = "sky_ruins" },
+		Spawn = { Area = "Ruins", Position = centre + Vector3.new(0, 1, 0), MinRarity = "Epic", Secret = "sky_ruins" },
 		Avoid = { Vector2.new(SKY.X, SKY.Z), 40 },
 	}
 end
@@ -310,7 +313,7 @@ local function buildCatacombs(terrain: Terrain, parent: Folder, rng: Random)
 	local altar = part({ Name = "Altar", Size = Vector3.new(8, 1.5, 5), CFrame = CFrame.new(ROOM.X, ROOM.Y + 0.75, ROOM.Z - 9), Color = GOLD, Material = Enum.Material.Foil, Parent = folder })
 	light(altar, Color3.fromRGB(255, 200, 110), 22, 1.2)
 	return {
-		Spawn = { Area = "Ruins", Position = Vector3.new(ROOM.X, ROOM.Y + 1.5, ROOM.Z - 9), MinRarity = "Legendary", MaxRarity = "Mythic", Secret = "catacombs" },
+		Spawn = { Area = "Ruins", Position = Vector3.new(ROOM.X, ROOM.Y + 1.5, ROOM.Z - 9), MinRarity = "Legendary", Secret = "catacombs" },
 		Avoid = { Vector2.new(CRYPT.X, CRYPT.Z - 30), 36 },
 	}
 end
@@ -354,7 +357,7 @@ local function buildGrotto(terrain: Terrain, parent: Folder)
 		end
 	end
 	return {
-		Spawn = { Area = "Frost", Position = Vector3.new(c.X - 2, 12, c.Z), MinRarity = "Epic", MaxRarity = "Divine", Secret = "frozen_grotto" },
+		Spawn = { Area = "Frost", Position = Vector3.new(c.X - 2, 12, c.Z), MinRarity = "Epic", Secret = "frozen_grotto" },
 		Avoid = { Vector2.new(c.X, c.Z), 34 },
 	}
 end
@@ -400,8 +403,211 @@ local function buildWitchHut(parent: Folder, rng: Random)
 		Props.Vine(folder, Vector3.new(c.X - 8 + i * 3.2, c.Y - 1, c.Z - 10), rng:NextNumber(3, 6), rng)
 	end
 	return {
-		Spawn = { Area = "Marsh", Position = Vector3.new(c.X - 3, c.Y, c.Z - 4), MinRarity = "Epic", MaxRarity = "Legendary", Secret = "witch_hut" },
+		Spawn = { Area = "Marsh", Position = Vector3.new(c.X - 3, c.Y, c.Z - 4), MinRarity = "Epic", Secret = "witch_hut" },
 		Avoid = { Vector2.new(c.X, c.Z), 16 },
+	}
+end
+
+-- HOLLOW OAK ----------------------------------------------------------------------------
+
+local OAK = Vector3.new(-60, 10, -90) -- trunk base centre (flat zone at ground 10)
+local OAK_DECK = 24 -- hidden deck inside the crown, above the ground
+
+local function buildHollowOak(parent: Folder, rng: Random)
+	local folder = Instance.new("Folder")
+	folder.Name = "HollowOak"
+	folder.Parent = parent
+	local bark = Color3.fromRGB(92, 66, 44)
+	local c = OAK
+	-- The trunk is a ring of bark staves with a doorway on the south side (+Z faces the trail).
+	local radius, staves = 7, 14
+	for i = 1, staves do
+		local a = (i - 0.5) / staves * 2 * math.pi
+		local doorway = math.abs(math.cos(a)) < 0.45 and math.sin(a) > 0
+		local height = OAK_DECK + 4
+		local bottom = if doorway then 8 else 0
+		part({
+			Name = "Bark",
+			Size = Vector3.new(3.6, height - bottom, 1.6),
+			CFrame = CFrame.new(c.X + math.cos(a) * radius, c.Y + bottom + (height - bottom) / 2, c.Z + math.sin(a) * radius) * CFrame.Angles(0, -a + math.pi / 2, 0),
+			Color = bark:Lerp(Color3.new(0, 0, 0), rng:NextNumber(0, 0.15)),
+			Material = Enum.Material.Wood,
+			Parent = folder,
+		})
+	end
+	-- Roots flaring out.
+	for i = 1, 8 do
+		local a = i / 8 * 2 * math.pi + 0.2
+		if not (math.abs(math.cos(a)) < 0.4 and math.sin(a) > 0) then
+			part({
+				Name = "Root",
+				Class = "WedgePart",
+				Size = Vector3.new(2.4, 4, 7),
+				CFrame = CFrame.new(c.X + math.cos(a) * (radius + 3), c.Y + 2, c.Z + math.sin(a) * (radius + 3)) * CFrame.Angles(0, -a - math.pi / 2, 0),
+				Color = bark,
+				Material = Enum.Material.Wood,
+				Parent = folder,
+			})
+		end
+	end
+	-- Inside: glowing mushrooms, a ladder up to the hidden deck.
+	for i = 1, 5 do
+		local a = rng:NextNumber(0, 2 * math.pi)
+		local cap = part({ Name = "GlowCap", Shape = Enum.PartType.Ball, Size = Vector3.new(1.4, 0.7, 1.4), CFrame = CFrame.new(c.X + math.cos(a) * 5, c.Y + 1 + i * 3.5, c.Z + math.sin(a) * 5), Color = Color3.fromRGB(140, 255, 200), Material = Enum.Material.Neon, CanCollide = false, Parent = folder })
+		if i % 2 == 1 then
+			light(cap, Color3.fromRGB(120, 255, 190), 12, 0.9)
+		end
+	end
+	part({ Name = "OakLadder", Class = "TrussPart", Size = Vector3.new(2, OAK_DECK, 2), CFrame = CFrame.new(c.X, c.Y + OAK_DECK / 2, c.Z - 4.5), Color = Color3.fromRGB(120, 86, 56), Material = Enum.Material.Wood, Parent = folder })
+	local deckY = c.Y + OAK_DECK
+	part({ Name = "OakDeck", Size = Vector3.new(16, 1, 16), CFrame = CFrame.new(c.X, deckY - 0.5, c.Z + 4), Color = Color3.fromRGB(120, 86, 56), Material = Enum.Material.WoodPlanks, Parent = folder })
+	-- The crown: big leaf clusters around (not over the ladder hole).
+	for i = 1, 11 do
+		local a = i / 11 * 2 * math.pi
+		local r = rng:NextNumber(8, 13)
+		local size = rng:NextNumber(12, 17)
+		part({
+			Name = "Crown",
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(size, size * 0.8, size),
+			CFrame = CFrame.new(c.X + math.cos(a) * r, deckY + rng:NextNumber(4, 10), c.Z + math.sin(a) * r),
+			Color = Color3.fromRGB(58, 132, 56):Lerp(Color3.fromRGB(96, 160, 60), rng:NextNumber()),
+			Material = Enum.Material.Grass,
+			CanCollide = false,
+			Parent = folder,
+		})
+	end
+	part({ Name = "CrownTop", Shape = Enum.PartType.Ball, Size = Vector3.new(24, 12, 24), CFrame = CFrame.new(c.X, deckY + 13, c.Z), Color = Color3.fromRGB(64, 140, 58), Material = Enum.Material.Grass, CanCollide = false, Parent = folder })
+	local lantern = part({ Name = "DeckLantern", Size = Vector3.new(1, 1.4, 1), CFrame = CFrame.new(c.X + 4, deckY + 1.2, c.Z + 6), Color = Color3.fromRGB(255, 200, 110), Material = Enum.Material.Neon, CanCollide = false, Parent = folder })
+	light(lantern, Color3.fromRGB(255, 190, 100), 16, 1.2)
+	return {
+		Spawn = { Area = "Wilds", Position = Vector3.new(c.X + 3, deckY, c.Z + 5), MinRarity = "Rare", Secret = "hollow_oak" },
+		Avoid = { Vector2.new(c.X, c.Z), 22 },
+	}
+end
+
+-- SMUGGLERS' DEN ----------------------------------------------------------------------------
+
+local DEN = Vector3.new(-372, 10, 104) -- the net shed's floor centre (fishing village)
+local DEN_FLOOR = -1 -- the cellar floor (terrain is carved out beneath the shed)
+
+local function buildSmugglersDen(terrain: Terrain, parent: Folder)
+	local folder = Instance.new("Folder")
+	folder.Name = "SmugglersDen"
+	folder.Parent = parent
+	local c = DEN
+	local plank = Color3.fromRGB(120, 96, 72)
+	-- The cellar: a rock shell, hollowed out, plus the shaft under the trapdoor.
+	terrain:FillBlock(CFrame.new(c.X, 2, c.Z - 2), Vector3.new(24, 16, 22), Enum.Material.Rock)
+	terrain:FillBlock(CFrame.new(c.X, 9.5, c.Z - 2), Vector3.new(24, 1, 22), Enum.Material.Sand)
+	terrain:FillBlock(CFrame.new(c.X, DEN_FLOOR + 4, c.Z - 4), Vector3.new(16, 8, 14), Enum.Material.Air)
+	terrain:FillBlock(CFrame.new(c.X + 4, 8, c.Z), Vector3.new(4, 12, 4), Enum.Material.Air)
+	part({ Name = "CellarFloor", Size = Vector3.new(16, 1, 14), CFrame = CFrame.new(c.X, DEN_FLOOR - 0.5, c.Z - 4), Color = plank:Lerp(Color3.new(0, 0, 0), 0.3), Material = Enum.Material.WoodPlanks, Parent = folder })
+	part({ Name = "DenLadder", Class = "TrussPart", Size = Vector3.new(2, 12, 2), CFrame = CFrame.new(c.X + 4, DEN_FLOOR + 6, c.Z), Color = plank, Material = Enum.Material.Wood, Parent = folder })
+	-- The net shed on top: walls with a doorway toward the village, floor with a trapdoor hole.
+	local w, d, h = 12, 12, 8
+	local floorY = c.Y + 0.5
+	for _, piece in {
+		{ Vector3.new(w, 1, 4), Vector3.new(0, 0, -4) },
+		{ Vector3.new(8, 1, 4), Vector3.new(-2, 0, 0) },
+		{ Vector3.new(w, 1, 4), Vector3.new(0, 0, 4) },
+	} do
+		part({ Name = "ShedFloor", Size = piece[1], CFrame = CFrame.new(c.X, floorY, c.Z) + piece[2], Color = plank, Material = Enum.Material.WoodPlanks, Parent = folder })
+	end
+	part({ Name = "Trapdoor", Size = Vector3.new(4, 0.3, 4), CFrame = CFrame.new(c.X + 4, floorY + 2, c.Z - 2.2) * CFrame.Angles(math.rad(70), 0, 0), Color = plank:Lerp(Color3.new(0, 0, 0), 0.2), Material = Enum.Material.WoodPlanks, CanCollide = false, Parent = folder })
+	local shed = CFrame.new(c.X, floorY + 0.5, c.Z)
+	part({ Name = "ShedBack", Size = Vector3.new(w, h, 1), CFrame = shed * CFrame.new(0, h / 2, d / 2), Color = Color3.fromRGB(96, 118, 130), Material = Enum.Material.WoodPlanks, Parent = folder })
+	part({ Name = "ShedSide", Size = Vector3.new(1, h, d), CFrame = shed * CFrame.new(w / 2, h / 2, 0), Color = Color3.fromRGB(96, 118, 130), Material = Enum.Material.WoodPlanks, Parent = folder })
+	part({ Name = "ShedSide", Size = Vector3.new(1, h, d), CFrame = shed * CFrame.new(-w / 2, h / 2, 0), Color = Color3.fromRGB(96, 118, 130), Material = Enum.Material.WoodPlanks, Parent = folder })
+	for _, x in { -4.5, 4.5 } do
+		part({ Name = "ShedFront", Size = Vector3.new(3, h, 1), CFrame = shed * CFrame.new(x, h / 2, -d / 2), Color = Color3.fromRGB(96, 118, 130), Material = Enum.Material.WoodPlanks, Parent = folder })
+	end
+	part({ Name = "ShedRoof", Size = Vector3.new(w + 2, 1, d + 2), CFrame = shed * CFrame.new(0, h + 0.5, 0) * CFrame.Angles(math.rad(8), 0, 0), Color = Color3.fromRGB(70, 80, 90), Material = Enum.Material.CorrodedMetal, Parent = folder })
+	-- Nets on the walls (looks like just a net shed...).
+	part({ Name = "Net", Size = Vector3.new(8, 5, 0.2), CFrame = shed * CFrame.new(0, 4, d / 2 - 0.7), Color = Color3.fromRGB(200, 190, 150), Material = Enum.Material.Fabric, Transparency = 0.4, CanCollide = false, Parent = folder })
+	-- ...but downstairs: contraband.
+	local denCentre = Vector3.new(c.X, DEN_FLOOR, c.Z - 4)
+	for i, offset in { Vector3.new(-5, 0, -4), Vector3.new(-5, 0, 0), Vector3.new(5, 0, -4), Vector3.new(-5, 2.2, -4) } do
+		part({ Name = "Contraband", Size = Vector3.new(2.2, 2.2, 2.2), CFrame = CFrame.new(denCentre + offset + Vector3.new(0, 1.1, 0)) * CFrame.Angles(0, i * 0.4, 0), Color = Color3.fromRGB(140, 104, 62), Material = Enum.Material.WoodPlanks, Parent = folder })
+	end
+	local lamp = part({ Name = "DenLamp", Size = Vector3.new(0.9, 1.2, 0.9), CFrame = CFrame.new(denCentre + Vector3.new(0, 6.8, 0)), Color = Color3.fromRGB(255, 180, 80), Material = Enum.Material.Neon, CanCollide = false, Parent = folder })
+	light(lamp, Color3.fromRGB(255, 170, 80), 18, 1.3)
+	return {
+		Spawn = { Area = "Coast", Position = denCentre + Vector3.new(2, 0, -2), MinRarity = "Rare", Secret = "smugglers_den" },
+		Avoid = { Vector2.new(c.X, c.Z), 14 },
+	}
+end
+
+-- EAGLE'S NEST ------------------------------------------------------------------------------
+
+local NEST = Vector3.new(110, 10, -270) -- base of the rock spire (flat zone at ground 10)
+local NEST_TOP = 62 -- nest floor height (ground 10 + climb)
+
+local function buildEaglesNest(parent: Folder, rng: Random)
+	local folder = Instance.new("Folder")
+	folder.Name = "EaglesNest"
+	folder.Parent = parent
+	local c = NEST
+	local rock = Color3.fromRGB(104, 100, 96)
+	-- The spire: stacked rock drums, narrowing upward.
+	local drums = 8
+	for i = 1, drums do
+		local bottom = c.Y + (i - 1) * (NEST_TOP - c.Y) / drums
+		local height = (NEST_TOP - c.Y) / drums + 1
+		local diameter = 16 - i * 1.1
+		cylinder(Vector3.new(c.X + rng:NextNumber(-0.6, 0.6), bottom + height / 2, c.Z + rng:NextNumber(-0.6, 0.6)), height, diameter, { Name = "Spire", Color = rock:Lerp(Color3.new(0, 0, 0), rng:NextNumber(0, 0.2)), Material = Enum.Material.Slate, Parent = folder })
+	end
+	-- Ledges spiralling up around it: one jump each (4 studs up, ~5 apart).
+	local steps = math.floor((NEST_TOP - c.Y) / 4)
+	local function spireRadius(y: number): number
+		local drum = math.clamp(math.ceil((y - c.Y) / (NEST_TOP - c.Y) * drums), 1, drums)
+		return (16 - drum * 1.1) / 2
+	end
+	for i = 1, steps do
+		local a = i * math.rad(34)
+		local y = c.Y + i * 4
+		local r = spireRadius(y - 1) + 4.5
+		part({
+			Name = "Ledge",
+			Size = Vector3.new(5.5, 1.2, 4.5),
+			CFrame = CFrame.new(c.X + math.cos(a) * r, y - 0.6, c.Z + math.sin(a) * r) * CFrame.Angles(0, -a, math.rad(rng:NextNumber(-3, 3))),
+			Color = Color3.fromRGB(130, 124, 116),
+			Material = Enum.Material.Slate,
+			Parent = folder,
+		})
+	end
+	-- The nest: a flat top ringed by twigs, with a giant egg and feathers.
+	local top = Vector3.new(c.X, NEST_TOP, c.Z)
+	local nestRadius = spireRadius(NEST_TOP) + 1.5 -- stops short of the highest ledges
+	cylinder(top - Vector3.new(0, 0.5, 0), 1, nestRadius * 2, { Name = "NestFloor", Color = Color3.fromRGB(120, 92, 60), Material = Enum.Material.Wood, Parent = folder })
+	for i = 1, 16 do
+		local a = i / 16 * 2 * math.pi
+		part({
+			Name = "Twig",
+			Size = Vector3.new(0.6, 0.6, 3.4),
+			CFrame = CFrame.new(top + Vector3.new(math.cos(a) * nestRadius, 0.6 + (i % 3) * 0.3, math.sin(a) * nestRadius)) * CFrame.Angles(0, -a + rng:NextNumber(-0.3, 0.3), math.rad(rng:NextNumber(-12, 12))),
+			Color = Color3.fromRGB(110, 80, 50),
+			Material = Enum.Material.Wood,
+			CanCollide = false,
+			Parent = folder,
+		})
+	end
+	part({ Name = "GiantEgg", Shape = Enum.PartType.Ball, Size = Vector3.new(3, 3.8, 3), CFrame = CFrame.new(top + Vector3.new(-2, 1.9, 1.5)), Color = Color3.fromRGB(235, 225, 205), Material = Enum.Material.SmoothPlastic, Parent = folder })
+	local beacon = part({ Name = "NestGlow", Size = Vector3.new(0.5, 0.5, 0.5), CFrame = CFrame.new(top + Vector3.new(0, 3, 0)), Transparency = 1, CanCollide = false, Parent = folder })
+	local feathers = Instance.new("ParticleEmitter")
+	feathers.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	feathers.Rate = 5
+	feathers.Lifetime = NumberRange.new(2, 3)
+	feathers.Speed = NumberRange.new(1, 2)
+	feathers.SpreadAngle = Vector2.new(180, 180)
+	feathers.Size = NumberSequence.new(0.6, 0)
+	feathers.Color = ColorSequence.new(GOLD)
+	feathers.LightEmission = 1
+	feathers.Parent = beacon
+	light(beacon, GOLD, 18, 1)
+	return {
+		Spawn = { Area = "Falls", Position = top + Vector3.new(1.5, 0, -1), MinRarity = "Epic", Secret = "eagles_nest" },
+		Avoid = { Vector2.new(c.X, c.Z), 22 },
 	}
 end
 
@@ -418,6 +624,9 @@ function Secrets.Build(terrain: Terrain, parent: Instance, rng: Random)
 		buildCatacombs(terrain, folder, rng),
 		buildGrotto(terrain, folder),
 		buildWitchHut(folder, rng),
+		buildHollowOak(folder, rng),
+		buildSmugglersDen(terrain, folder),
+		buildEaglesNest(folder, rng),
 	} do
 		table.insert(result.Spawns, built.Spawn)
 		table.insert(result.Avoid, built.Avoid)
@@ -429,5 +638,8 @@ Secrets.MINE = MINE
 Secrets.SKY = SKY
 Secrets.SKY_TOP = SKY_TOP
 Secrets.ROOM = ROOM
+Secrets.OAK = OAK
+Secrets.DEN = DEN
+Secrets.NEST = NEST
 
 return Secrets

@@ -12,8 +12,22 @@ local function rankOf(order, rarity)
 	return 0
 end
 
--- Returns a list of { Def, Weight } eligible for a spawn point.
-function TreasureRoll.Candidates(defs, point, order, weights, caps, activeByRarity)
+-- Rarity weights for a region of the given danger: Common..Legendary from its danger row,
+-- Mythic+ from the island-wide table. Returns (weights, anywhere set).
+function TreasureRoll.WeightsFor(treasureConfig, danger: number)
+	local byDanger = treasureConfig.RarityByDanger
+	local row = byDanger[math.clamp(danger, 1, #byDanger)]
+	local weights, anywhere = table.clone(row), {}
+	for rarity, weight in treasureConfig.AnywhereWeights do
+		weights[rarity] = weight
+		anywhere[rarity] = true
+	end
+	return weights, anywhere
+end
+
+-- Returns a list of { Def, Weight } eligible for a spawn point. `anywhere`: rarities that may
+-- spawn in any region (not only their own SpawnArea).
+function TreasureRoll.Candidates(defs, point, order, weights, caps, activeByRarity, anywhere)
 	local minRank = rankOf(order, point.MinRarity or order[1])
 	local maxRank = rankOf(order, point.MaxRarity or order[#order])
 
@@ -25,7 +39,8 @@ function TreasureRoll.Candidates(defs, point, order, weights, caps, activeByRari
 		local rank = rankOf(order, def.Rarity)
 		local cap = caps[def.Rarity]
 		local underCap = cap == nil or (activeByRarity[def.Rarity] or 0) < cap
-		if def.SpawnArea == point.Area and rank >= minRank and rank <= maxRank and underCap then
+		local inArea = def.SpawnArea == point.Area or (anywhere ~= nil and anywhere[def.Rarity] == true)
+		if inArea and rank >= minRank and rank <= maxRank and underCap then
 			table.insert(eligible, def)
 			perRarity[def.Rarity] = (perRarity[def.Rarity] or 0) + 1
 		end

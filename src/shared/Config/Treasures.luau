@@ -69,6 +69,13 @@ Treasures.List = {
 	{ Id = "spore_scepter", Name = "Spore Queen's Scepter", Rarity = "Epic", Value = 22000, Weight = 1400, SpawnArea = "Marsh", Shape = "Trident", Color = { 190, 90, 255 }, Material = "Neon", DisplaySize = "Medium", Lore = "One wave and the whole bog glows." },
 	{ Id = "moonshroom", Name = "Moonshroom", Rarity = "Legendary", Value = 80000, Weight = 2200, SpawnArea = "Marsh", Shape = "Egg", Color = { 150, 190, 255 }, Material = "Neon", DisplaySize = "Large", SpecialEffect = "Nocturnal", Lore = "Only blooms under the moon - and so does its price." },
 
+	-- Lower tiers for the far regions / the odd big find in the Wilds (loot follows danger).
+	{ Id = "oak_kings_chest", Name = "Oak King's Chest", Rarity = "Epic", Value = 18700, Weight = 1600, SpawnArea = "Wilds", Shape = "Chest", Color = { 130, 90, 50 }, Material = "Wood", DisplaySize = "Medium", Lore = "Buried under the oldest tree in the Wilds. Somebody dug it up." },
+	{ Id = "mist_flask", Name = "Mist Flask", Rarity = "Uncommon", Value = 1600, Weight = 400, SpawnArea = "Falls", Shape = "Goblet", Color = { 170, 220, 255 }, Material = "Glass", DisplaySize = "Small", Lore = "Bottled spray from the falls. Never runs dry." },
+	{ Id = "river_charm", Name = "River Stone Charm", Rarity = "Uncommon", Value = 1170, Weight = 350, SpawnArea = "Falls", Shape = "Ring", Color = { 90, 140, 160 }, Material = "Slate", DisplaySize = "Small", Lore = "Smoothed by a thousand years of water." },
+	{ Id = "storm_feather", Name = "Storm Eagle Feather", Rarity = "Rare", Value = 7650, Weight = 700, SpawnArea = "Falls", Shape = "Feather", Color = { 120, 110, 140 }, Material = "SmoothPlastic", DisplaySize = "Medium", Lore = "Crackles before every storm." },
+	{ Id = "cliff_tablet", Name = "Cliffside Tablet", Rarity = "Rare", Value = 9000, Weight = 1900, SpawnArea = "Falls", Shape = "Tablet", Color = { 150, 150, 160 }, Material = "Slate", DisplaySize = "Medium", Lore = "Carved with a map of the island - before the island existed." },
+
 	-- DIVINE ($1,000,000-2,000,000)
 	{ Id = "aurora_crystal", Name = "Aurora Crystal", Rarity = "Divine", Value = 1200000, Weight = 5000, SpawnArea = "Frost", Shape = "Gem", Color = { 0, 229, 255 }, Material = "Neon", DisplaySize = "Large", Lore = "The northern lights, frozen mid-dance." },
 	{ Id = "seraph_feather", Name = "Seraph Feather", Rarity = "Divine", Value = 1600000, Weight = 3000, SpawnArea = "Falls", Shape = "Feather", Color = { 180, 250, 255 }, Material = "Neon", DisplaySize = "Large", SpecialEffect = "Swift", Lore = "Fell from somewhere much higher than the cliff." },

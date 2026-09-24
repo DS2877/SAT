@@ -103,38 +103,79 @@ end)
 -- TREASURE ROLL -------------------------------------------------------------------
 test("rolls respect area, rarity range and caps", function()
 	local cfg = GameConfig.Treasure
+	local weights, anywhere = TreasureRoll.WeightsFor(cfg, 3)
 	local point = { Area = "Ruins", MinRarity = "Epic", MaxRarity = "Mythic" }
-	local candidates = TreasureRoll.Candidates(Treasures.List, point, RARITY_ORDER, cfg.RarityWeights, cfg.RarityCaps, {})
+	local candidates = TreasureRoll.Candidates(Treasures.List, point, RARITY_ORDER, weights, cfg.RarityCaps, {})
 	check(#candidates > 0, "ruins epic+ has candidates")
 	for _, c in candidates do
 		check(c.Def.SpawnArea == "Ruins", "area filter " .. c.Def.Id)
 		check(c.Def.Rarity == "Epic" or c.Def.Rarity == "Legendary" or c.Def.Rarity == "Mythic", "rarity filter " .. c.Def.Id)
 	end
-	local capped = TreasureRoll.Candidates(Treasures.List, point, RARITY_ORDER, cfg.RarityWeights, cfg.RarityCaps, { Legendary = 1, Mythic = 1 })
+	local capped = TreasureRoll.Candidates(Treasures.List, point, RARITY_ORDER, weights, cfg.RarityCaps, { Legendary = 2, Mythic = 1 })
 	for _, c in capped do
 		check(c.Def.Rarity == "Epic", "caps exclude capped rarities: " .. c.Def.Id)
 	end
-	local none = TreasureRoll.Candidates(Treasures.List, point, RARITY_ORDER, cfg.RarityWeights, cfg.RarityCaps, { Epic = 5, Legendary = 1, Mythic = 1 })
+	local none = TreasureRoll.Candidates(Treasures.List, point, RARITY_ORDER, weights, cfg.RarityCaps, { Epic = 5, Legendary = 2, Mythic = 1 })
 	check(#none == 0 and TreasureRoll.Pick(none, math.random) == nil, "fully capped point spawns nothing")
+	-- Mythic and above ignore the region: a Wilds point can roll them.
+	local wilds = TreasureRoll.Candidates(Treasures.List, { Area = "Wilds" }, RARITY_ORDER, weights, cfg.RarityCaps, {}, anywhere)
+	local foreignMythic, foreignRare = false, false
+	for _, c in wilds do
+		if c.Def.SpawnArea ~= "Wilds" then
+			if table.find(RARITY_ORDER, c.Def.Rarity) >= table.find(RARITY_ORDER, "Mythic") then
+				foreignMythic = true
+			else
+				foreignRare = true
+			end
+		end
+	end
+	check(foreignMythic, "Mythic+ can spawn outside their home region")
+	check(not foreignRare, "Common..Legendary stay in their home region")
 end)
 
-test("rare treasure stays rare over many rolls", function()
+test("loot follows the region's danger", function()
 	local cfg = GameConfig.Treasure
-	local point = { Area = "Wilds", MinRarity = "Common", MaxRarity = "Rare" }
-	local candidates = TreasureRoll.Candidates(Treasures.List, point, RARITY_ORDER, cfg.RarityWeights, cfg.RarityCaps, {})
-	local seed = 12345
-	local function rand()
-		seed = (seed * 1103515245 + 12345) % 2147483648
-		return seed / 2147483648
+	local function seeded()
+		local seed = 12345
+		return function()
+			seed = (seed * 1103515245 + 12345) % 2147483648
+			return seed / 2147483648
+		end
 	end
-	local counts = {}
-	for _ = 1, 20000 do
-		local def = TreasureRoll.Pick(candidates, rand)
-		counts[def.Rarity] = (counts[def.Rarity] or 0) + 1
+	local function share(area: string, danger: number)
+		local weights, anywhere = TreasureRoll.WeightsFor(cfg, danger)
+		local candidates = TreasureRoll.Candidates(Treasures.List, { Area = area }, RARITY_ORDER, weights, {}, {}, anywhere)
+		local counts, rand = {}, seeded()
+		for _ = 1, 20000 do
+			local def = TreasureRoll.Pick(candidates, rand)
+			counts[def.Rarity] = (counts[def.Rarity] or 0) + 1
+		end
+		for rarity, n in counts do
+			counts[rarity] = n / 20000
+		end
+		return counts
 	end
-	check((counts.Common or 0) > (counts.Uncommon or 0), "commons most frequent")
-	check((counts.Uncommon or 0) > (counts.Rare or 0), "uncommon more frequent than rare")
-	check((counts.Rare or 0) > 0, "rares do appear")
+	local wilds, falls, frost = share("Wilds", 1), share("Falls", 4), share("Frost", 3)
+	check((wilds.Common or 0) > 0.45, "the Wilds are mostly Common")
+	check((wilds.Epic or 0) > 0 and (wilds.Epic or 0) < 0.03, "Epic is rare in the Wilds")
+	check((falls.Uncommon or 0) > 0.05, "Uncommons still turn up in the hardest region")
+	check((falls.Common or 0) == 0, "no Commons at the Falls")
+	check((falls.Epic or 0) > 0.3, "the Falls are Epic country")
+	check((frost.Rare or 0) + (frost.Epic or 0) > 0.5, "Frostpeak is mostly Rare/Epic")
+	local mythicPlus = function(t)
+		return (t.Mythic or 0) + (t.Divine or 0) + (t.Secret or 0) + (t.OG or 0)
+	end
+	check(mythicPlus(wilds) > 0 and mythicPlus(wilds) < 0.01, "Mythic+ is a rare surprise anywhere")
+	for danger, row in cfg.RarityByDanger do
+		local total = 0
+		for _, w in row do
+			total += w
+		end
+		check(math.abs(total - 100) < 0.01, ("danger %d weights sum to 100"):format(danger))
+	end
+	for rarity in cfg.AnywhereWeights do
+		check(table.find(RARITY_ORDER, rarity) >= table.find(RARITY_ORDER, "Mythic"), "only Mythic+ roam: " .. rarity)
+	end
 end)
 
 test("every spawn area referenced by treasures can spawn something", function()
@@ -587,16 +628,29 @@ test("every treasure can actually spawn somewhere", function()
 	local roblox = require("@lune/roblox") :: any
 	Vector3 = roblox.Vector3
 	local WorldLayout = require("../src/shared/Config/WorldLayout")
+	local cfg = GameConfig.Treasure
 	for _, def in Treasures.List do
 		local ok = false
+		local rank = table.find(RARITY_ORDER, def.Rarity) or 0
 		for _, point in WorldLayout.TreasureSpawns do
-			local rank = table.find(RARITY_ORDER, def.Rarity) or 0
-			if point.Area == def.SpawnArea and rank >= (table.find(RARITY_ORDER, point.MinRarity) or 0) and rank <= (table.find(RARITY_ORDER, point.MaxRarity) or 0) then
+			local region = GameConfig.Regions[point.Area]
+			local weights, anywhere = TreasureRoll.WeightsFor(cfg, region.Danger)
+			local inArea = point.Area == def.SpawnArea or anywhere[def.Rarity]
+			local minRank = table.find(RARITY_ORDER, point.MinRarity or "Common") or 0
+			local maxRank = table.find(RARITY_ORDER, point.MaxRarity or "OG") or 0
+			if inArea and rank >= minRank and rank <= maxRank and (weights[def.Rarity] or 0) > 0 then
 				ok = true
 				break
 			end
 		end
 		check(ok, "spawnable: " .. def.Id)
+	end
+	local perArea = {}
+	for _, point in WorldLayout.TreasureSpawns do
+		perArea[point.Area] = (perArea[point.Area] or 0) + 1
+	end
+	for area in GameConfig.Regions do
+		check((perArea[area] or 0) >= 7, area .. " has plenty of spawn points")
 	end
 end)
 
@@ -697,12 +751,23 @@ test("regions escalate and secrets pay off", function()
 	end
 	-- Mirrors the spawn points in World/Secrets.luau: each must be able to roll something.
 	for _, point in {
-		{ Area = "Wilds", MinRarity = "Rare", MaxRarity = "Rare" },
-		{ Area = "Ruins", MinRarity = "Epic", MaxRarity = "Legendary" },
-		{ Area = "Ruins", MinRarity = "Legendary", MaxRarity = "Mythic" },
+		{ Area = "Wilds", MinRarity = "Rare" },
+		{ Area = "Ruins", MinRarity = "Epic" },
+		{ Area = "Ruins", MinRarity = "Legendary" },
+		{ Area = "Frost", MinRarity = "Epic" },
+		{ Area = "Marsh", MinRarity = "Epic" },
+		{ Area = "Coast", MinRarity = "Rare" },
+		{ Area = "Falls", MinRarity = "Epic" },
 	} do
-		local candidates = TreasureRoll.Candidates(Treasures.List, point, RARITY_ORDER, { Rare = 1, Epic = 1, Legendary = 1, Mythic = 1 }, {}, {})
-		check(#candidates > 0, ("secret spawn %s %s-%s can roll"):format(point.Area, point.MinRarity, point.MaxRarity))
+		local weights, anywhere = TreasureRoll.WeightsFor(GameConfig.Treasure, GameConfig.Regions[point.Area].Danger)
+		local candidates = TreasureRoll.Candidates(Treasures.List, point, RARITY_ORDER, weights, {}, {}, anywhere)
+		local local_ = 0
+		for _, c in candidates do
+			if c.Def.SpawnArea == point.Area then
+				local_ += 1
+			end
+		end
+		check(local_ > 0, ("secret spawn %s %s+ can roll local loot"):format(point.Area, point.MinRarity))
 	end
 end)
 
@@ -761,10 +826,10 @@ test("rarity palette + every tier can spawn", function()
 		check(source:find(code, 1, true) ~= nil, "palette colour " .. rarity)
 	end
 	check(source:find('"Divine", "Secret", "OG" }', 1, true) ~= nil, "rarity order ends Divine > Secret > OG")
-	local weights = GameConfig.Treasure.RarityWeights
+	local weights = TreasureRoll.WeightsFor(GameConfig.Treasure, 2)
 	for i, rarity in RARITY_ORDER do
 		check((weights[rarity] or 0) > 0, "spawn weight " .. rarity)
-		if i > 1 then
+		if i > 2 then
 			check(weights[rarity] < weights[RARITY_ORDER[i - 1]], "rarer tier spawns less often " .. rarity)
 		end
 		local found = false

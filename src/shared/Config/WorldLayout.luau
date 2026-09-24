@@ -108,48 +108,93 @@ WorldLayout.Volcano = {
 	Height = 190,
 }
 
--- Treasure spawn points. MinRarity/MaxRarity clamp what a point may roll.
+-- SETTLEMENTS (World/Settlements): lived-in places in every region, most with loot inside.
+WorldLayout.Settlements = {
+	Farm = Vector3.new(-100, 10, 75), -- Wilds: farmhouse, barn, windmill, field
+	Watchtower = Vector3.new(60, 10, -110), -- Wilds: ranger tower (loot on top)
+	Camp = Vector3.new(-60, 10, -200), -- Wilds: explorers' campsite
+	Village = Vector3.new(-385, 10, 90), -- Coast: fishing village + pier
+	StiltVillage = Vector3.new(318, 18, 236), -- Marsh: huts on stilts (floor height 18)
+	Chapel = Vector3.new(240, 10, 95), -- Marsh: drowned chapel ruin
+	Aqueduct = Vector3.new(318, 10, -75), -- Ruins: broken aqueduct (walkable deck on top)
+	Obelisks = Vector3.new(165, 10, -90), -- Ruins: obelisk circle
+	Trapper = Vector3.new(-240, 10, 280), -- Frost: trapper's cabin
+	Outpost = Vector3.new(-320, 10, 185), -- Frost: mining outpost
+	Hermit = Vector3.new(-70, 90, -350), -- Falls: hermit's hut on the cliff top
+}
+WorldLayout.AqueductDeck = 16 -- deck height above the ground
+WorldLayout.WatchtowerDeck = 22
+
+-- Treasure spawn points. WHAT spawns follows the region's danger (GameConfig.Treasure
+-- RarityByDanger; Mythic+ can appear anywhere). Optional MinRarity/MaxRarity clamp a point:
+-- the starter spots by the gate only ever hold easy loot. RayFrom: raycast start height, for
+-- loot inside a building (from under its roof) or on top of something.
+local S = WorldLayout.Settlements
 WorldLayout.TreasureSpawns = {
-	-- Wilds: close to the District gate first (guaranteed easy first treasure)
-	{ Area = "Wilds", Position = Vector3.new(38, 10, 88), MinRarity = "Common", MaxRarity = "Common" },
-	{ Area = "Wilds", Position = Vector3.new(-45, 10, 70), MinRarity = "Common", MaxRarity = "Common" },
-	{ Area = "Wilds", Position = Vector3.new(70, 10, 20), MinRarity = "Common", MaxRarity = "Uncommon" },
-	{ Area = "Wilds", Position = Vector3.new(-90, 10, 10), MinRarity = "Common", MaxRarity = "Uncommon" },
-	{ Area = "Wilds", Position = Vector3.new(-150, 10, -40), MinRarity = "Common", MaxRarity = "Rare" },
-	{ Area = "Wilds", Position = Vector3.new(130, 10, -60), MinRarity = "Common", MaxRarity = "Rare" },
-	{ Area = "Wilds", Position = Vector3.new(-40, 10, -110), MinRarity = "Common", MaxRarity = "Rare" },
-	{ Area = "Wilds", Position = Vector3.new(60, 10, -170), MinRarity = "Uncommon", MaxRarity = "Rare" },
-	{ Area = "Wilds", Position = Vector3.new(-170, 10, -190), MinRarity = "Uncommon", MaxRarity = "Rare" },
-	{ Area = "Wilds", Position = Vector3.new(150, 10, -250), MinRarity = "Uncommon", MaxRarity = "Rare" },
-	-- Ancient Ruins
-	{ Area = "Ruins", Position = Vector3.new(200, 10, -30), MinRarity = "Common", MaxRarity = "Rare" },
-	{ Area = "Ruins", Position = Vector3.new(262, 10, -30), MinRarity = "Common", MaxRarity = "Rare" },
-	{ Area = "Ruins", Position = Vector3.new(170, 10, -150), MinRarity = "Uncommon", MaxRarity = "Epic" },
-	{ Area = "Ruins", Position = Vector3.new(292, 10, -150), MinRarity = "Uncommon", MaxRarity = "Epic" },
-	{ Area = "Ruins", Position = Vector3.new(230, 10, -205), MinRarity = "Rare", MaxRarity = "Legendary" },
-	{ Area = "Ruins", Position = Vector3.new(230, 60, -140), MinRarity = "Epic", MaxRarity = "Mythic" },
-	-- Shipwreck Coast
-	{ Area = "Coast", Position = Vector3.new(-270, 10, 50), MinRarity = "Common", MaxRarity = "Uncommon" },
-	{ Area = "Coast", Position = Vector3.new(-280, 10, -80), MinRarity = "Common", MaxRarity = "Rare" },
-	{ Area = "Coast", Position = Vector3.new(-310, 10, 30), MinRarity = "Common", MaxRarity = "Rare" },
-	{ Area = "Coast", Position = Vector3.new(-330, 30, -10), MinRarity = "Uncommon", MaxRarity = "Legendary" },
-	{ Area = "Coast", Position = Vector3.new(-350, 10, -70), MinRarity = "Rare", MaxRarity = "Epic" },
-	-- Frostpeak
-	{ Area = "Frost", Position = Vector3.new(-250, 10, 190), MinRarity = "Common", MaxRarity = "Rare" },
-	{ Area = "Frost", Position = Vector3.new(-330, 10, 205), MinRarity = "Common", MaxRarity = "Rare" },
-	{ Area = "Frost", Position = Vector3.new(-290, 10, 250), MinRarity = "Uncommon", MaxRarity = "Epic" },
-	{ Area = "Frost", Position = Vector3.new(-240, 10, 300), MinRarity = "Rare", MaxRarity = "Epic" },
-	{ Area = "Frost", Position = Vector3.new(-345, 10, 300), MinRarity = "Rare", MaxRarity = "Divine" },
-	-- Glowshroom Marsh
-	{ Area = "Marsh", Position = Vector3.new(220, 10, 130), MinRarity = "Common", MaxRarity = "Uncommon" },
-	{ Area = "Marsh", Position = Vector3.new(300, 10, 120), MinRarity = "Common", MaxRarity = "Rare" },
-	{ Area = "Marsh", Position = Vector3.new(250, 10, 215), MinRarity = "Uncommon", MaxRarity = "Rare" },
-	{ Area = "Marsh", Position = Vector3.new(320, 10, 200), MinRarity = "Rare", MaxRarity = "Epic" },
-	{ Area = "Marsh", Position = Vector3.new(290, 10, 250), MinRarity = "Rare", MaxRarity = "Legendary" },
-	-- The Falls (waterfall, cliff top, hidden cave)
-	{ Area = "Falls", Position = Vector3.new(-58, 10, -282), MinRarity = "Epic", MaxRarity = "Legendary" },
-	{ Area = "Falls", Position = Vector3.new(-12, 10, -340), MinRarity = "Epic", MaxRarity = "OG", RayFrom = 26 },
-	{ Area = "Falls", Position = Vector3.new(-40, 91, -345), MinRarity = "Epic", MaxRarity = "Divine" },
+	-- THE WILDS: starter loot by the District gate first (refills during the day too)
+	{ Area = "Wilds", Position = Vector3.new(38, 10, 88), MaxRarity = "Common" },
+	{ Area = "Wilds", Position = Vector3.new(-45, 10, 70), MaxRarity = "Common" },
+	{ Area = "Wilds", Position = Vector3.new(70, 10, 20), MaxRarity = "Uncommon" },
+	{ Area = "Wilds", Position = Vector3.new(-90, 10, 10), MaxRarity = "Uncommon" },
+	{ Area = "Wilds", Position = Vector3.new(-150, 10, -40) },
+	{ Area = "Wilds", Position = Vector3.new(130, 10, -60) },
+	{ Area = "Wilds", Position = Vector3.new(-40, 10, -110) },
+	{ Area = "Wilds", Position = Vector3.new(60, 10, -170) },
+	{ Area = "Wilds", Position = Vector3.new(-170, 10, -190) },
+	{ Area = "Wilds", Position = Vector3.new(150, 10, -250) },
+	{ Area = "Wilds", Position = Vector3.new(-20, 10, -40) },
+	{ Area = "Wilds", Position = Vector3.new(100, 10, 60) },
+	{ Area = "Wilds", Position = Vector3.new(-60, 10, 20) },
+	{ Area = "Wilds", Position = Vector3.new(-130, 10, -20) },
+	{ Area = "Wilds", Position = S.Farm + Vector3.new(16, 0, -10), RayFrom = 20 }, -- in the barn
+	{ Area = "Wilds", Position = S.Farm + Vector3.new(8, 0, 22) }, -- by the crop field
+	{ Area = "Wilds", Position = S.Watchtower + Vector3.new(0, 22, 0), RayFrom = 36 }, -- on top
+	{ Area = "Wilds", Position = S.Camp + Vector3.new(5, 0, 5) },
+	-- SHIPWRECK COAST
+	{ Area = "Coast", Position = Vector3.new(-270, 10, 50) },
+	{ Area = "Coast", Position = Vector3.new(-280, 10, -80) },
+	{ Area = "Coast", Position = Vector3.new(-310, 10, 30) },
+	{ Area = "Coast", Position = Vector3.new(-330, 30, -10) },
+	{ Area = "Coast", Position = Vector3.new(-350, 10, -70) },
+	{ Area = "Coast", Position = Vector3.new(-215, 10, 30) },
+	{ Area = "Coast", Position = Vector3.new(-240, 10, -120) },
+	{ Area = "Coast", Position = S.Village + Vector3.new(-11, 0, -16), RayFrom = 16 }, -- in a hut
+	{ Area = "Coast", Position = Vector3.new(S.Village.X - 90, 11, S.Village.Z - 2), RayFrom = 15 }, -- pier end
+	-- GLOWSHROOM MARSH
+	{ Area = "Marsh", Position = Vector3.new(220, 10, 130) },
+	{ Area = "Marsh", Position = Vector3.new(300, 10, 120) },
+	{ Area = "Marsh", Position = Vector3.new(250, 10, 215) },
+	{ Area = "Marsh", Position = Vector3.new(320, 10, 200) },
+	{ Area = "Marsh", Position = Vector3.new(290, 10, 250) },
+	{ Area = "Marsh", Position = Vector3.new(195, 10, 170) },
+	{ Area = "Marsh", Position = S.StiltVillage + Vector3.new(-9, 0, -8), RayFrom = S.StiltVillage.Y + 6 }, -- stilt hut
+	{ Area = "Marsh", Position = Vector3.new(241.5, 10, 101) }, -- drowned chapel nave
+	-- ANCIENT RUINS
+	{ Area = "Ruins", Position = Vector3.new(200, 10, -30) },
+	{ Area = "Ruins", Position = Vector3.new(262, 10, -30) },
+	{ Area = "Ruins", Position = Vector3.new(170, 10, -150) },
+	{ Area = "Ruins", Position = Vector3.new(292, 10, -150) },
+	{ Area = "Ruins", Position = Vector3.new(230, 10, -205) },
+	{ Area = "Ruins", Position = Vector3.new(230, 60, -140) }, -- temple top
+	{ Area = "Ruins", Position = Vector3.new(300, 10, -230) },
+	{ Area = "Ruins", Position = S.Aqueduct + Vector3.new(0, 16, 0), RayFrom = 32 }, -- aqueduct deck
+	{ Area = "Ruins", Position = S.Obelisks }, -- rune altar
+	-- FROSTPEAK
+	{ Area = "Frost", Position = Vector3.new(-250, 10, 190) },
+	{ Area = "Frost", Position = Vector3.new(-300, 10, 205) },
+	{ Area = "Frost", Position = Vector3.new(-290, 10, 250) }, -- frozen lake
+	{ Area = "Frost", Position = Vector3.new(-240, 10, 305) },
+	{ Area = "Frost", Position = Vector3.new(-345, 10, 300) },
+	{ Area = "Frost", Position = S.Trapper, RayFrom = 16 }, -- inside the cabin
+	{ Area = "Frost", Position = S.Outpost + Vector3.new(10, 0, 4) }, -- by the ore carts
+	-- THE FALLS (waterfall, cliff top, hidden cave)
+	{ Area = "Falls", Position = Vector3.new(-58, 10, -282) },
+	{ Area = "Falls", Position = Vector3.new(-12, 10, -340), RayFrom = 26 }, -- behind the falls
+	{ Area = "Falls", Position = Vector3.new(-40, 91, -345) }, -- cliff top
+	{ Area = "Falls", Position = Vector3.new(60, 10, -270) },
+	{ Area = "Falls", Position = Vector3.new(-120, 10, -270) },
+	{ Area = "Falls", Position = Vector3.new(150, 10, -290) },
+	{ Area = "Falls", Position = S.Hermit, RayFrom = 96 }, -- inside the hermit's hut
 }
 
 -- Open areas where events (Treasure Rain, ...) take place.
