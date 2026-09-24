@@ -5,7 +5,7 @@
 --   * set pips filling toward SET COMPLETE (confetti + bonus)
 --   * MEGA REP and the rare GOLDEN REP jackpots (flash, shake, fanfare)
 --   * a "next lift" goal with an ETA, so you always know what you are waiting for
--- Pushing the joystick / movement keys (or ✕) gets up. While lying down every proximity prompt
+-- Pushing the joystick / movement keys (or GET UP) gets up. While lying down every proximity prompt
 -- is hidden. Also announces "NEW LIFT!" whenever Strength (from any source) lets you carry a
 -- heavier treasure at full speed. The lifting animation itself lives in BenchAnimator.
 
@@ -25,6 +25,7 @@ local UI = script.Parent.Parent.UI
 local Theme = require(UI.Theme)
 local Kit = require(UI.Kit)
 local Sounds = require(UI.Sounds)
+local RewardFX = require(UI.RewardFX)
 local Notifications = require(script.Parent.Notifications)
 local Effects = require(script.Parent.Effects)
 
@@ -131,36 +132,17 @@ local function setPips(reps: number)
 	end
 end
 
--- Big floating reward text in the middle of the screen (above your lifter), so every rep lands.
-local function pop(text: string, color: Color3, size: number, y: number?)
-	local label = Kit.label({
+-- Big reward number above your lifter (RewardFX: slam-in, gradient, sparks, shockwave).
+local function pop(text: string, sub: string?, palette, size: number, sparks: number, y: number?)
+	RewardFX.Pop(gui, {
 		Text = text,
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5 + math.random(-10, 10) / 100, (y or 0.4) + math.random(-3, 3) / 100),
-		Size = UDim2.fromOffset(520, size + 12),
-		Font = Theme.Font.Display,
-		TextSize = size,
-		TextColor3 = color,
-		TextWrapped = false,
-		ZIndex = 20,
-		Parent = gui,
+		SubText = sub,
+		Position = UDim2.fromScale(0.5 + math.random(-5, 5) / 100, (y or 0.36) + math.random(-2, 2) / 100),
+		Size = size,
+		Palette = palette,
+		Sparks = sparks,
+		Spark = palette[#palette],
 	})
-	Kit.stroke(Color3.fromRGB(40, 22, 8), 3, 0).Parent = label
-	local scale = Kit.new("UIScale", { Scale = 0.3, Parent = label })
-	Kit.tween(scale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
-	local rise = TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	Kit.tween(label, rise, { Position = label.Position - UDim2.fromScale(0, 0.14) })
-	task.delay(0.8, function()
-		local fade = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-		Kit.tween(label, fade, { TextTransparency = 1 })
-		local stroke = label:FindFirstChildOfClass("UIStroke")
-		if stroke then
-			Kit.tween(stroke, fade, { Transparency = 1 })
-		end
-	end)
-	task.delay(1.4, function()
-		label:Destroy()
-	end)
 end
 
 -- Confetti burst from a screen point: little spinning squares flying out and falling.
@@ -215,30 +197,32 @@ local function onRep(payload)
 	session.Target = tonumber(payload.Total) or (session.Target + payload.Amount)
 	setPump(pump)
 	setPips(session.Reps)
-	Kit.pulse(totalLabel)
 
 	local heat = math.clamp((pump - 1) / (cfg.PumpMax - 1), 0, 1)
+	local amount = Kit.bigNumber(payload.Amount)
 	if payload.Kind == "Golden" then
-		pop(("✨ GOLDEN REP ✨  +%s 💪"):format(Kit.bigNumber(payload.Amount)), Theme.Color.Gold, 72, 0.34)
+		pop("+" .. amount, "✨ GOLDEN REP ✨", RewardFX.Palette.Rainbow, 104, 22, 0.32)
 		screenFlash(Theme.Color.Gold, 0.55)
-		confetti(40, UDim2.fromScale(0.5, 0.36))
+		confetti(40, UDim2.fromScale(0.5, 0.34))
 		Effects.Shake(1.2, 0.5)
 		Sounds.Play("GoldenRep")
-		Kit.pulse(panel)
+		RewardFX.Bump(panel, 0.08)
 	elseif payload.Kind == "Mega" then
-		pop(("MEGA REP!  +%s 💪"):format(Kit.bigNumber(payload.Amount)), Theme.Color.Gold, 58)
+		pop("+" .. amount, "💥 MEGA REP!", RewardFX.Palette.Gold, 84, 16)
 		Effects.Shake(0.5, 0.25)
 		Sounds.Play("MegaRep")
-		Kit.pulse(panel)
+		RewardFX.Bump(panel, 0.05)
 	else
-		pop(("+%s 💪"):format(Kit.bigNumber(payload.Amount)), PUMP_COLD:Lerp(PUMP_HOT, heat), 38 + 14 * heat)
+		local sub = if heat > 0 then ("💪 PUMP x%.2f"):format(pump) else "💪"
+		pop("+" .. amount, sub, if heat >= 1 then RewardFX.Palette.Hot else RewardFX.Palette.Warm, 56 + math.floor(26 * heat), 6 + math.floor(6 * heat))
 		Sounds.Play("Rep", 0.8 + 0.3 * heat, 1 + 0.35 * heat)
 	end
+	RewardFX.Bump(totalLabel)
 
 	local bonus = tonumber(payload.SetBonus) or 0
 	if bonus > 0 then
 		task.delay(0.35, function()
-			pop(("SET %d COMPLETE!  +%s BONUS"):format(tonumber(payload.Sets) or 0, Kit.bigNumber(bonus)), Theme.Color.Cash, 46, 0.3)
+			pop("+" .. Kit.bigNumber(bonus), ("🏆 SET %d COMPLETE! BONUS"):format(tonumber(payload.Sets) or 0), RewardFX.Palette.Cash, 70, 12, 0.24)
 			confetti(24, UDim2.fromScale(0.5, 0.3))
 			Sounds.Play("SetComplete")
 			for _, pip in pips do
@@ -365,8 +349,9 @@ function TrainingUI.Init(screenGui: ScreenGui)
 	}, { Kit.padding(10, 14) })
 	title = Kit.label({ Text = "", Size = UDim2.new(1, -170, 0, 24), Font = Theme.Font.Display, TextSize = 20, TextXAlignment = Enum.TextXAlignment.Left, Parent = panel })
 	rateLabel = Kit.label({ Text = "", Position = UDim2.fromOffset(0, 24), Size = UDim2.new(1, -150, 0, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.TextDim, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = true, Parent = panel })
-	totalLabel = Kit.label({ Text = "+0 💪", AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0), Size = UDim2.fromOffset(170, 42), Font = Theme.Font.Display, TextSize = 32, TextColor3 = Theme.Color.Strength, TextXAlignment = Enum.TextXAlignment.Right, Parent = panel })
-	Kit.stroke(Color3.fromRGB(40, 22, 8), 2, 0).Parent = totalLabel
+	totalLabel = Kit.label({ Text = "+0 💪", AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0), Size = UDim2.fromOffset(170, 42), Font = Theme.Font.Display, TextSize = 34, TextColor3 = Color3.new(1, 1, 1), TextXAlignment = Enum.TextXAlignment.Right, TextWrapped = false, Parent = panel })
+	Kit.new("UIGradient", { Color = ColorSequence.new(Color3.fromRGB(255, 236, 140), Color3.fromRGB(255, 140, 50)), Rotation = 90, Parent = totalLabel })
+	Kit.textStroke(Color3.fromRGB(46, 20, 6), 2.5).Parent = totalLabel
 
 	-- Pump meter
 	local pumpBar
@@ -399,7 +384,7 @@ function TrainingUI.Init(screenGui: ScreenGui)
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.fromScale(0.5, 1),
 		Size = UDim2.new(1, 0, 0, 30),
-		Text = "✕ GET UP",
+		Text = "🚶 GET UP",
 		TextSize = Theme.TextSize.Small,
 		BackgroundColor3 = Theme.Color.ButtonAlt,
 		TextColor3 = Theme.Color.Text,

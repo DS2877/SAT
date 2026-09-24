@@ -45,6 +45,17 @@ function Kit.stroke(color: Color3?, thickness: number?, transparency: number?): 
 	})
 end
 
+-- Outline around the TEXT of a label (Kit.stroke outlines the box, which on a label draws a
+-- rectangle around it).
+function Kit.textStroke(color: Color3?, thickness: number?): UIStroke
+	return Kit.new("UIStroke", {
+		Color = color or Color3.fromRGB(40, 22, 8),
+		Thickness = thickness or 2,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+		LineJoinMode = Enum.LineJoinMode.Round,
+	})
+end
+
 function Kit.padding(all: number, horizontal: number?): UIPadding
 	local h = horizontal or all
 	return Kit.new("UIPadding", {

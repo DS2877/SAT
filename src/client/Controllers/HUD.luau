@@ -670,7 +670,7 @@ local function refreshObjective()
 		data.Strength >= GameConfig.GetAscensionRequirement(data.Ascension)
 		and data.Cash >= GameConfig.GetAscensionCost(data.Ascension + 1)
 	then
-		setObjective("✦ READY", "ASCENSION AVAILABLE", Theme.Color.Secret, ("Permanent x%.2f Cash multiplier"):format(GameConfig.GetAscensionMultiplier(data.Ascension + 1)), nil)
+		setObjective("✨ READY", "ASCENSION AVAILABLE", Theme.Color.Secret, ("Permanent x%.2f Cash multiplier"):format(GameConfig.GetAscensionMultiplier(data.Ascension + 1)), nil)
 		navTarget = { Name = "ASCENSION ALTAR", Position = WorldLayout.AscensionAltar }
 		return
 	end
@@ -754,7 +754,7 @@ local function refreshStats(data, previous)
 				TextWrapped = false,
 				Parent = pill,
 			})
-			Kit.stroke(Color3.fromRGB(40, 22, 8), 2, 0).Parent = fly
+			Kit.textStroke(Color3.fromRGB(40, 22, 8), 2).Parent = fly
 			local info = TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 			Kit.tween(fly, info, { Position = UDim2.new(1, 30, 0.5, 0), TextTransparency = 1 })
 			Kit.tween(fly:FindFirstChildOfClass("UIStroke") :: UIStroke, info, { Transparency = 1 })
@@ -764,7 +764,7 @@ local function refreshStats(data, previous)
 		end
 	end
 	refs.Ascension.Visible = data.Ascension > 0
-	refs.Ascension.Text = ("✦ %s • x%.2f CASH"):format((data.SelectedTitle or ""):upper(), GameConfig.GetAscensionMultiplier(data.Ascension))
+	refs.Ascension.Text = ("✨ %s • x%.2f CASH"):format((data.SelectedTitle or ""):upper(), GameConfig.GetAscensionMultiplier(data.Ascension))
 end
 
 local function refreshSlots()

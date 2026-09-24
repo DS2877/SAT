@@ -16,7 +16,7 @@ local MENUS = {
 	Collection = { Module = script.Parent.Collection, Title = "COLLECTION", Icon = "📖" },
 	Vault = { Module = script.Parent.Vault, Title = "YOUR VAULT", Icon = "🏆" },
 	Shop = { Module = script.Parent.Shop, Title = "GADGET SHOP", Icon = "🛒" },
-	Ascension = { Module = script.Parent.Ascension, Title = "ASCENSION", Icon = "✦" },
+	Ascension = { Module = script.Parent.Ascension, Title = "ASCENSION", Icon = "✨" },
 }
 
 local overlay: Frame
@@ -104,7 +104,7 @@ function MenuController.Init(gui: ScreenGui)
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -10, 0, 10),
 		Size = UDim2.fromOffset(48, 48),
-		Text = "✕",
+		Text = "X",
 		BackgroundColor3 = Theme.Color.ButtonAlt,
 		TextColor3 = Theme.Color.Text,
 		ZIndex = 12,
