@@ -1,0 +1,23 @@
+name: Monetization setup
+
+# MANUAL ONLY: creates the game passes and developer products from Config/Monetization.luau
+# on Roblox. Run with dry_run=true first to see what would be created.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only print what would be created"
+        required: true
+        default: "true"
+
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create passes and products
+        env:
+          ROBLOX_API_KEY: ${{ secrets.SAT_PUBLISHING_KEY }}
+          UNIVERSE_ID: ${{ vars.ROBLOX_TEST_UNIVERSE_ID || '10767602971' }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: python3 tools/monetization/create_products.py

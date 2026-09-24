@@ -70,9 +70,9 @@ GameConfig.Collection = {
 -- visit pays a one-time discovery bonus (Config/Regions has names, colours and moods).
 GameConfig.Regions = {
 	Wilds = { Danger = 1, RecommendedStrength = 1000, DiscoveryReward = 0 },
-	Coast = { Danger = 2, RecommendedStrength = 3000, DiscoveryReward = 1500 },
-	Ruins = { Danger = 3, RecommendedStrength = 8000, DiscoveryReward = 5000 },
-	Falls = { Danger = 4, RecommendedStrength = 20000, DiscoveryReward = 15000 },
+	Coast = { Danger = 2, RecommendedStrength = 3000, DiscoveryReward = 5000 },
+	Ruins = { Danger = 3, RecommendedStrength = 8000, DiscoveryReward = 25000 },
+	Falls = { Danger = 4, RecommendedStrength = 20000, DiscoveryReward = 100000 },
 }
 
 -- Hidden places (Config/Regions.Secrets): one-time cash for finding each, plus a spawn point
@@ -81,9 +81,9 @@ GameConfig.Exploration = {
 	CheckInterval = 1, -- seconds between the server's region / secret checks
 }
 GameConfig.Secrets = {
-	old_mine = { Reward = 2500 },
-	sky_ruins = { Reward = 8000 },
-	catacombs = { Reward = 12000 },
+	old_mine = { Reward = 10000 },
+	sky_ruins = { Reward = 50000 },
+	catacombs = { Reward = 150000 },
 }
 
 GameConfig.Carry = {
@@ -210,17 +210,15 @@ GameConfig.Training = {
 	CritMultiplier = 5,
 	GoldenChance = 0.005,
 	GoldenMultiplier = 25,
-	-- Placeholder for a "2x Strength" game pass (0 = disabled). Multiplies all bench gains.
-	StrengthPassId = 0,
-	StrengthPassMultiplier = 2,
+	-- Paid training boosts (2x Strength pass, Strength Surge) live in Config/Monetization.
 	-- Benches are gated by ASCENSION (permanent), not Strength (which resets on every Ascension).
 	-- Strength per rep = RepGain x TrainingMultiplier(ascension) x pump x jackpot x pass.
 	Benches = {
 		{ Id = "wooden", Name = "Wooden Bench", Price = 0, RequiredAscension = 0, RepGain = 5, Color = { 170, 120, 70 }, Count = 4 },
-		{ Id = "iron", Name = "Iron Bench", Price = 12000, RequiredAscension = 0, RepGain = 12, Color = { 150, 155, 170 }, Count = 4 },
-		{ Id = "golden", Name = "Golden Bench", Price = 200000, RequiredAscension = 1, RepGain = 30, Color = { 255, 196, 50 }, Count = 4 },
-		{ Id = "diamond", Name = "Diamond Bench", Price = 2500000, RequiredAscension = 2, RepGain = 75, Color = { 120, 220, 255 }, Count = 4 },
-		{ Id = "mythic", Name = "Mythic Bench", Price = 40000000, RequiredAscension = 4, RepGain = 180, Color = { 255, 70, 110 }, Count = 3 },
+		{ Id = "iron", Name = "Iron Bench", Price = 15000, RequiredAscension = 0, RepGain = 12, Color = { 150, 155, 170 }, Count = 4 },
+		{ Id = "golden", Name = "Golden Bench", Price = 1500000, RequiredAscension = 1, RepGain = 30, Color = { 255, 196, 50 }, Count = 4 },
+		{ Id = "diamond", Name = "Diamond Bench", Price = 30000000, RequiredAscension = 2, RepGain = 75, Color = { 120, 220, 255 }, Count = 4 },
+		{ Id = "mythic", Name = "Mythic Bench", Price = 600000000, RequiredAscension = 4, RepGain = 180, Color = { 255, 70, 110 }, Count = 3 },
 	},
 }
 
@@ -228,10 +226,10 @@ GameConfig.Vault = {
 	-- Progression tiers. Vaults grow UP: every PerFloor slots add a new floor to the gallery.
 	Tiers = {
 		{ Slots = 5, Price = 0, Enabled = true },
-		{ Slots = 10, Price = 30000, Enabled = true },
-		{ Slots = 20, Price = 400000, Enabled = true },
-		{ Slots = 40, Price = 6000000, Enabled = true },
-		{ Slots = 60, Price = 60000000, Enabled = true },
+		{ Slots = 10, Price = 25000, Enabled = true },
+		{ Slots = 20, Price = 750000, Enabled = true },
+		{ Slots = 40, Price = 25000000, Enabled = true },
+		{ Slots = 60, Price = 500000000, Enabled = true },
 	},
 	PlotSize = 30,
 	-- Gallery layout: 4 columns split by a central aisle (walk in, lift at the far end),
@@ -256,28 +254,35 @@ GameConfig.Ascension = {
 	-- ...but training speeds up every time too (compounding), so each climb stays reachable.
 	TrainingMultiplierPerLevel = 1.6,
 	-- Cash you must HAVE to ascend (index = new level). Ties Ascension to the treasure loop.
-	CashCost = { 150000, 1500000, 15000000, 100000000 },
-	-- A real restart: ascending wipes ALL your Cash and every gadget (Logic/AscensionReset).
+	-- Tuned with a progression simulation: Strength gates the first climbs (~80-95 min to the
+	-- first Ascension), cash starts to matter from the third one.
+	CashCost = { 10000000, 100000000, 1000000000, 5000000000 },
+	-- A real restart (genre "rebirth"): ascending wipes ALL your Cash, every gadget and every
+	-- Vault treasure except your single best one - the HEIRLOOM (Logic/AscensionReset).
+	-- Vault size, benches, Collection (+ set bonuses) and titles are kept.
 	ResetsCash = true,
 	ResetsGadgets = true,
-	CashCostGrowthAfterTable = 3,
-	Multipliers = { [0] = 1.0, [1] = 1.25, [2] = 1.5, [3] = 1.75, [4] = 2.0 },
-	MultiplierPerLevelAfterTable = 0.25,
+	ResetsVault = true,
+	HeirloomsKept = 1,
+	CashCostGrowthAfterTable = 5,
+	-- Permanent Vault income multiplier: big enough that restarting feels worth it.
+	Multipliers = { [0] = 1.0, [1] = 1.5, [2] = 2.0, [3] = 2.5, [4] = 3.0 },
+	MultiplierPerLevelAfterTable = 0.5,
 	Titles = { "Ascended", "Twice Ascended", "Treasure Titan", "Island Legend" },
 }
 
 GameConfig.Leaderboards = {
-	StorePrefix = "SAT_LB_v1_",
+	StorePrefix = "SAT_LB_v2_", -- v2: fresh boards for launch (Richest = lifetime earnings)
 	Rows = 10,
 	RefreshInterval = 75, -- seconds between global fetches / board redraws
 	WriteInterval = 120, -- seconds between a player's score uploads
 	-- Id -> how the score is computed from player data (see LeaderboardService.Score)
 	Boards = {
-		{ Id = "Richest", Title = "RICHEST", Icon = "💰", Format = "Cash" },
+		{ Id = "Richest", Title = "TOP EARNERS", Icon = "💰", Format = "Cash" },
 		{ Id = "Strongest", Title = "STRONGEST", Icon = "💪", Format = "Number" },
 		{ Id = "Rarest", Title = "RAREST TREASURE", Icon = "♛", Format = "Treasure" },
 		{ Id = "Extractions", Title = "MOST EXTRACTIONS", Icon = "📦", Format = "Number" },
-		{ Id = "Ascended", Title = "MOST ASCENDED", Icon = "✦", Format = "Number" },
+		{ Id = "Ascended", Title = "MOST ASCENDED", Icon = "✨", Format = "Number" },
 	},
 }
 

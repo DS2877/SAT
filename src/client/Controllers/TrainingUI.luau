@@ -19,6 +19,7 @@ local GameConfig = require(Shared.Config.GameConfig)
 local Rarities = require(Shared.Config.Rarities)
 local Treasures = require(Shared.Config.Treasures)
 local Lifting = require(Shared.Logic.Lifting)
+local Monetization = require(Shared.Config.Monetization)
 local Net = require(Shared.Net)
 
 local UI = script.Parent.Parent.UI
@@ -30,6 +31,7 @@ local Notifications = require(script.Parent.Notifications)
 local Effects = require(script.Parent.Effects)
 
 local TrainingUI = {}
+TrainingUI.OpenStore = nil :: (() -> ())? -- injected by Main
 
 local cfg = GameConfig.Training
 local player = Players.LocalPlayer
@@ -46,6 +48,7 @@ local setLabel: TextLabel
 local goalLabel: TextLabel
 local goalFill: Frame
 local flash: Frame
+local boostButton: TextButton
 local session = nil
 local heartbeat: RBXScriptConnection? = nil
 
@@ -381,9 +384,9 @@ function TrainingUI.Init(screenGui: ScreenGui)
 
 	Kit.button({
 		Name = "Stop",
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.fromScale(0.5, 1),
-		Size = UDim2.new(1, 0, 0, 30),
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.fromScale(0, 1),
+		Size = UDim2.new(0.58, -4, 0, 30),
 		Text = "🚶 GET UP",
 		TextSize = Theme.TextSize.Small,
 		BackgroundColor3 = Theme.Color.ButtonAlt,
@@ -393,11 +396,36 @@ function TrainingUI.Init(screenGui: ScreenGui)
 		Net.Get("StopTraining"):FireServer()
 		stop()
 	end)
+	-- Strength Surge (x3 for 15 min): shows the time left while active, otherwise opens the store.
+	boostButton = Kit.button({
+		Name = "Boost",
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.fromScale(1, 1),
+		Size = UDim2.new(0.42, -4, 0, 30),
+		Text = "⚡ x3 SURGE",
+		TextSize = Theme.TextSize.Small,
+		BackgroundColor3 = Theme.Color.Gold,
+		TextColor3 = Color3.fromRGB(40, 28, 6),
+		Visible = Monetization.Products.StrengthSurge.Id ~= 0,
+		Parent = panel,
+	}, function()
+		if TrainingUI.OpenStore then
+			TrainingUI.OpenStore()
+		end
+	end)
 
-	-- The pump bar shimmers while you train.
+	-- The pump bar shimmers while you train; the surge button counts down while active.
 	RunService.Heartbeat:Connect(function()
 		if session then
 			pumpGradient.Offset = Vector2.new(math.sin(os.clock() * 2.5) * 0.6, 0)
+			local surgeUntil = tonumber(player:GetAttribute("TrainingBoostUntil")) or 0
+			local left = surgeUntil - DateTime.now().UnixTimestamp
+			if left > 0 then
+				boostButton.Visible = true
+				boostButton.Text = ("⚡ x3 %d:%02d"):format(left // 60, left % 60)
+			elseif Monetization.Products.StrengthSurge.Id ~= 0 then
+				boostButton.Text = "⚡ x3 SURGE"
+			end
 		end
 	end)
 

@@ -23,11 +23,11 @@ function Ascension.Build(root: Frame, controller)
 	local progress = Kit.label({ LayoutOrder = 4, Size = UDim2.new(1, 0, 0, 26), Font = Theme.Font.Black, TextSize = Theme.TextSize.Heading, Parent = column })
 	Kit.label({
 		LayoutOrder = 5,
-		Size = UDim2.new(0.9, 0, 0, 60),
+		Size = UDim2.new(0.9, 0, 0, 72),
 		Font = Theme.Font.Bold,
 		TextSize = Theme.TextSize.Body,
 		TextColor3 = Theme.Color.TextDim,
-		Text = ("⚠ A FRESH START: Strength resets to %s, you LOSE ALL YOUR CASH and EVERY GADGET. You keep your Vault, treasures, Collection, benches and titles - and earn + train faster forever."):format(Kit.bigNumber(GameConfig.Strength.Start)),
+		Text = ("⚠ A FRESH START: Strength resets to %s and you LOSE ALL CASH, EVERY GADGET and every Vault treasure except your BEST one (your Heirloom). You keep your Vault size, Collection bonuses, benches and titles - and earn + train faster forever."):format(Kit.bigNumber(GameConfig.Strength.Start)),
 		Parent = column,
 	})
 	-- Destructive: the first tap arms it (shows exactly what you lose), the second ascends.
@@ -78,7 +78,7 @@ function Ascension.Build(root: Frame, controller)
 		progress.TextColor3 = if ready then Theme.Color.Safe else Theme.Color.Strength
 		ascend.BackgroundColor3 = if ready then Theme.Color.Secret else Theme.Color.Disabled
 		ascend.Text = if ready and armed
-			then ("TAP AGAIN: LOSE %s + GADGETS"):format(Kit.shortCash(data.Cash + (data.Vault.Stored or 0)))
+			then ("TAP AGAIN: LOSE %s + VAULT"):format(Kit.shortCash(data.Cash + (data.Vault.Stored or 0)))
 			elseif ready then "ASCEND"
 			elseif strong then "NEED MORE CASH"
 			else "KEEP TRAINING"

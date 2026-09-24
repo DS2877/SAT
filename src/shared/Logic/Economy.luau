@@ -101,16 +101,17 @@ end
 -- Cash a Vault earned while its owner was offline, at the reduced offline rate and capped.
 -- `income` = base $/s (day rate, all multipliers), times are os.time() seconds.
 -- Returns (amount, secondsCounted).
-function Economy.OfflineEarnings(income: number, lastOnline: number, now: number): (number, number)
+-- `rate` / `maxHours` override the defaults (e.g. the Night Shift pass).
+function Economy.OfflineEarnings(income: number, lastOnline: number, now: number, rate: number?, maxHours: number?): (number, number)
 	local cfg = GameConfig.Economy
 	if lastOnline <= 0 or now <= lastOnline then
 		return 0, 0
 	end
-	local seconds = math.min(now - lastOnline, cfg.OfflineMaxHours * 3600)
+	local seconds = math.min(now - lastOnline, (maxHours or cfg.OfflineMaxHours) * 3600)
 	if seconds < cfg.OfflineMinSeconds then
 		return 0, 0
 	end
-	return math.floor(income * cfg.OfflineIncomeRate * seconds), seconds
+	return math.floor(income * (rate or cfg.OfflineIncomeRate) * seconds), seconds
 end
 
 -- COLLECTION SETS -------------------------------------------------------------------------
@@ -144,10 +145,12 @@ function Economy.CompletedSets(collection, list): number
 	return done
 end
 
--- Everything that scales a player's Vault income except night: Ascension x collection sets.
+-- Everything that scales a player's Vault income except night: Ascension x collection sets x
+-- `boost` (passes, Premium, friends, group - the server publishes it as the player attribute
+-- "IncomeBoost", see Config/Monetization.IncomeMultiplier).
 -- `ascensionMultiplier` comes from GameConfig.GetAscensionMultiplier(data.Ascension).
-function Economy.IncomeMultiplier(data, list, ascensionMultiplier: number): number
-	return ascensionMultiplier * Economy.SetBonus(data.Collection, list)
+function Economy.IncomeMultiplier(data, list, ascensionMultiplier: number, boost: number?): number
+	return ascensionMultiplier * Economy.SetBonus(data.Collection, list) * (boost or 1)
 end
 
 -- Permanent Vault income multiplier from completed collection sets.

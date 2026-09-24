@@ -17,6 +17,7 @@ local MENUS = {
 	Vault = { Module = script.Parent.Vault, Title = "YOUR VAULT", Icon = "🏆" },
 	Shop = { Module = script.Parent.Shop, Title = "GADGET SHOP", Icon = "🛒" },
 	Ascension = { Module = script.Parent.Ascension, Title = "ASCENSION", Icon = "✨" },
+	Store = { Module = script.Parent.Store, Title = "STORE", Icon = "💎" },
 }
 
 local overlay: Frame

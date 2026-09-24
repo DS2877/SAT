@@ -142,6 +142,11 @@ local function syncNow(player: Player)
 	Net.Fire("DataSync", player, profile.Data)
 end
 
+-- Save right now (e.g. after granting a Robux purchase). Yields.
+function PlayerData.SaveNow(player: Player)
+	saveProfile(player, false)
+end
+
 function PlayerData.Get(player: Player)
 	local profile = profiles[player]
 	return profile and profile.Data

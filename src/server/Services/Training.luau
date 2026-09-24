@@ -5,7 +5,6 @@
 -- speed (GameConfig.GetTrainingMultiplier). All gains and rolls are server-side.
 -- Every client animates bench users from the "Bench"/"BenchPump"/"BenchRep" player attributes.
 
-local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -33,7 +32,6 @@ local TICK = 0.1
 
 local sessions: { [Player]: Session } = {}
 local random = Random.new()
-local passMultiplier: { [Player]: number } = {}
 
 local function tierIndex(id: string): number
 	for i, tier in cfg.Benches do
@@ -71,7 +69,7 @@ end
 local function repGainFor(player: Player, tier): number
 	local data = PlayerData.Get(player)
 	local ascension = if data then data.Ascension else 0
-	return GameConfig.GetRepGain(tier, ascension) * (passMultiplier[player] or 1)
+	return GameConfig.GetRepGain(tier, ascension) * Training.MultiplierFor(player)
 end
 
 local function owns(data, tier): boolean
@@ -209,16 +207,10 @@ local function tick(dt: number)
 	end
 end
 
-local function loadPass(player: Player)
-	if cfg.StrengthPassId <= 0 then
-		return
-	end
-	local ok, owned = pcall(function()
-		return MarketplaceService:UserOwnsGamePassAsync(player.UserId, cfg.StrengthPassId)
-	end)
-	if ok and owned then
-		passMultiplier[player] = cfg.StrengthPassMultiplier
-	end
+-- Training multiplier from passes / boosts (2x Strength, Strength Surge). Set by
+-- MonetizationService; 1 without it.
+Training.MultiplierFor = function(_player: Player): number
+	return 1
 end
 
 function Training.TierIndex(id: string): number
@@ -241,14 +233,12 @@ function Training.Init(machines: { Machine })
 		stop(victim, "Hit")
 	end)
 	Players.PlayerAdded:Connect(function(player)
-		task.spawn(loadPass, player)
 		player.CharacterAdded:Connect(function()
 			stop(player, "Respawned")
 		end)
 	end)
 	Players.PlayerRemoving:Connect(function(player)
 		stop(player, "Left")
-		passMultiplier[player] = nil
 	end)
 
 	task.spawn(function()

@@ -253,7 +253,7 @@ function Notifications.Init(screenGui: ScreenGui, topStack: Frame)
 		if payload.Kind == "Toast" then
 			Notifications.Toast(payload.Text, payload.Tone)
 		elseif payload.Kind == "Banner" then
-			Notifications.Banner(payload.Title, payload.Text, payload.Tone)
+			Notifications.Banner(payload.Title, payload.Text, payload.Tone, tonumber(payload.Duration))
 			if payload.Tone == "Reward" then
 				Sounds.Play("ExtractSuccess")
 			end

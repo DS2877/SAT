@@ -168,10 +168,10 @@ local function buildMenuButtons()
 		BackgroundTransparency = 1,
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 12, 0.62, 0),
-		Size = UDim2.fromOffset(64, 230),
+		Size = UDim2.fromOffset(64, 300),
 		Parent = gui,
 	}, { Kit.list(Enum.FillDirection.Vertical, 10, Enum.HorizontalAlignment.Left) })
-	for i, entry in { { "Collection", "📖" }, { "Vault", "🏆" }, { "Shop", "🛒" } } do
+	for i, entry in { { "Collection", "📖" }, { "Vault", "🏆" }, { "Shop", "🛒" }, { "Store", "💎" } } do
 		local button = Kit.button({
 			Name = entry[1],
 			Text = "",
@@ -199,6 +199,13 @@ local function buildMenuButtons()
 		})
 		Kit.new("UITextSizeConstraint", { MaxTextSize = 10, Parent = caption })
 		refs["Menu" .. entry[1]] = button
+	end
+	-- The store stands out (gold rim) without shouting.
+	local storeStroke = refs.MenuStore:FindFirstChildOfClass("UIStroke")
+	if storeStroke then
+		storeStroke.Color = Theme.Color.Gold
+		storeStroke.Transparency = 0.1
+		storeStroke.Thickness = 2
 	end
 end
 

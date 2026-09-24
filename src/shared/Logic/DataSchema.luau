@@ -24,6 +24,9 @@ function DataSchema.Default()
 		Titles = {},
 		SelectedTitle = "",
 		LastOnline = 0, -- os.time() of the last moment the player was in a server (offline earnings)
+		Purchases = {}, -- [receiptId] = os.time(): developer products already granted (idempotency)
+		Daily = { LastDay = 0, Streak = 0 }, -- login streak (UTC day number, day 1-7)
+		Boosts = { TrainingUntil = 0 }, -- timed boosts from products (os.time())
 		Stats = {
 			Extractions = 0,
 			Thefts = 0,
@@ -103,6 +106,9 @@ function DataSchema.Migrate(data)
 	data.Ascension = math.max(0, math.floor(tonumber(data.Ascension) or 0))
 	data.Vault.Stored = math.max(0, tonumber(data.Vault.Stored) or 0)
 	data.LastOnline = math.max(0, math.floor(tonumber(data.LastOnline) or 0))
+	data.Daily.LastDay = math.max(0, math.floor(tonumber(data.Daily.LastDay) or 0))
+	data.Daily.Streak = math.clamp(math.floor(tonumber(data.Daily.Streak) or 0), 0, 7)
+	data.Boosts.TrainingUntil = math.max(0, tonumber(data.Boosts.TrainingUntil) or 0)
 	for i = 1, 3 do
 		if type(data.EquippedGadgets[i]) ~= "string" then
 			data.EquippedGadgets[i] = ""

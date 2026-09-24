@@ -13,6 +13,7 @@ local Economy = require("../src/shared/Logic/Economy")
 local DayNight = require("../src/shared/Logic/DayNight")
 local Lifting = require("../src/shared/Logic/Lifting")
 local AscensionReset = require("../src/shared/Logic/AscensionReset")
+local Monetization = require("../src/shared/Config/Monetization")
 local Mutations = require("../src/shared/Config/Mutations")
 local Music = require("../src/shared/Config/Music")
 Economy.Use(GameConfig, Mutations)
@@ -204,6 +205,68 @@ test("training is a waiting game that rewards staying", function()
 	check(Lifting.ExpectedRate(10, 600) < 10 / cfg.RepPeriod * 5, "but it stays sane (< x5 base)")
 end)
 
+test("ascension cash requirement keeps up with the economy", function()
+	-- The best income a full 60-slot Vault of Legendaries could make, at that ascension.
+	local legendary = 0
+	for _, def in Treasures.List do
+		if def.Rarity == "Legendary" then
+			legendary = math.max(legendary, Economy.Income(def))
+		end
+	end
+	for level = 1, 5 do
+		local cost = GameConfig.GetAscensionCost(level)
+		if level > 1 then
+			check(cost > GameConfig.GetAscensionCost(level - 1), "cost grows " .. level)
+		end
+		local minutes = cost / (20 * legendary * GameConfig.GetAscensionMultiplier(level - 1)) / 60
+		check(minutes >= 1, ("ascension %d cash is a real goal (%.1f min for 20 Legendaries)"):format(level, minutes))
+	end
+	check(GameConfig.Ascension.ResetsVault and GameConfig.Ascension.HeirloomsKept >= 1, "rebirth keeps an Heirloom")
+	check(GameConfig.GetAscensionMultiplier(1) >= 1.5, "the first ascension is worth the reset")
+	local tiers = GameConfig.Vault.Tiers
+	for i = 2, #tiers do
+		check(tiers[i].Price >= tiers[i - 1].Price * 10, ("vault tier %d is a real step up"):format(i))
+	end
+end)
+
+test("monetisation is fair, scaled and idempotent-friendly", function()
+	-- No PvP power for sale: only income / training / offline / convenience / server events.
+	local allowed = { IncomeMultiplier = true, DailyRewardMultiplier = true, TrainingMultiplier = true, OfflineRate = true, OfflineMaxHours = true }
+	for key, pass in Monetization.Passes do
+		check(pass.Price > 0 and type(pass.Id) == "number", "pass configured: " .. key)
+		for field in pass do
+			if not ({ Id = true, Price = true, Icon = true, Name = true, Description = true })[field] then
+				check(allowed[field] == true, ("pass %s only sells progress/convenience (%s)"):format(key, field))
+			end
+		end
+		check(table.find(Monetization.PassOrder, key) ~= nil, "pass listed in the store: " .. key)
+	end
+	for key, product in Monetization.Products do
+		check(product.Price > 0, "product priced: " .. key)
+		check(({ Cash = true, ServerEvent = true, Boost = true })[product.Kind] == true, "product kind: " .. key)
+		check(table.find(Monetization.ProductOrder, key) ~= nil, "product listed in the store: " .. key)
+	end
+	-- Cash packs: bigger pack = better value per Robux, and they scale with income.
+	local small, large = Monetization.Products.CashSmall, Monetization.Products.CashLarge
+	check(large.Minutes / large.Price > small.Minutes / small.Price, "bulk cash is better value")
+	check(Monetization.ScaledCash(0, 10, 5000) == 5000, "new players get the floor")
+	check(Monetization.ScaledCash(1000, 10, 5000) == 600000, "10 minutes of $1K/s")
+	-- Income boost stacking.
+	check(Monetization.IncomeMultiplier({}, false, 0, false) == 1, "no boost by default")
+	check(math.abs(Monetization.IncomeMultiplier({ DoubleCash = true }, false, 0, false) - 2) < 1e-9, "2x cash")
+	check(math.abs(Monetization.IncomeMultiplier({}, false, 10, false) - 1.3) < 1e-9, "friend boost capped at +30%")
+	check(Monetization.IncomeMultiplier({}, true, 0, false) > 1, "premium boost")
+	-- Daily streak.
+	check(select(1, Monetization.NextStreak(0, 0, 100)) == 1, "first login = day 1")
+	check(select(1, Monetization.NextStreak(99, 3, 100)) == 4, "consecutive day advances")
+	check(select(1, Monetization.NextStreak(97, 3, 100)) == 1, "missed a day resets")
+	check(select(2, Monetization.NextStreak(100, 3, 100)) == false, "only once per day")
+	check(select(1, Monetization.NextStreak(99, #Monetization.Free.Daily, 100)) == 1, "streak loops after the jackpot")
+	check(Monetization.Free.Daily[#Monetization.Free.Daily].Jackpot == true, "last day is the jackpot")
+	-- Id 0 = not created yet: never matched.
+	check(Monetization.PassById(0) == nil and Monetization.ProductById(0) == nil, "placeholder ids never match")
+end)
+
 test("offline earnings are capped and reduced", function()
 	local cfg = GameConfig.Economy
 	check(cfg.OfflineIncomeRate > 0 and cfg.OfflineIncomeRate <= 1, "offline rate is a fraction")
@@ -227,19 +290,26 @@ test("ascension is a real fresh start", function()
 		OwnedGadgets = { balloon = true, speed_soda = true },
 		EquippedGadgets = { "balloon", "speed_soda", "" },
 		OwnedBenches = { iron = true },
-		Vault = { Tier = 2, Displays = { ["1"] = "golden_crown" }, Stored = 5000 },
+		Vault = { Tier = 2, Displays = { ["1"] = "coin_pouch", ["2"] = "golden_crown", ["3"] = "ruby_ring|Gold" }, Stored = 5000 },
 		Collection = { golden_crown = { Discovered = true, Count = 1 } },
 	})
-	AscensionReset.Apply(data, 1, "Ascended", GameConfig)
+	local function incomeOf(value)
+		local id, mutation = Economy.DecodeSlot(value)
+		local def = id and Treasures.Get(id)
+		return if def then Economy.Income(def, mutation) else 0
+	end
+	AscensionReset.Apply(data, 1, "Ascended", GameConfig, incomeOf)
 	check(data.Ascension == 1 and data.SelectedTitle == "Ascended", "level + title")
 	check(data.Strength == GameConfig.Strength.Start, "strength reset")
 	check(data.Cash == 0 and data.Vault.Stored == 0, "ALL cash lost (incl. uncollected)")
 	check(next(data.OwnedGadgets) == nil, "every gadget lost")
 	check(data.EquippedGadgets[1] == "" and data.EquippedGadgets[2] == "" and data.EquippedGadgets[3] == "", "loadout cleared")
 	check(data.OwnedBenches.iron == true, "benches kept")
-	check(data.Vault.Tier == 2 and data.Vault.Displays["1"] == "golden_crown", "vault + treasures kept")
+	check(data.Vault.Tier == 2, "vault size kept")
+	check(data.Vault.Displays["1"] == "golden_crown", "the best treasure is kept as the Heirloom on pedestal 1")
+	check(data.Vault.Displays["2"] == nil and data.Vault.Displays["3"] == nil, "every other treasure is gone")
 	check(data.Collection.golden_crown ~= nil, "collection kept")
-	AscensionReset.Apply(data, 2, "Ascended", GameConfig)
+	AscensionReset.Apply(data, 2, "Ascended", GameConfig, incomeOf)
 	local count = 0
 	for _, title in data.Titles do
 		if title == "Ascended" then
@@ -765,8 +835,8 @@ end)
 
 test("ascension multipliers", function()
 	check(GameConfig.GetAscensionMultiplier(0) == 1, "x1.00")
-	check(GameConfig.GetAscensionMultiplier(4) == 2, "x2.00")
-	check(GameConfig.GetAscensionMultiplier(6) == 2.5, "extrapolates")
+	check(GameConfig.GetAscensionMultiplier(4) == 3, "x3.00")
+	check(GameConfig.GetAscensionMultiplier(6) == 4, "extrapolates")
 end)
 
 print(("%d passed, %d failed"):format(passed, failed))

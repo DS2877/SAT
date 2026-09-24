@@ -10,6 +10,7 @@ local Rarities = require(Shared.Config.Rarities)
 local Treasures = require(Shared.Config.Treasures)
 local Mutations = require(Shared.Config.Mutations)
 local Economy = require(Shared.Logic.Economy)
+local Monetization = require(Shared.Config.Monetization)
 local DayNight = require(Shared.Logic.DayNight)
 local Net = require(Shared.Net)
 
@@ -19,12 +20,12 @@ local Kit = require(UI.Kit)
 
 local Vault = {}
 
-function Vault.Build(root: Frame)
+function Vault.Build(root: Frame, controller)
 	local confirmSlot: number? = nil
 	local latest = nil
 
-	local header = Kit.label({ Size = UDim2.new(1, -260, 0, 22), Font = Theme.Font.Black, TextSize = Theme.TextSize.Body, TextColor3 = Theme.Color.Cash, TextXAlignment = Enum.TextXAlignment.Left, RichText = true, Parent = root })
-	local sub = Kit.label({ Position = UDim2.fromOffset(0, 22), Size = UDim2.new(1, -260, 0, 18), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.TextDim, TextXAlignment = Enum.TextXAlignment.Left, Parent = root })
+	local header = Kit.label({ Size = UDim2.new(1, -380, 0, 22), Font = Theme.Font.Black, TextSize = Theme.TextSize.Body, TextColor3 = Theme.Color.Cash, TextXAlignment = Enum.TextXAlignment.Left, RichText = true, Parent = root })
+	local sub = Kit.label({ Position = UDim2.fromOffset(0, 22), Size = UDim2.new(1, -380, 0, 18), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.TextDim, TextXAlignment = Enum.TextXAlignment.Left, Parent = root })
 	local upgrade = Kit.button({
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.fromScale(1, 0),
@@ -35,6 +36,28 @@ function Vault.Build(root: Frame)
 	}, function()
 		Net.Get("UpgradeVault"):FireServer()
 	end)
+
+	-- Soft upsell where income matters: hidden once owned (or before the pass exists).
+	local doubleCash = Kit.button({
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -258, 0, 0),
+		Size = UDim2.fromOffset(112, 40),
+		TextSize = Theme.TextSize.Small,
+		Text = "💰 2x CASH",
+		BackgroundColor3 = Theme.Color.Gold,
+		TextColor3 = Color3.fromRGB(40, 28, 6),
+		Parent = root,
+	}, function()
+		if controller then
+			controller.Open("Store")
+		end
+	end)
+	local function refreshUpsell()
+		doubleCash.Visible = Monetization.Passes.DoubleCash.Id ~= 0
+			and game:GetService("Players").LocalPlayer:GetAttribute("Pass_DoubleCash") ~= true
+	end
+	refreshUpsell()
+	game:GetService("Players").LocalPlayer:GetAttributeChangedSignal("Pass_DoubleCash"):Connect(refreshUpsell)
 
 	local grid = Kit.new("ScrollingFrame", {
 		Position = UDim2.fromOffset(0, 50),
@@ -115,7 +138,8 @@ function Vault.Build(root: Frame)
 			used += 1
 		end
 		local isNight = DayNight.IsNight(workspace:GetServerTimeNow())
-		local incomeMultiplier = Economy.IncomeMultiplier(data, Treasures.List, GameConfig.GetAscensionMultiplier(data.Ascension))
+		local boost = game:GetService("Players").LocalPlayer:GetAttribute("IncomeBoost")
+		local incomeMultiplier = Economy.IncomeMultiplier(data, Treasures.List, GameConfig.GetAscensionMultiplier(data.Ascension), if type(boost) == "number" then boost else 1)
 		local income = Economy.VaultIncome(data.Vault.Displays, Treasures.Get, incomeMultiplier, isNight)
 		header.Text = ("EARNING %s/s%s"):format(Kit.shortCash(income), if isNight then '  <font color="#96aaff">🌙 NIGHT x3</font>' else "")
 		sub.Text = ("%d / %d PEDESTALS  •  COLLECT CASH ON THE GREEN PAD IN YOUR VAULT"):format(used, tier.Slots)

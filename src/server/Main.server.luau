@@ -24,6 +24,7 @@ local EventService = require(Services.EventService)
 local DayCycle = require(Services.DayCycle)
 local Analytics = require(Services.Analytics)
 local Exploration = require(Services.Exploration)
+local MonetizationService = require(Services.MonetizationService)
 
 Net.Init()
 Players.RespawnTime = GameConfig.Player.RespawnTime
@@ -42,6 +43,7 @@ VaultService.Init(world.VaultPlots)
 Ascension.Init(world.AltarPrompt)
 LeaderboardService.Init(world.Leaderboards)
 EventService.Init()
+MonetizationService.Init()
 
 -- Funnel step 1: every first-time player (lets the dashboard show where newcomers drop off).
 PlayerData.Loaded:Connect(function(player)

@@ -1,5 +1,12 @@
 # Development Status
 
+## LAUNCH READINESS (see docs/LAUNCH_PLAN.md)
+- Economy rebalanced with a progression simulation (tools/balance): real vault / bench / gadget /
+  Ascension price curve; Ascension = rebirth keeping one Heirloom treasure; x1.5+ per level
+- Monetisation live in code (Services/MonetizationService, Config/Monetization, 💎 STORE):
+  5 passes, 6 products (incl. server-wide Treasure Rain / Gold Rush gifts), free boosts
+  (friends, Premium, group, daily streak). Pass/product ids still 0 until created on Roblox.
+
 ## CURRENT PHASE
 Roadmap phase 1 — STABILISE the current build (see docs/ROADMAP.md). No big new features
 until the whole core loop passes the mobile checklist (docs/PLAYTEST_CHECKLIST.md).

@@ -27,6 +27,21 @@ local cfg = GameConfig.Vault
 local plots = {} -- from WorldBuilder: { CFrame, Sign: TextLabel, Prompt, Displays: Folder, Owner }
 local plotOf: { [Player]: any } = {}
 
+-- Income boost from passes / Premium / friends / group, published by MonetizationService.
+local function boostOf(player: Player?): number
+	local boost = player and player:GetAttribute("IncomeBoost")
+	return if type(boost) == "number" and boost > 0 then boost else 1
+end
+
+-- Hooks set by MonetizationService (defaults = no pass).
+-- OfflineTerms(player) -> (rate, maxHours); AutoCollect(player) -> boolean.
+VaultService.OfflineTerms = function(_player: Player): (number, number)
+	return GameConfig.Economy.OfflineIncomeRate, GameConfig.Economy.OfflineMaxHours
+end
+VaultService.AutoCollect = function(_player: Player): boolean
+	return false
+end
+
 local function slotsFor(data): number
 	local tier = cfg.Tiers[data.Vault.Tier] or cfg.Tiers[1]
 	return tier.Slots
@@ -210,7 +225,7 @@ local function render(player: Player)
 
 	-- Pedestals: filled slots, then ghost pedestals for the rest of the unlocked floors.
 	local shownNextSign = false
-	local incomeMultiplier = Economy.IncomeMultiplier(data, Treasures.List, GameConfig.GetAscensionMultiplier(data.Ascension))
+	local incomeMultiplier = Economy.IncomeMultiplier(data, Treasures.List, GameConfig.GetAscensionMultiplier(data.Ascension), boostOf(player))
 	for index = 1, floorsUnlocked * cfg.PerFloor do
 		local _, offset = slotPlacement(index)
 		local base = plot.CFrame * offset
@@ -453,17 +468,18 @@ end
 
 -- Pending cash per player (not yet collected). Mirrored into data.Vault.Stored so it survives
 -- leaving; mutated directly (no DataSync every second) because only the pad sign shows it.
-local function incomeOf(data): number
+-- `dayRate`: ignore the night bonus (scaled rewards must not be worth 3x at night).
+local function incomeOf(data, player: Player?, dayRate: boolean?): number
 	return Economy.VaultIncome(
 		data.Vault.Displays,
 		Treasures.Get,
-		Economy.IncomeMultiplier(data, Treasures.List, GameConfig.GetAscensionMultiplier(data.Ascension)),
-		DayNight.IsNight(workspace:GetServerTimeNow())
+		Economy.IncomeMultiplier(data, Treasures.List, GameConfig.GetAscensionMultiplier(data.Ascension), boostOf(player)),
+		not dayRate and DayNight.IsNight(workspace:GetServerTimeNow())
 	)
 end
 VaultService.IncomeOf = incomeOf
 
-local function collect(player: Player, data)
+local function collect(player: Player, data, quiet: boolean?)
 	local amount = math.floor(data.Vault.Stored)
 	if amount < 1 then
 		return
@@ -473,6 +489,9 @@ local function collect(player: Player, data)
 		d.Cash += amount
 		d.Stats.TotalEarned += amount
 	end)
+	if quiet then
+		return -- Auto Collect: straight into the wallet, no banner every second
+	end
 	Net.Fire("Feedback", player, { Type = "Collected", Amount = amount })
 	if PlayerData.Milestone(player, "FirstCollect") then
 		Analytics.Funnel(player, "FirstCollect")
@@ -484,7 +503,7 @@ local function earningsTick(dt: number)
 	for player, plot in plotOf do
 		local data = PlayerData.Get(player)
 		if data then
-			local income = incomeOf(data)
+			local income = incomeOf(data, player)
 			data.Vault.Stored += income * dt
 			data.LastOnline = os.time() -- saved with the profile; drives offline earnings
 			player:SetAttribute("VaultIncome", income)
@@ -494,6 +513,9 @@ local function earningsTick(dt: number)
 				if Vector2.new(offset.X, offset.Z).Magnitude <= GameConfig.Economy.CollectRadius and math.abs(offset.Y) < 6 then
 					collect(player, data)
 				end
+			end
+			if VaultService.AutoCollect(player) and data.Vault.Stored >= 1 then
+				collect(player, data, true)
 			end
 			if plot.CollectAmount then
 				plot.CollectAmount.Text = formatCash(data.Vault.Stored)
@@ -509,14 +531,20 @@ local function payOffline(player: Player)
 	if not data then
 		return
 	end
+	-- Passes (Night Shift) and boosts are checked asynchronously on join: give them a moment.
+	local waited = 0
+	while player.Parent and not player:GetAttribute("MonetizationReady") and waited < 10 do
+		waited += task.wait(0.5)
+	end
 	local income = Economy.VaultIncome(
 		data.Vault.Displays,
 		Treasures.Get,
-		Economy.IncomeMultiplier(data, Treasures.List, GameConfig.GetAscensionMultiplier(data.Ascension)),
+		Economy.IncomeMultiplier(data, Treasures.List, GameConfig.GetAscensionMultiplier(data.Ascension), boostOf(player)),
 		false
 	)
 	local now = os.time()
-	local amount, seconds = Economy.OfflineEarnings(income, data.LastOnline, now)
+	local rate, hours = VaultService.OfflineTerms(player)
+	local amount, seconds = Economy.OfflineEarnings(income, data.LastOnline, now, rate, hours)
 	PlayerData.Update(player, function(d)
 		d.Vault.Stored += amount
 		d.LastOnline = now
@@ -529,7 +557,7 @@ local function payOffline(player: Player)
 					Title = "💤 WELCOME BACK",
 					Text = ("Your Vault earned %s while you were away (%d%% for %s) • collect it on your pad"):format(
 						formatCash(amount),
-						math.floor(GameConfig.Economy.OfflineIncomeRate * 100 + 0.5),
+						math.floor(rate * 100 + 0.5),
 						if seconds >= 3600 then ("%.1fh"):format(seconds / 3600) else ("%dm"):format(seconds // 60)
 					),
 					Tone = "Reward",
@@ -541,7 +569,7 @@ local function payOffline(player: Player)
 end
 
 local function assign(player: Player)
-	payOffline(player)
+	task.spawn(payOffline, player)
 	for _, plot in plots do
 		if not plot.Owner then
 			plot.Owner = player
@@ -564,6 +592,13 @@ local function release(player: Player)
 		plot.CollectAmount = nil
 		plot.CollectRate = nil
 		plotOf[player] = nil
+	end
+end
+
+-- Redraw a player's Vault after its contents changed elsewhere (e.g. Ascension).
+function VaultService.Render(player: Player)
+	if plotOf[player] then
+		render(player)
 	end
 end
 

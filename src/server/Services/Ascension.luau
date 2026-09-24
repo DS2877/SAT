@@ -1,17 +1,20 @@
 -- Ascension: at the required Strength and Cash, start over (Strength, ALL Cash and every gadget
 -- are wiped - Logic/AscensionReset) for a permanent income + training multiplier and a title.
--- Keeps Collection, Vault + treasures, benches, cosmetics and stats.
+-- Keeps Vault size, the best treasure (Heirloom), Collection, benches, cosmetics and stats.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
+local Treasures = require(Shared.Config.Treasures)
 local AscensionReset = require(Shared.Logic.AscensionReset)
+local Economy = require(Shared.Logic.Economy)
 local Net = require(Shared.Net)
 
 local PlayerData = require(script.Parent.PlayerData)
 local TreasureService = require(script.Parent.TreasureService)
 local Analytics = require(script.Parent.Analytics)
+local VaultService = require(script.Parent.VaultService)
 
 local Ascension = {}
 
@@ -38,8 +41,13 @@ local function onAscend(player: Player)
 		title = ("%s %d"):format(cfg.Titles[#cfg.Titles], newLevel)
 	end
 	PlayerData.Update(player, function(d)
-		AscensionReset.Apply(d, newLevel, title, GameConfig)
+		AscensionReset.Apply(d, newLevel, title, GameConfig, function(value)
+			local id, mutation = Economy.DecodeSlot(value)
+			local def = id and Treasures.Get(id)
+			return if def then Economy.Income(def, mutation) else 0
+		end)
 	end)
+	VaultService.Render(player)
 	if cfg.ResetsCash and cashLost > 0 then
 		Analytics.Economy(player, "Sink", cashLost, 0, "Gameplay", "ascension_" .. newLevel)
 	end

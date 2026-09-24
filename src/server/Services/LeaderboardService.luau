@@ -30,7 +30,8 @@ end
 
 function LeaderboardService.Score(boardId: string, data): number
 	if boardId == "Richest" then
-		return math.floor(data.Cash)
+		-- Lifetime earnings: current Cash is wiped by every Ascension.
+		return math.floor(data.Stats.TotalEarned)
 	elseif boardId == "Strongest" then
 		return math.floor(data.Strength)
 	elseif boardId == "Rarest" then

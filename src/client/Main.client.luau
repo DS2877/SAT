@@ -21,6 +21,7 @@ local WorldLife = require(Controllers.WorldLife)
 local MusicController = require(Controllers.MusicController)
 local Onboarding = require(Controllers.Onboarding)
 local Biomes = require(Controllers.Biomes)
+local ChatTags = require(Controllers.ChatTags)
 local MenuController = require(script.Parent.Menus.MenuController)
 
 local player = Players.LocalPlayer
@@ -60,8 +61,12 @@ WorldLife.Init()
 MusicController.Init()
 Onboarding.Init(gui)
 Biomes.Init(gui)
+ChatTags.Init()
 MenuController.Init(gui)
 HUD.OpenMenu = MenuController.Open
+TrainingUI.OpenStore = function()
+	MenuController.Open("Store")
+end
 
 -- Ask the server for our snapshot now that every listener is connected.
 Net.Get("ClientReady"):FireServer()
