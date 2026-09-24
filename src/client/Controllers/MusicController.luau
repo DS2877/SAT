@@ -238,7 +238,10 @@ function MusicController.Init()
 	shuffle()
 	-- Preload everything: rejected / missing assets are flagged before their turn comes.
 	task.spawn(function()
-		local all: { Instance } = table.clone(playlist)
+		local all: { Instance } = {}
+		for _, sound in playlist do
+			table.insert(all, sound)
+		end
 		ContentProvider:PreloadAsync(all, function(contentId, status)
 			if status == Enum.AssetFetchStatus.Failure then
 				for _, sound in playlist do
