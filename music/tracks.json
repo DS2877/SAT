@@ -1,20 +1,98 @@
 {
   "_comment": "Music pipeline input (see tools/music/pipeline.py). An entry with only `query` is searched on Wikimedia Commons and candidates are printed. An entry with a chosen `file` (Commons file title) is downloaded, loudness-normalised, trimmed to the Roblox limit and uploaded. An entry with `synth` uploads a generated sting. Entries with `assetId` are already uploaded and skipped.",
   "tracks": [
-    { "key": "carry", "role": "CarryTheme", "name": "In the Hall of the Mountain King", "composer": "Edvard Grieg", "query": "Hall of the Mountain King" },
-    { "key": "success", "role": "SuccessSting", "name": "Extraction Fanfare", "synth": "success.wav" },
-    { "key": "fail", "role": "FailSting", "name": "Lost It", "synth": "fail.wav" },
-
-    { "key": "morning", "role": "Playlist", "name": "Morning Mood", "composer": "Edvard Grieg", "query": "Grieg Morning Mood" },
-    { "key": "anitra", "role": "Playlist", "name": "Anitra's Dance", "composer": "Edvard Grieg", "query": "Grieg Anitra" },
-    { "key": "sugarplum", "role": "Playlist", "name": "Dance of the Sugar Plum Fairy", "composer": "Pyotr Tchaikovsky", "query": "Sugar Plum Fairy" },
-    { "key": "trepak", "role": "Playlist", "name": "Trepak (Russian Dance)", "composer": "Pyotr Tchaikovsky", "query": "Tchaikovsky Trepak" },
-    { "key": "macabre", "role": "Playlist", "name": "Danse Macabre", "composer": "Camille Saint-Saens", "query": "Danse macabre Saint-Saens" },
-    { "key": "sorcerer", "role": "Playlist", "name": "The Sorcerer's Apprentice", "composer": "Paul Dukas", "query": "Dukas Sorcerer's Apprentice" },
-    { "key": "bumblebee", "role": "Playlist", "name": "Flight of the Bumblebee", "composer": "Nikolai Rimsky-Korsakov", "query": "Flight of the Bumblebee" },
-    { "key": "turca", "role": "Playlist", "name": "Rondo alla Turca", "composer": "Wolfgang Amadeus Mozart", "query": "Mozart Rondo alla Turca" },
-    { "key": "elise", "role": "Playlist", "name": "Fur Elise", "composer": "Ludwig van Beethoven", "query": "Beethoven Fur Elise" },
-    { "key": "minute", "role": "Playlist", "name": "Minute Waltz", "composer": "Frederic Chopin", "query": "Chopin Minute Waltz 64" },
-    { "key": "entertainer", "role": "Playlist", "name": "The Entertainer", "composer": "Scott Joplin", "query": "Joplin The Entertainer" }
+    {
+      "key": "carry",
+      "role": "CarryTheme",
+      "name": "In the Hall of the Mountain King",
+      "composer": "Edvard Grieg",
+      "query": "Hall of the Mountain King",
+      "file": "File:Grieg - Peer Gynt Suite No. 1, Op. 46 - IV. In the Hall of the Mountain King (Musopen Symphony).flac"
+    },
+    {
+      "key": "success",
+      "role": "SuccessSting",
+      "name": "Extraction Fanfare",
+      "synth": "success.wav"
+    },
+    {
+      "key": "fail",
+      "role": "FailSting",
+      "name": "Lost It",
+      "synth": "fail.wav"
+    },
+    {
+      "key": "morning",
+      "role": "Playlist",
+      "name": "Morning Mood",
+      "composer": "Edvard Grieg",
+      "query": "Grieg Morning Mood",
+      "file": "File:Grieg - Peer Gynt Suite No. 1, Op. 46 - I. Morning Mood (Musopen Symphony).flac"
+    },
+    {
+      "key": "anitra",
+      "role": "Playlist",
+      "name": "Anitra's Dance",
+      "composer": "Edvard Grieg",
+      "query": "Grieg Anitra",
+      "file": "File:Grieg - Peer Gynt Suite No. 1, Op. 46 - III. Anitra's Dance (Musopen Symphony).flac"
+    },
+    {
+      "key": "sugarplum",
+      "role": "Playlist",
+      "name": "Sugar Plum Fairy and Russian Dance",
+      "composer": "Pyotr Tchaikovsky",
+      "query": "Sugar Plum Fairy",
+      "file": "File:PDP-CH - National Symphony Orchestra of London - Stanford Robinson, conductor - The Nutcracker Suite, Op. 71 - Dance of the Sugar Plum Fairy - Russian Dance - Tchaikovsky - Decca-k1142-ar9057.flac"
+    },
+    {
+      "key": "macabre",
+      "role": "Playlist",
+      "name": "Danse Macabre",
+      "composer": "Camille Saint-Saens",
+      "query": "Danse macabre Saint-Saens"
+    },
+    {
+      "key": "sorcerer",
+      "role": "Playlist",
+      "name": "The Sorcerer's Apprentice",
+      "composer": "Paul Dukas",
+      "query": "Dukas Sorcerer's Apprentice"
+    },
+    {
+      "key": "bumblebee",
+      "role": "Playlist",
+      "name": "Flight of the Bumblebee",
+      "composer": "Nikolai Rimsky-Korsakov",
+      "query": "Flight of the Bumblebee"
+    },
+    {
+      "key": "turca",
+      "role": "Playlist",
+      "name": "Rondo alla Turca",
+      "composer": "Wolfgang Amadeus Mozart",
+      "query": "Mozart Rondo alla Turca"
+    },
+    {
+      "key": "elise",
+      "role": "Playlist",
+      "name": "Fur Elise",
+      "composer": "Ludwig van Beethoven",
+      "query": "Beethoven Fur Elise"
+    },
+    {
+      "key": "minute",
+      "role": "Playlist",
+      "name": "Minute Waltz",
+      "composer": "Frederic Chopin",
+      "query": "Chopin Minute Waltz 64"
+    },
+    {
+      "key": "entertainer",
+      "role": "Playlist",
+      "name": "The Entertainer",
+      "composer": "Scott Joplin",
+      "query": "Joplin The Entertainer"
+    }
   ]
 }

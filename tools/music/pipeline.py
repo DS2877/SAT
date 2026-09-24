@@ -40,11 +40,16 @@ def http(url, data=None, headers=None, method=None):
 
 
 def commons(params):
-    params = {"format": "json", "formatversion": "2", **params}
-    status, body = http(COMMONS + "?" + urllib.parse.urlencode(params))
-    if status != 200:
-        raise RuntimeError(f"Commons API HTTP {status}")
-    return json.loads(body)
+    """Commons API call, politely spaced and retried when rate-limited (HTTP 429)."""
+    params = {"format": "json", "formatversion": "2", "maxlag": "5", **params}
+    for wait in (0, 5, 10, 20, 40, 60):
+        time.sleep(wait or 1.5)
+        status, body = http(COMMONS + "?" + urllib.parse.urlencode(params))
+        if status == 200:
+            return json.loads(body)
+        if status not in (429, 503):
+            break
+    raise RuntimeError(f"Commons API HTTP {status}")
 
 
 def strip_html(text):
@@ -126,13 +131,34 @@ def ffmpeg(src, dst, trim=True):
 
 
 def creator():
+    """Owner of the experience: uploaded audio must belong to it to play in the game."""
+    override = os.environ.get("ROBLOX_CREATOR", "")  # optional "user:123" / "group:456"
+    if ":" in override:
+        kind, ident = override.split(":", 1)
+        print(f"Experience owner (from ROBLOX_CREATOR): {kind} {ident}")
+        return {("groupId" if kind.lower().startswith("group") else "userId"): ident.strip()}
+    status, body = http(
+        f"https://apis.roblox.com/cloud/v2/universes/{UNIVERSE_ID}",
+        headers={"x-api-key": API_KEY},
+    )
+    if status == 200:
+        data = json.loads(body)
+        if data.get("user"):
+            ident = data["user"].split("/")[-1]
+            print(f"Experience owner (Open Cloud): User {ident}")
+            return {"userId": ident}
+        if data.get("group"):
+            ident = data["group"].split("/")[-1]
+            print(f"Experience owner (Open Cloud): Group {ident}")
+            return {"groupId": ident}
+    print(f"Open Cloud universe lookup: HTTP {status} {body[:200].decode(errors='replace')}")
     status, body = http(f"https://games.roblox.com/v1/games?universeIds={UNIVERSE_ID}")
-    if status != 200:
-        raise RuntimeError(f"games API HTTP {status}")
-    game = json.loads(body)["data"][0]["creator"]
-    kind = "userId" if game["type"] == "User" else "groupId"
-    print(f"Experience owner: {game['type']} {game['id']}")
-    return {kind: str(game["id"])}
+    if status == 200:
+        game = json.loads(body)["data"][0]["creator"]
+        if int(game.get("id") or 0) > 0:
+            print(f"Experience owner (games API): {game['type']} {game['id']}")
+            return {("userId" if game["type"] == "User" else "groupId"): str(game["id"])}
+    raise RuntimeError("could not resolve the experience owner; set the ROBLOX_CREATOR variable (user:<id> or group:<id>)")
 
 
 def upload(path, display_name, description, owner):
@@ -189,7 +215,10 @@ def main():
         if not API_KEY:
             print("::error::ROBLOX_API_KEY is not available")
             sys.exit(1)
-        owner = creator()
+        try:
+            owner = creator()
+        except Exception as err:
+            print(f"::error::{err}")
         subprocess.run([sys.executable, "tools/music/stings.py", WORK], check=True)
 
     for entry in tracks:
@@ -224,6 +253,8 @@ def main():
             else:
                 results["discovery"][key] = discover(entry)
                 continue
+            if not owner:
+                raise RuntimeError("no experience owner resolved; skipping upload")
             asset_id, error = upload(dst, entry["name"], description, owner)
             if error:
                 raise RuntimeError(error)
