@@ -321,3 +321,9 @@ See docs/ROADMAP.md: 1 stabilise → 2 addictive core loop → 3 first 10 minute
 ## IMPORTANT BALANCE CHANGES
 - Extraction grants Strength = weight × 0.1.
 - Strength uncapped; ascension requirement x2.5/level, training speed x1.6/level.
+
+## Live ops: Heist Hour tooling
+- Admins can run `/event all <name>` (or `/event global <name>`) to start an event on every live server through MessagingService. Each server shows the "🎙 HEIST HOUR IS LIVE!" banner, waits `GameConfig.Events.Hosted.Lead` seconds, then starts the event.
+- A server with an event already running waits up to 45s. Broadcasts older than 60s are ignored. In Studio the command runs locally.
+- The parser lives in `Shared/Logic/AdminCommand` and is unit-tested.
+- The full event strategy, the 12 answers and the backlog are in `docs/LIVE_OPS_PLAN.md`.

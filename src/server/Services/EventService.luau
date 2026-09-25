@@ -9,6 +9,7 @@
 --
 -- Adding an event = add a runner to Runners + config in GameConfig.Events.
 
+local MessagingService = game:GetService("MessagingService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -21,6 +22,7 @@ local Treasures = require(Shared.Config.Treasures)
 local WorldLayout = require(Shared.Config.WorldLayout)
 local TreasureRoll = require(Shared.Logic.TreasureRoll)
 local DayNight = require(Shared.Logic.DayNight)
+local AdminCommand = require(Shared.Logic.AdminCommand)
 local Net = require(Shared.Net)
 
 local TreasureService = require(script.Parent.TreasureService)
@@ -273,10 +275,36 @@ local function isAdmin(player: Player): boolean
 	return game.CreatorType == Enum.CreatorType.User and player.UserId == game.CreatorId
 end
 
+-- HEIST HOUR: "/event all <name>" starts the event on EVERY live server at once (our take
+-- on admin-hosted events). Each server waits briefly for its own running event to finish.
+local GLOBAL_TOPIC = "SATGlobalEvent"
+local GLOBAL_MAX_AGE = 60 -- ignore stale broadcasts (seconds)
+
+local function startHosted(eventId: string)
+	local deadline = os.clock() + 45
+	while active and os.clock() < deadline do
+		task.wait(2)
+	end
+	if active or #Players:GetPlayers() == 0 then
+		return
+	end
+	Net.FireAll("Notify", { Kind = "Banner", Title = cfg.Hosted.Title, Text = cfg.Hosted.Text, Tone = "Reward" })
+	task.wait(cfg.Hosted.Lead)
+	EventService.Start(eventId)
+end
+
+local function broadcast(eventId: string): boolean
+	local ok, err = pcall(MessagingService.PublishAsync, MessagingService, GLOBAL_TOPIC, { Event = eventId, Sent = os.time() })
+	if not ok then
+		warn("[Events] global broadcast failed:", err)
+	end
+	return ok
+end
+
 local lastCommand: { [Player]: number } = {}
 local function handleCommand(player: Player, message: string)
-	local name = string.match(string.lower(message), "^/event%s+(%w+)")
-	if not name or not isAdmin(player) then
+	local parsed = AdminCommand.Parse(message, ALIASES)
+	if not parsed or not isAdmin(player) then
 		return
 	end
 	-- Legacy Chatted and TextChatCommand can both fire for one message.
@@ -284,13 +312,24 @@ local function handleCommand(player: Player, message: string)
 		return
 	end
 	lastCommand[player] = os.clock()
-	local eventId = ALIASES[name]
-	local started = eventId ~= nil and EventService.Start(eventId)
-	Net.Fire("Notify", player, {
-		Kind = "Toast",
-		Text = if started then "Event started: " .. eventId elseif active then "An event is already running" else "Unknown event (try /event rain, cursed, gold, eruption, blizzard or meteor)",
-		Tone = if started then "Info" else "Warn",
-	})
+	local eventId = parsed.EventId
+	local text, ok
+	if not eventId then
+		ok, text = false, "Unknown event (try /event rain, cursed, gold, eruption, blizzard or meteor; /event all rain = every server)"
+	elseif parsed.Global then
+		-- Studio has no MessagingService: host it here only.
+		if RunService:IsStudio() then
+			task.spawn(startHosted, eventId)
+			ok = true
+		else
+			ok = broadcast(eventId)
+		end
+		text = if ok then "Heist Hour sent to every server: " .. eventId else "Broadcast failed - try again"
+	else
+		ok = EventService.Start(eventId)
+		text = if ok then "Event started: " .. eventId else "An event is already running"
+	end
+	Net.Fire("Notify", player, { Kind = "Toast", Text = text, Tone = if ok then "Info" else "Warn" })
 end
 
 function EventService.Init()
@@ -304,6 +343,23 @@ function EventService.Init()
 	Players.PlayerRemoving:Connect(function(player)
 		lastCommand[player] = nil
 	end)
+	if not RunService:IsStudio() then
+		task.spawn(function()
+			local ok, err = pcall(MessagingService.SubscribeAsync, MessagingService, GLOBAL_TOPIC, function(message)
+				local data = message.Data
+				if type(data) ~= "table" or type(data.Event) ~= "string" or not Runners[data.Event] then
+					return
+				end
+				if math.abs(os.time() - (tonumber(data.Sent) or 0)) > GLOBAL_MAX_AGE then
+					return
+				end
+				task.spawn(startHosted, data.Event)
+			end)
+			if not ok then
+				warn("[Events] global subscribe failed:", err)
+			end
+		end)
+	end
 	task.spawn(function()
 		local commands = TextChatService:WaitForChild("TextChatCommands", 15)
 		if commands then

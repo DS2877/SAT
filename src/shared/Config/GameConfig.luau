@@ -374,6 +374,12 @@ GameConfig.Events = {
 	-- Who can force events with chat commands ("/event rain"). Studio and the owner of a
 	-- user-owned place are always allowed; add group admins here by UserId.
 	AdminUserIds = {},
+	-- "/event all <name>": a hosted drop on every server at once (see docs/LIVE_OPS_PLAN.md).
+	Hosted = {
+		Title = "🎙 HEIST HOUR IS LIVE!",
+		Text = "The devs just opened the vaults on EVERY server. Get moving!",
+		Lead = 4, -- seconds between the banner and the event itself
+	},
 	TreasureRain = {
 		Name = "TREASURE RAIN",
 		Icon = "🌧",
