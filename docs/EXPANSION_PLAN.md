@@ -110,8 +110,38 @@ from the top of the Waterfall Mountain, each harder and richer than the last. It
 - **Stars on the map, signs and HUD** go from 4 to 7 (`Regions.Stars`).
 - **Recommended strength:** Emberfall 30K, Rimeheart 45K, Starfall 70K (today Falls is 20K).
   Discovery rewards: 200K / 400K / 800K.
-- **Gates:** keep strength as the soft gate. Optionally **require Ascension 1 to enter
-  Starfall**, which makes Ascension feel like it unlocks new land. That's a decision for you.
+- **Ascension gates (DECIDED 2026-09-25):** each new region needs an Ascension level to enter.
+  This makes Ascension something you work toward to unlock new land:
+
+  | Region | Needs | Strength (soft) |
+  |---|---|---|
+  | Ashen Pass + Emberfall | **Ascension 1** | 30K |
+  | Steamfields + Rimeheart | **Ascension 3** | 45K |
+  | Starfall Isles | **Ascension 5** | 70K |
+
+  - **Permanent:** Ascension never goes down, so once a region is open it stays open (even
+    though Ascending wipes cash and gadgets).
+  - **How the gate works:**
+    - A physical **Rune Gate** stands at each border (the Ashen Pass top, the Steamfields
+      bridge, the Starfall launch geyser). It glows green for you when you qualify and red
+      when you don't, and shows "ASCENSION 3 REQUIRED • you: 1".
+    - The server enforces it with a zone check, like the District gate: if you're not
+      allowed, you're pushed back to the gate, and the geyser won't launch you.
+    - Signs, the map board ("🔒 ASC 3") and the HUD objective all show the requirement, and
+      the Ascension menu previews "Unlocks: RIMEHEART" at the matching level.
+  - **Carried loot:** someone who qualifies can carry loot out of a locked region, and anyone
+    outside can bonk and steal it. Lower-level players get a taste of deep loot by
+    ambushing the exits, which creates social tension and gives them a reason to ascend.
+  - **The moment:** a first-time unlock gets a big banner ("RIMEHEART UNLOCKED"), a
+    server-wide shout-out, and the gate opening with light and sound.
+  - **Pacing to check with the simulation:**
+    - Today Ascension 1 lands at about 80-95 min and Ascension 2 at 2.5-3 h, so Emberfall
+      opens after roughly 1.5 h, which is right.
+    - Ascension 3 (Rimeheart) and especially **Ascension 5 (Starfall)** cost 1B and 25B cash
+      with the current table. Ascension 5 could take a very long time.
+    - Before building Phase 3, simulate the time to Ascension 5 and tune
+      `GameConfig.Ascension.CashCost` / `RequirementGrowth` so Starfall is a proud
+      multi-session goal (aim: roughly 8-12 h of play), not a wall.
 - **Collection sets:** three new sets (+10% income each), so there are more long-term goals.
 - **Balance check:** re-run the pacing simulation (`tools/balance`) with the new tiers so the
   first Ascension still lands at 80-95 min. The new regions should speed up *later*
@@ -149,6 +179,8 @@ from the top of the Waterfall Mountain, each harder and richer than the last. It
     - `Regions`/`GameConfig.Regions` get the 3 new regions.
     - The danger scale goes to 7.
     - `MapView` gets the tall layout.
+  - **Region gates:** a shared `RegionGates` check (server) plus Rune Gate visuals, driven
+    by `GameConfig.Regions[area].RequiredAscension`.
   - **Hazard framework:** one server `HazardService` for lava (drop and knockback), crevasse
     and sea falls (drop and respawn at the edge), and zone forces (blizzard wind, low gravity
     on the client).
@@ -172,7 +204,8 @@ moderation waits.
 
 ## 6. Open questions for you
 
-1. Should Starfall require Ascension 1, or only strength?
+1. ~~Ascension requirement~~ DECIDED: Emberfall Ascension 1, Rimeheart Ascension 3,
+   Starfall Ascension 5.
 2. Should the south have its own night rules (e.g. Rimeheart stays open at night during an
    aurora, with doubled Mythic+ odds)? It's fun, but riskier for balance.
 3. Names: Emberfall / Rimeheart / Starfall Isles are placeholders. Swap any you like.
