@@ -18,8 +18,12 @@ GameConfig.Player = {
 GameConfig.Strength = {
 	Start = 1000, -- enough to carry a Common comfortably on the very first run
 	Max = math.huge, -- uncapped: Ascension requirements keep growing instead
-	-- Strength earned when extracting: ceil(weight * factor) (Pirate Chest 2,000 -> +200)
-	ExtractionGainPerWeight = 0.1,
+	-- Strength earned when you BANK a treasure, so hunting makes you stronger too (not only the
+	-- bench): (Base + weight x PerWeight) x your training multiplier (it grows with Ascension
+	-- like the benches do). Common ~+330, Rare ~+750, Legendary ~+2.3K at Ascension 0 - about
+	-- 15-95 s of benching per bank.
+	ExtractionBase = 150,
+	ExtractionGainPerWeight = 0.6,
 }
 
 -- MONEY: treasures in your Vault earn $/s (Economy.Income = Value / IncomeDivisor x mutation),
@@ -106,13 +110,13 @@ GameConfig.Secrets = {
 -- BOOST PADS along the trails: step on one for a burst of speed. Carriers AND chasers use them,
 -- so they shape chases rather than decide them.
 GameConfig.Boost = {
-	SpeedMultiplier = 1.45,
-	Duration = 4, -- seconds
-	Radius = 5.5, -- studs from the ring's centre line (horizontal)
+	SpeedMultiplier = 1.6,
+	Duration = 4.5, -- seconds
+	Radius = 4.6, -- studs from the ring's centre (horizontal): run through the stones
 	Cooldown = 2, -- per player, before the same player can trigger another ring
-	-- Rings are scattered at random every server (World/Adventure).
-	Count = 24,
-	MaxPerArea = 6, -- per region, so every region gets a share
+	-- Subtle wind rings scattered at random every server (World/Adventure): a discovery, not a route.
+	Count = 30,
+	MaxPerArea = 7, -- per region, so every region gets a share
 	MinSpacing = 55, -- studs between rings
 	MaxDistance = 400, -- from the island centre
 }
@@ -323,7 +327,9 @@ GameConfig.Vault = {
 }
 
 GameConfig.Ascension = {
-	-- Strength needed to Ascend grows every time: Base x Growth^ascension (30K, 75K, 188K, 469K...)
+	-- Strength needed to Ascend grows every time: Base x Growth^ascension (75K, 188K, 469K...),
+	-- except the FIRST Ascension, which is quick on purpose: a new player should feel it early.
+	FirstRequirement = 10000,
 	BaseRequirement = 30000,
 	RequirementGrowth = 2.5,
 	-- ...but training speeds up every time too (compounding), so each climb stays reachable.
@@ -475,7 +481,16 @@ GameConfig.Remotes = {
 -- Strength required to go from `level` to `level + 1`.
 function GameConfig.GetAscensionRequirement(level: number): number
 	local a = GameConfig.Ascension
+	if level <= 0 and a.FirstRequirement then
+		return a.FirstRequirement
+	end
 	return math.floor(a.BaseRequirement * a.RequirementGrowth ^ level)
+end
+
+-- Strength for banking a treasure of `weight` at an Ascension level.
+function GameConfig.ExtractionStrength(weight: number, level: number): number
+	local s = GameConfig.Strength
+	return math.ceil((s.ExtractionBase + weight * s.ExtractionGainPerWeight) * GameConfig.GetTrainingMultiplier(level))
 end
 
 -- Strength per rep for a bench at an ascension level (before pump / jackpots / pass).

@@ -1,6 +1,6 @@
 -- Boost pads + launch geysers (built by World/Adventure).
---   BOOST RINGS: the server grants the speed (Services/BoostService); here the rings spin and
---   bob, and when YOU take one: the ring bursts, whoosh, FOV kick, a blue speed trail.
+--   WIND RINGS (speed boosts): the server grants the speed (Services/BoostService); here, when
+--   YOU run through one: the stones flare, a gust bursts up, whoosh, FOV kick, a speed trail.
 --   GEYSERS (tag "LaunchPad", attribute Target): client-side because your character's physics
 --   is yours. Scripted flight: straight up past the cliff edge, then a guided glide that lands
 --   exactly on the target (heavy loot included - the geyser doesn't care).
@@ -22,8 +22,7 @@ local HUD = require(script.Parent.HUD)
 local Pads = {}
 
 local player = Players.LocalPlayer
-local BOOST_COLOR = Color3.fromRGB(40, 170, 255) -- matches World/Adventure
-local RING_GOLD = Color3.fromRGB(255, 215, 60)
+local BOOST_COLOR = Color3.fromRGB(170, 235, 255) -- the wind rings' glow (World/Adventure)
 local BASE_FOV = 70
 local boostToken = 0
 local launching = false
@@ -64,9 +63,7 @@ local function speedTrail(root: BasePart, duration: number)
 	end)
 end
 
--- Boost rings spin (Sonic style) and bob. Only rings near the camera are animated.
-local SPIN_SPEED = 2.2 -- radians per second
-local ANIMATE_DISTANCE = 220
+-- Wind rings (World/Adventure) stay still and quiet until you run through one.
 local rings: { [Model]: CFrame } = {}
 
 local function addRing(inst: Instance)
@@ -78,7 +75,7 @@ local function addRing(inst: Instance)
 	end
 end
 
-local function animateRings()
+local function watchRings()
 	for _, inst in CollectionService:GetTagged("BoostRing") do
 		addRing(inst)
 	end
@@ -86,35 +83,16 @@ local function animateRings()
 	CollectionService:GetInstanceRemovedSignal("BoostRing"):Connect(function(inst)
 		rings[inst :: Model] = nil
 	end)
-	RunService.RenderStepped:Connect(function()
-		local camera = workspace.CurrentCamera
-		local eye = camera and camera.CFrame.Position or Vector3.zero
-		local t = os.clock()
-		for model, home in rings do
-			local core = model.PrimaryPart
-			if core and (home.Position - eye).Magnitude < ANIMATE_DISTANCE then
-				-- Hoop + film spin about the vertical axis; the ground plate stays put.
-				local target = home * CFrame.new(0, math.sin(t * 2 + home.Position.X) * 0.35, 0) * CFrame.Angles(0, t * SPIN_SPEED, 0)
-				local delta = target * core.CFrame:Inverse()
-				for _, d in model:GetChildren() do
-					if d:IsA("BasePart") and not d.Name:match("^Plate") then
-						d.CFrame = delta * d.CFrame
-					end
-				end
-			end
-		end
-	end)
 end
 
--- The ring you took flashes and bursts.
+-- The ring you took flares white and blows a gust of wind upward.
 local function burstRing(position: Vector3?)
 	if typeof(position) ~= "Vector3" then
 		return
 	end
 	local best, bestDistance = nil, 14
-	for model in rings do
-		local core = model.PrimaryPart
-		local distance = if core then (Vector2.new(core.Position.X, core.Position.Z) - Vector2.new(position.X, position.Z)).Magnitude else math.huge
+	for model, home in rings do
+		local distance = (Vector2.new(home.Position.X, home.Position.Z) - Vector2.new(position.X, position.Z)).Magnitude
 		if distance < bestDistance then
 			best, bestDistance = model, distance
 		end
@@ -125,12 +103,14 @@ local function burstRing(position: Vector3?)
 	end
 	local burst = core:FindFirstChild("Burst")
 	if burst and burst:IsA("ParticleEmitter") then
-		burst:Emit(40)
+		burst:Emit(36)
 	end
 	for _, d in (best :: Model):GetChildren() do
-		if d:IsA("BasePart") and (d.Name == "Hoop" or d.Name == "Inner") then
+		if d:IsA("BasePart") and d.Name == "Stone" then
+			local color, transparency = d.Color, d.Transparency
 			d.Color = Color3.new(1, 1, 1)
-			Kit.tween(d, TweenInfo.new(0.5, Enum.EasingStyle.Quad), { Color = if d.Name == "Hoop" then BOOST_COLOR else RING_GOLD })
+			d.Transparency = 0
+			Kit.tween(d, TweenInfo.new(0.9, Enum.EasingStyle.Quad), { Color = color, Transparency = transparency })
 		end
 	end
 end
@@ -142,7 +122,7 @@ local function onBoosted(payload)
 	local token = boostToken
 	Sounds.Play("Boost")
 	burstRing(payload.Position)
-	HUD.ShowStatus("⚡ SPEED BOOST!", nil, BOOST_COLOR, 1.2)
+	HUD.ShowStatus("💨 WIND AT YOUR BACK!", nil, BOOST_COLOR, 1.2)
 	local camera = workspace.CurrentCamera
 	Kit.tween(camera, TweenInfo.new(0.18, Enum.EasingStyle.Quad), { FieldOfView = BASE_FOV + 14 })
 	task.delay(duration - 0.6, function()
@@ -249,7 +229,7 @@ function Pads.Init()
 			onBoosted(payload)
 		end
 	end)
-	animateRings()
+	watchRings()
 	watchGeysers()
 end
 

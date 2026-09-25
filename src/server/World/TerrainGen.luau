@@ -21,6 +21,7 @@ TerrainGen.FLAT_ZONES = {
 	{ 230, -110, 125, 45 }, -- Ancient Ruins + courtyard
 	{ 60, -300, 150, 40 }, -- Waterfall basin
 	{ 225, -296, 18, 16 }, -- cliff ramp foot
+	{ -128, -258, 32, 22 }, -- the Mist Lagoon (World/Falls)
 	{ -345, -10, 95, 35 }, -- Shipwreck Coast
 	{ 120, 10, 28, 25 }, -- Ravine bridge
 	{ 360, 300, 24, 20 }, -- Lighthouse

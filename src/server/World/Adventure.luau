@@ -153,90 +153,68 @@ end
 
 -- BOOST PADS --------------------------------------------------------------------------
 
-local BOOST = Color3.fromRGB(40, 170, 255) -- electric blue hoop
-local BOOST_GOLD = Color3.fromRGB(255, 215, 60) -- golden inner ring
-local RING_RADIUS = 4.6 -- hoop radius (studs); the trigger radius is GameConfig.Boost.Radius
-local RING_HEIGHT = 5.4 -- hoop centre above the ground
+-- WIND RINGS (speed boosts): deliberately subtle - a small fairy ring of pale glowing stones
+-- in the grass with a few motes drifting up, easy to walk past and a little magical when you
+-- notice one. Run through it and the ring flares, the wind takes you (Services/BoostService,
+-- Controllers/Pads). Random spots every server, so they stay a discovery.
+local WIND = Color3.fromRGB(170, 235, 255) -- pale, moonlit glow
+local STONES = 7
+local STONE_RING = 3.8 -- studs from the centre (the trigger radius is GameConfig.Boost.Radius)
 
--- A circle of `count` bricks in the hoop's local XY plane.
-local function hoop(model: Model, centre: CFrame, radius: number, count: number, thickness: number, color: Color3, name: string)
-	local segment = 2 * math.pi * radius / count * 1.08
-	for i = 1, count do
-		local angle = (i - 0.5) / count * 2 * math.pi
+local function buildBoostRing(parent: Instance, ground: Vector3, rng: Random)
+	local model = Instance.new("Model")
+	model.Name = "WindRing"
+	local centre = CFrame.new(ground) * CFrame.Angles(0, rng:NextNumber(0, 2 * math.pi), 0)
+	local core = part({ Name = "Core", Size = Vector3.new(0.2, 0.2, 0.2), CFrame = centre * CFrame.new(0, 0.6, 0), Transparency = 1, CanCollide = false, CanQuery = false, Parent = model })
+	model.PrimaryPart = core
+	for i = 1, STONES do
+		local a = i / STONES * 2 * math.pi + rng:NextNumber(-0.15, 0.15)
+		local size = rng:NextNumber(0.6, 1.0)
 		part({
-			Name = name,
-			Size = Vector3.new(segment, thickness, thickness),
-			CFrame = centre * CFrame.Angles(0, 0, angle) * CFrame.new(0, radius, 0),
-			Color = color,
+			Name = "Stone",
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(size, size * 0.7, size),
+			CFrame = centre * CFrame.new(math.cos(a) * STONE_RING, size * 0.2, math.sin(a) * STONE_RING),
+			Color = WIND,
 			Material = Enum.Material.Neon,
+			Transparency = 0.35,
 			CanCollide = false,
 			CanQuery = false,
 			CastShadow = false,
 			Parent = model,
 		})
 	end
-end
-
--- Sonic-style BOOST RING: a floating, spinning blue-and-gold hoop over a round glowing launch
--- plate. Run through it from any side. The client spins it (tag "BoostRing") and bursts it
--- when you take it.
-local function buildBoostRing(parent: Instance, ground: Vector3, rng: Random)
-	local model = Instance.new("Model")
-	model.Name = "BoostRing"
-	local centre = CFrame.new(ground + Vector3.new(0, RING_HEIGHT, 0)) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0)
-	local core = part({
-		Name = "Core",
-		Size = Vector3.new(0.2, 0.2, 0.2),
-		CFrame = centre,
-		Transparency = 1,
-		CanCollide = false,
-		CanQuery = false,
-		Parent = model,
-	})
-	model.PrimaryPart = core
-	hoop(model, centre, RING_RADIUS, 16, 0.75, BOOST, "Hoop")
-	hoop(model, centre, RING_RADIUS - 0.75, 12, 0.35, BOOST_GOLD, "Inner")
-	-- Faint portal film inside the hoop.
-	part({
-		Name = "Film",
-		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(0.1, (RING_RADIUS - 0.9) * 2, (RING_RADIUS - 0.9) * 2),
-		CFrame = centre * CFrame.Angles(0, math.rad(90), 0),
-		Color = BOOST,
-		Material = Enum.Material.ForceField,
-		Transparency = 0.2,
-		CanCollide = false,
-		CanQuery = false,
-		CastShadow = false,
-		Parent = model,
-	})
-	local sparkle = Instance.new("ParticleEmitter")
-	sparkle.Name = "Sparkle"
-	sparkle.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-	sparkle.Color = ColorSequence.new(BOOST, BOOST_GOLD)
-	sparkle.LightEmission = 1
-	sparkle.LightInfluence = 0
-	sparkle.Size = NumberSequence.new(0.5, 0)
-	sparkle.Lifetime = NumberRange.new(0.5, 0.9)
-	sparkle.Rate = 5
-	sparkle.Speed = NumberRange.new(1, 3)
-	sparkle.SpreadAngle = Vector2.new(180, 180)
-	sparkle.Parent = core
-	local burst = sparkle:Clone()
-	burst.Name = "Burst" -- emitted by the client when the ring is taken
+	-- A few motes drifting up out of the ring: the thing you notice out of the corner of your eye.
+	local motes = Instance.new("ParticleEmitter")
+	motes.Name = "Motes"
+	motes.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	motes.Color = ColorSequence.new(WIND)
+	motes.LightEmission = 1
+	motes.LightInfluence = 0
+	motes.Size = NumberSequence.new(0.35, 0)
+	motes.Transparency = NumberSequence.new(0.2, 1)
+	motes.Lifetime = NumberRange.new(1.5, 2.5)
+	motes.Rate = 3
+	motes.Speed = NumberRange.new(0.8, 1.6)
+	motes.SpreadAngle = Vector2.new(25, 25)
+	motes.EmissionDirection = Enum.NormalId.Top
+	motes.Shape = Enum.ParticleEmitterShape.Cylinder
+	motes.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+	motes.Parent = core
+	-- The wind burst when it's taken (emitted by the client).
+	local burst = Instance.new("ParticleEmitter")
+	burst.Name = "Burst"
+	burst.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	burst.Color = ColorSequence.new(Color3.new(1, 1, 1), WIND)
+	burst.LightEmission = 1
+	burst.LightInfluence = 0
+	burst.Size = NumberSequence.new(0.9, 0)
+	burst.Lifetime = NumberRange.new(0.4, 0.8)
 	burst.Rate = 0
-	burst.Size = NumberSequence.new(1.1, 0)
-	burst.Speed = NumberRange.new(14, 26)
-	burst.Lifetime = NumberRange.new(0.4, 0.7)
+	burst.Speed = NumberRange.new(16, 30)
+	burst.SpreadAngle = Vector2.new(70, 70)
+	burst.EmissionDirection = Enum.NormalId.Top
 	burst.Parent = core
-	-- No PointLight: two dozen of them cost phones a lot; the neon hoop glows on its own.
-
-	-- Round launch plate on the ground.
-	local plateCf = CFrame.new(ground) * CFrame.Angles(0, 0, math.rad(90))
-	part({ Name = "Plate", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.4, 10, 10), CFrame = plateCf * CFrame.new(0.15, 0, 0), Color = Color3.fromRGB(22, 28, 46), Material = Enum.Material.Slate, Parent = model })
-	part({ Name = "PlateRim", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.42, 10.6, 10.6), CFrame = plateCf * CFrame.new(0.1, 0, 0), Color = BOOST, Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = model })
-	part({ Name = "PlateGlow", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.45, 5, 5), CFrame = plateCf * CFrame.new(0.15, 0, 0), Color = BOOST_GOLD, Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = model })
-
 	model:SetAttribute("Home", centre)
 	model.Parent = parent
 	CollectionService:AddTag(model, "BoostRing")
@@ -345,9 +323,9 @@ local function buildGeyser(parent: Instance, info, groundAt, avoid)
 	core:SetAttribute("RequiredAscension", info.RequiredAscension or 0) -- the Starfall launch
 	CollectionService:AddTag(core, "LaunchPad")
 	-- A little sign so players know it's a ride, not a hazard.
-	local signPart = part({ Name = "GeyserSign", Size = Vector3.new(0.5, 0.5, 0.5), CFrame = CFrame.new(ground + Vector3.new(0, 5, 0)), Transparency = 1, CanCollide = false, CanQuery = false, CastShadow = false, Parent = geyser })
+	local signPart = part({ Name = "GeyserSign", Size = Vector3.new(0.5, 0.5, 0.5), CFrame = CFrame.new(ground + Vector3.new(0, 8, 0)), Transparency = 1, CanCollide = false, CanQuery = false, CastShadow = false, Parent = geyser })
 	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromScale(10, 1.8)
+	gui.Size = UDim2.fromScale(7, 1.3)
 	gui.MaxDistance = 70
 	gui.LightInfluence = 0
 	local label = Instance.new("TextLabel")

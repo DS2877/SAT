@@ -93,7 +93,7 @@ local function complete(player: Player, session: Session)
 	setStreak(player, streak)
 	local streakMultiplier = Economy.StreakMultiplier(streak)
 	local reward = math.floor(Economy.FindersFee(def, mutation, category.Bonus, multiplier) * streakMultiplier + 0.5)
-	local strengthGain = math.ceil(def.Weight * GameConfig.Strength.ExtractionGainPerWeight)
+	local strengthGain = GameConfig.ExtractionStrength(def.Weight, data.Ascension or 0)
 	local entry = data.Collection[def.Id]
 	local isNew = entry == nil or not entry.Discovered
 	local rank = Rarities.Rank(def.Rarity)

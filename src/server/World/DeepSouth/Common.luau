@@ -47,7 +47,7 @@ Common.FIRE = "rbxasset://textures/particles/fire_main.dds"
 function Common.sign(parent: Instance, position: Vector3, title: string, subtitle: string?, color: Color3, width: number?)
 	local anchor = part({ Name = "SignAnchor", Size = Vector3.new(0.4, 0.4, 0.4), CFrame = CFrame.new(position), Transparency = 1, CanCollide = false, CanQuery = false, Parent = parent })
 	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromScale(width or 18, if subtitle then 4 else 2.4)
+	gui.Size = UDim2.fromScale(math.min(width or 13, 14), if subtitle then 3 else 1.8)
 	gui.MaxDistance = 110
 	gui.LightInfluence = 0
 	local function line(text: string, y: number, h: number, c: Color3)

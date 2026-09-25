@@ -24,6 +24,7 @@ local Kit = require(UI.Kit)
 local Sounds = require(UI.Sounds)
 local MusicController = require(script.Parent.MusicController)
 local ClientState = require(script.Parent.Parent.ClientState)
+local Notifications = require(script.Parent.Notifications)
 
 local HUD = {}
 
@@ -282,24 +283,6 @@ local function buildObjective()
 		Parent = barBack,
 	}, { Kit.corner(Theme.Radius.Round) })
 	refs.ObjLine2 = Kit.label({ Name = "Line2", LayoutOrder = 5, Size = UDim2.new(1, 0, 0, 15), Font = Theme.Font.Black, TextSize = 12, TextColor3 = Theme.Color.Gold, TextXAlignment = Enum.TextXAlignment.Left, RichText = true, Parent = card })
-
-	refs.Event = Kit.panel({
-		Name = "Event",
-		LayoutOrder = 2,
-		Size = UDim2.fromOffset(300, 30),
-		Radius = Theme.Radius.Round,
-		BackgroundColor3 = Color3.fromRGB(60, 40, 90),
-		Visible = false,
-		Parent = topStack,
-	})
-	Kit.stroke(Theme.Color.Gold, 2, 0.2).Parent = refs.Event
-	refs.EventText = Kit.label({
-		Size = UDim2.fromScale(1, 1),
-		Font = Theme.Font.Black,
-		TextSize = Theme.TextSize.Small,
-		TextColor3 = Theme.Color.Gold,
-		Parent = refs.Event,
-	})
 
 	refs.Nav = Kit.panel({
 		Name = "Nav",
@@ -640,6 +623,8 @@ local function setObjective(header: string, title: string, titleColor: Color3?, 
 	end
 end
 
+local warnedEventEnd = 0 -- EventEndsAt we already gave the 10-second heads-up for
+
 local function refreshObjective()
 	local data = ClientState.Data
 	if not data then
@@ -707,7 +692,10 @@ local function refreshObjective()
 		owned += 1
 	end
 	local cheapest = Gadgets.Get("speed_soda")
-	if owned == 0 and cheapest and data.Cash >= cheapest.Price then
+	-- Only ever for someone who has never had a gadget: Ascension wipes gadgets, but it must not
+	-- replay the tutorial (milestones persist; older saves without one are covered by Ascension).
+	local neverHadGadget = not ClientState.Milestone("FirstGadgetBought") and not ClientState.Milestone("FirstGadgetUse") and (data.Ascension or 0) == 0
+	if owned == 0 and neverHadGadget and cheapest and data.Cash >= cheapest.Price then
 		setObjective("NEW • GADGETS", "BUY YOUR FIRST GADGET", Theme.Color.Info, ("You can afford the %s!"):format(cheapest.Name:upper()), nil)
 		navTarget = { Name = "GADGET SHOP", Position = WorldLayout.Shop }
 		return
@@ -744,17 +732,10 @@ local function refreshObjective()
 		end
 	end
 
-	local eventEnds = workspace:GetAttribute("EventEndsAt") or 0
-	local eventActive = eventEnds > workspace:GetServerTimeNow()
-	local eventPosition = workspace:GetAttribute("EventPosition")
-	local eventTarget = if eventActive and typeof(eventPosition) == "Vector3" and eventPosition.Magnitude > 1
-		then { Name = tostring(workspace:GetAttribute("EventSite")), Position = eventPosition }
-		else nil
-
 	local goal = nextTreasureGoal(data)
 	if not goal then
 		setObjective("COLLECTION COMPLETE", "HUNT THE SECRET", Theme.Color.Secret, "Legends speak of the Heart of the Island...", nil)
-		navTarget = eventTarget
+		navTarget = nil
 		return
 	end
 	local recommended = Carry.RecommendedStrength(goal.Weight, GameConfig.Carry)
@@ -771,7 +752,9 @@ local function refreshObjective()
 		if needsTraining then strength / recommended else nil,
 		if needsTraining then Theme.Color.Strength else Theme.Color.Safe
 	)
-	navTarget = eventTarget
+	-- Past the tutorial there is no GPS target: events are announced (a banner at the start, one
+	-- alert near the end) and players discover the world instead of following a marker.
+	navTarget = nil
 end
 HUD.RefreshObjective = refreshObjective
 
@@ -1088,16 +1071,12 @@ function HUD.Init(screenGui: ScreenGui)
 			updateCooldowns(serverNow)
 			updateExtraction(serverNow)
 			updateClock(serverNow)
+			-- No persistent event countdown: one short heads-up ~10 s before the end, then nothing.
 			local eventEnds = workspace:GetAttribute("EventEndsAt") or 0
 			local remaining = eventEnds - serverNow
-			refs.Event.Visible = remaining > 0
-			if remaining > 0 then
-				refs.EventText.Text = ("%s • %s • %d:%02d"):format(
-					tostring(workspace:GetAttribute("EventName")),
-					tostring(workspace:GetAttribute("EventSite")),
-					math.floor(remaining / 60),
-					math.floor(remaining % 60)
-				)
+			if remaining > 0 and remaining <= 10 and warnedEventEnd ~= eventEnds then
+				warnedEventEnd = eventEnds
+				Notifications.Banner(("⏳ %s ENDS IN 10s"):format(tostring(workspace:GetAttribute("EventName"))), "Last chance!", "Warn", 3)
 			end
 			if elapsed >= 1.5 then
 				elapsed = 0

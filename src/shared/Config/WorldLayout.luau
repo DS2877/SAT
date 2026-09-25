@@ -261,7 +261,7 @@ WorldLayout.TreasureSpawns = {
 	{ Area = "Falls", Position = Vector3.new(-12, 10, -340), RayFrom = 26 }, -- behind the falls
 	{ Area = "Falls", Position = Vector3.new(-40, 91, -345) }, -- cliff top
 	{ Area = "Falls", Position = Vector3.new(60, 10, -270) },
-	{ Area = "Falls", Position = Vector3.new(-120, 10, -270) },
+	{ Area = "Falls", Position = Vector3.new(-123, 10, -255) }, -- on the sunken idol's island (World/Falls)
 	{ Area = "Falls", Position = Vector3.new(170, 10, -266) },
 	{ Area = "Falls", Position = S.Hermit, RayFrom = 96 }, -- inside the hermit's hut
 	-- EMBERFALL
@@ -303,12 +303,12 @@ WorldLayout.TreasureSpawns = {
 -- Open areas where events (Treasure Rain, ...) take place.
 -- One site per region: events always hit ONE region (Area matches treasure SpawnArea).
 WorldLayout.EventSites = {
-	{ Area = "Wilds", Name = "THE WILDS", Position = Vector3.new(0, 10, -60) },
-	{ Area = "Ruins", Name = "THE ANCIENT RUINS", Position = Vector3.new(160, 10, -30) },
-	{ Area = "Coast", Name = "SHIPWRECK COAST", Position = Vector3.new(-250, 10, 10) },
-	{ Area = "Falls", Name = "THE FALLS", Position = Vector3.new(20, 10, -240) },
-	{ Area = "Frost", Name = "FROSTPEAK", Position = Vector3.new(-280, 10, 215) },
-	{ Area = "Marsh", Name = "GLOWSHROOM MARSH", Position = Vector3.new(265, 10, 160) },
+	{ Area = "Wilds", Name = "THE WILDS", Icon = "🌿", Position = Vector3.new(0, 10, -60) },
+	{ Area = "Ruins", Name = "THE ANCIENT RUINS", Icon = "🏛", Position = Vector3.new(160, 10, -30) },
+	{ Area = "Coast", Name = "SHIPWRECK COAST", Icon = "⚓", Position = Vector3.new(-250, 10, 10) },
+	{ Area = "Falls", Name = "THE FALLS", Icon = "💧", Position = Vector3.new(20, 10, -240) },
+	{ Area = "Frost", Name = "FROSTPEAK", Icon = "❄", Position = Vector3.new(-280, 10, 215) },
+	{ Area = "Marsh", Name = "GLOWSHROOM MARSH", Icon = "🍄", Position = Vector3.new(265, 10, 160) },
 }
 
 WorldLayout.GuardianSpawns = {

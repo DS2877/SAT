@@ -21,3 +21,28 @@ ragtime
 classical
 APM classical
 sneaky
+
+# Night / final-minute recognition cues
+Danse Macabre
+Saint-Saens
+Toccata and Fugue
+Toccata
+Bach
+Night on Bald Mountain
+Mussorgsky
+Dies Irae
+Funeral March
+Midnight
+clock ticking
+suspense
+APM suspense
+APM tension
+# Training / hip-hop
+hip hop
+hip-hop beat
+boom bap
+trap beat
+workout
+gym
+APM hip hop
+funk

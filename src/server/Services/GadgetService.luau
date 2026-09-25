@@ -690,6 +690,7 @@ local function onBuy(player: Player, id: any)
 	PlayerData.Update(player, function(d)
 		d.OwnedGadgets[id] = true
 	end)
+	PlayerData.Milestone(player, "FirstGadgetBought") -- tutorials key off milestones: Ascension wipes gadgets, not these
 	-- Auto-equip into the first empty slot so a purchase is immediately usable.
 	for i = 1, GameConfig.Gadgets.Slots do
 		if data.EquippedGadgets[i] == "" then

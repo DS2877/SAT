@@ -56,8 +56,8 @@ local function stone(parent: Instance, ground: Vector3, facing: Vector3, color: 
 	sparkle.Parent = shard
 	-- Label over the stone.
 	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromScale(12, 3)
-	gui.StudsOffsetWorldSpace = Vector3.new(0, 11.5, 0)
+	gui.Size = UDim2.fromScale(9, 2.2)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, 12.5, 0)
 	gui.MaxDistance = 60
 	gui.LightInfluence = 0
 	for i, line in { { title, color, 0, 0.6 }, { subtitle, Color3.fromRGB(235, 235, 240), 0.6, 0.4 } } do

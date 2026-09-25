@@ -175,7 +175,7 @@ function Notifications.Reward(payload)
 		Kit.label({ Text = ("🔥 RUN STREAK %d • FEE x%.2f"):format(payload.Streak, payload.StreakMultiplier or 1), LayoutOrder = 7, Size = UDim2.new(1, 0, 0, 14), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.Strength, Parent = frame })
 	end
 	if payload.StrengthGain and payload.StrengthGain > 0 then
-		Kit.label({ Text = ("+%d STRENGTH"):format(payload.StrengthGain), LayoutOrder = 5, Size = UDim2.new(1, 0, 0, 14), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.Strength, Parent = frame })
+		Kit.label({ Text = ("💪 +%s STRENGTH"):format(Kit.bigNumber(payload.StrengthGain)), LayoutOrder = 5, Size = UDim2.new(1, 0, 0, 18), Font = Theme.Font.Black, TextSize = Theme.TextSize.Small, TextColor3 = Theme.Color.Strength, Parent = frame })
 	end
 	Kit.pulse(frame)
 	Sounds.Play(if big then "BigReward" else "ExtractSuccess")

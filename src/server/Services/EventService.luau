@@ -33,7 +33,12 @@ local cfg = GameConfig.Events
 local rng = Random.new()
 local active: string? = nil
 
-type Site = { Area: string, Name: string, Position: Vector3 }
+type Site = { Area: string, Name: string, Icon: string?, Position: Vector3 }
+
+-- "⚓ SHIPWRECK COAST EVENT!" - where it's happening, as the banner's headline.
+local function headline(site: Site): string
+	return ("%s %s EVENT!"):format(site.Icon or "✨", site.Name)
+end
 
 local function pickSite(): Site
 	return WorldLayout.EventSites[rng:NextInteger(1, #WorldLayout.EventSites)]
@@ -107,8 +112,8 @@ function Runners.TreasureRain()
 	publish("TreasureRain", rain.Name, site, endsAt)
 	Net.FireAll("Notify", {
 		Kind = "Banner",
-		Title = ("%s %s!"):format(rain.Icon, rain.Name),
-		Text = ("Treasure is falling at %s!"):format(site.Name),
+		Title = headline(site),
+		Text = ("%s %s - treasure is falling from the sky!"):format(rain.Icon, rain.Name),
 		Tone = "Reward",
 	})
 	Net.FireAll("Feedback", { Type = "EventStarted", EventId = "TreasureRain" })
@@ -167,8 +172,8 @@ function Runners.CursedHour()
 	TreasureService.SetRegionBoost({ Area = site.Area, Rarity = curse.RarityBoost })
 	Net.FireAll("Notify", {
 		Kind = "Banner",
-		Title = ("%s %s!"):format(curse.Icon, curse.Name),
-		Text = ("%s: rare loot at %s, furious guardians."):format(tonight(), site.Name),
+		Title = headline(site),
+		Text = ("%s %s - %s: rare loot, furious guardians."):format(curse.Icon, curse.Name, tonight()),
 		Tone = "Danger",
 	})
 	Net.FireAll("Feedback", { Type = "EventStarted", EventId = "CursedHour" })
@@ -193,8 +198,8 @@ function Runners.GoldRush()
 	TreasureService.SetRegionBoost({ Area = site.Area, Mutation = rush.MutationBoost })
 	Net.FireAll("Notify", {
 		Kind = "Banner",
-		Title = ("%s %s!"):format(rush.Icon, rush.Name),
-		Text = ("%s: mutated treasure x%d at %s!"):format(tonight(), rush.MutationBoost, site.Name),
+		Title = headline(site),
+		Text = ("%s %s - %s: mutated treasure x%d!"):format(rush.Icon, rush.Name, tonight(), rush.MutationBoost),
 		Tone = "Reward",
 	})
 	Net.FireAll("Feedback", { Type = "EventStarted", EventId = "GoldRush" })

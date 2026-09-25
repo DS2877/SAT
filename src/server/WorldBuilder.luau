@@ -27,6 +27,7 @@ local DeepSouth = require(script.Parent.World.DeepSouth)
 local Bats = require(ReplicatedStorage.Shared.Config.Bats)
 local BatModels = require(ReplicatedStorage.Shared.BatModels)
 local Waystones = require(script.Parent.World.Waystones)
+local Falls = require(script.Parent.World.Falls)
 
 local WorldBuilder = {}
 
@@ -98,7 +99,7 @@ end
 -- Otherwise it is a compact fixed-pixel label readable from far away (landmarks, beacons).
 -- Landmark names float LANDMARK_LIFT studs over their landmark, so they clear the District
 -- wall, the trees and the hills when you look out from the plaza.
-local LANDMARK_LIFT = 34
+local LANDMARK_LIFT = 48
 
 local function billboardSign(
 	parent: BasePart,
@@ -113,7 +114,7 @@ local function billboardSign(
 	if studWidth then
 		gui.Size = UDim2.fromScale(studWidth, studWidth * (if subtitle then 0.26 else 0.16))
 	else
-		gui.Size = UDim2.fromOffset(230, if subtitle then 54 else 36)
+		gui.Size = UDim2.fromOffset(170, if subtitle then 42 else 26)
 	end
 	gui.StudsOffset = Vector3.new(0, offset, 0)
 	gui.MaxDistance = maxDistance
@@ -473,7 +474,7 @@ local function buildWall(district: Folder): BasePart
 		part({ Name = "GateDoor", Size = Vector3.new(d.GateHalfWidth - 1, height + 2, 1), CFrame = CFrame.new(gate + Vector3.new(x * (d.GateHalfWidth + 1), (height + 2) / 2, 5)) * CFrame.Angles(0, math.rad(x * 80), 0) * CFrame.new(x * (d.GateHalfWidth - 1) / 2, 0, 0), Color = C.Wood, Material = Enum.Material.WoodPlanks, Parent = walls })
 	end
 	-- High enough that the subtitle clears the arch (it used to sit half inside the stone).
-	billboardSign(arch, "THE WILDS", "Treasure awaits. Danger too.", C.Gold, 300, 9, 24)
+	billboardSign(arch, "THE WILDS", "Treasure awaits. Danger too.", C.Gold, 300, 16, 16)
 	-- Night fog: fills the gate opening. DayCycle makes it solid at night (the Wilds are closed
 	-- until dawn); clients draw the fog and the "DAWN IN" countdown (Ambience, tag NightGate).
 	local fog = part({
@@ -624,7 +625,7 @@ local function buildGym(district: Folder)
 		CanQuery = false,
 		Parent = gym,
 	})
-	billboardSign(header, "🏋 STRENGTH GYM", "Lie down and relax • The longer you lift, the more you gain", C.Gold, 200, 0, 26)
+	billboardSign(header, "🏋 STRENGTH GYM", "The longer you lift, the more you gain", C.Gold, 200, 4, 18)
 	return machines
 end
 
@@ -676,7 +677,7 @@ local function buildBatShop(district: Folder)
 	giant.PrimaryPart.Anchored = true
 	giant.Name = "BatShopSign"
 	giant.Parent = shop
-	billboardSign(counter, "🏏 BAT SHOP", "Slap people further • upgrade your bat HERE", Color3.fromRGB(255, 130, 80), 160, 11, 14)
+	billboardSign(counter, "🏏 BAT SHOP", "Slap people further", Color3.fromRGB(255, 130, 80), 160, 17, 10)
 	return prompt(counter, "Browse Bats", "Bat Shop", 0)
 end
 
@@ -694,7 +695,7 @@ local function buildShop(district: Folder)
 	for i, colorValue in { Color3.fromRGB(255, 120, 60), Color3.fromRGB(255, 70, 90), Color3.fromRGB(150, 220, 255) } do
 		part({ Name = "Display", Shape = Enum.PartType.Ball, Size = Vector3.new(2, 2, 2), CFrame = facing * CFrame.new(-5 + (i - 1) * 5, 6, 0), Color = colorValue, Material = Enum.Material.Neon, Parent = shop })
 	end
-	billboardSign(counter, "🛒 GADGET SHOP", "Buy & equip your gadgets HERE", C.Teal, 160, 12, 14)
+	billboardSign(counter, "🛒 GADGET SHOP", "Buy & equip gadgets", C.Teal, 160, 18, 10)
 	return prompt(counter, "Buy & Equip", "Gadget Shop", 0)
 end
 
@@ -706,7 +707,7 @@ local function buildAscensionAltar(district: Folder)
 	local obelisk = part({ Name = "Obelisk", Size = Vector3.new(3, 16, 3), CFrame = CFrame.new(pos + Vector3.new(0, 10.5, 0)) * CFrame.Angles(0, math.rad(45), 0), Color = Color3.fromRGB(60, 40, 90), Material = Enum.Material.Slate, Parent = altar })
 	local gem = part({ Name = "Gem", Size = Vector3.new(3, 3, 3), CFrame = CFrame.new(pos + Vector3.new(0, 21, 0)) * CFrame.Angles(math.rad(45), 0, math.rad(45)), Color = C.Secret, Material = Enum.Material.Neon, Parent = altar })
 	gem:SetAttribute("Spin", 1.2)
-	billboardSign(gem, "ASCENSION", "Faster training • More Cash", C.Secret, 160, 4, 12)
+	billboardSign(gem, "ASCENSION", "Faster training • More Cash", C.Secret, 160, 11, 9)
 	return prompt(obelisk, "Ascend", "Ascension Altar", 0.5)
 end
 
@@ -777,7 +778,7 @@ local function buildVaultPlots(district: Folder)
 		local terminal = part({ Name = "Terminal", Size = Vector3.new(2.2, 3.4, 2.2), CFrame = cf * CFrame.new(-8.5, 2.3, -half + 1.5), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
 		part({ Name = "TerminalScreen", Size = Vector3.new(1.8, 1.2, 0.2), CFrame = cf * CFrame.new(-8.5, 3.6, -half + 0.35) * CFrame.Angles(math.rad(-20), 0, 0), Color = Color3.fromRGB(120, 220, 255), Material = Enum.Material.Neon, CanCollide = false, Parent = plotFolder })
 		-- Vault management (sell, upgrade) only happens here, at your own terminal.
-		billboardSign(terminal, "🏆 MANAGE VAULT", "Sell • Upgrade", C.Gold, 45, 3.2, 7)
+		billboardSign(terminal, "🏆 MANAGE VAULT", "Sell • Upgrade", C.Gold, 45, 4.5, 6)
 		local displays = folder("Displays", plotFolder)
 		table.insert(plots, {
 			Index = i,
@@ -1320,7 +1321,7 @@ local function buildWaterfall()
 	})
 	local lookout = part({ Name = "Lookout", Size = Vector3.new(16, 1, 16), CFrame = CFrame.new(-40, topY + 0.5, w.CliffCenter.Z), Color = C.Wood, Material = Enum.Material.WoodPlanks, Parent = falls })
 	dressMountain(falls)
-	billboardSign(sheet, "GIANT WATERFALL", nil, Color3.fromRGB(170, 235, 255), 900, sheet.Size.Y / 2 + LANDMARK_LIFT + 10)
+	billboardSign(sheet, "GIANT WATERFALL", nil, Color3.fromRGB(170, 235, 255), 650, sheet.Size.Y / 2 + LANDMARK_LIFT + 10)
 	return lookout
 end
 
@@ -1369,7 +1370,7 @@ local function buildTemple()
 		CanQuery = false,
 		Parent = temple,
 	})
-	billboardSign(beacon, "ANCIENT TEMPLE", nil, C.Gold, 900, LANDMARK_LIFT)
+	billboardSign(beacon, "ANCIENT TEMPLE", nil, C.Gold, 650, LANDMARK_LIFT)
 
 	-- Giant statues guarding the courtyard
 	for _, x in { -35, 35 } do
@@ -1405,7 +1406,7 @@ local function buildShipwreck()
 	part({ Name = "Mast", Shape = Enum.PartType.Cylinder, Size = Vector3.new(38, 2, 2), CFrame = mastCf * CFrame.Angles(0, 0, math.rad(90)), Color = C.Wood, Material = Enum.Material.Wood, Parent = ship })
 	part({ Name = "Sail", Size = Vector3.new(0.4, 14, 20), CFrame = mastCf * CFrame.new(0, 6, 0) * CFrame.Angles(0, math.rad(90), math.rad(8)), Color = Color3.fromRGB(235, 225, 200), Material = Enum.Material.Fabric, Parent = ship })
 	local flag = part({ Name = "Flag", Size = Vector3.new(0.2, 4, 6), CFrame = mastCf * CFrame.new(0, 20, 3), Color = Color3.fromRGB(25, 25, 30), Material = Enum.Material.Fabric, CanCollide = false, Parent = ship })
-	billboardSign(flag, "SHIPWRECK COAST", nil, Color3.fromRGB(255, 240, 200), 900, LANDMARK_LIFT)
+	billboardSign(flag, "SHIPWRECK COAST", nil, Color3.fromRGB(255, 240, 200), 650, LANDMARK_LIFT)
 	-- Crates as steps onto the deck
 	for i, off in { Vector3.new(22, -3, 12), Vector3.new(16, -1, 14), Vector3.new(10, 1, 13) } do
 		local size = 6 - i
@@ -1537,8 +1538,10 @@ local function buildExtractionZones()
 		light.Parent = anchor
 		-- Sign above the shrine: what you get for extracting here.
 		local blessing = if (category.MutationChance or 0) > 0 then (" • %d%% MUTATION"):format(math.floor(category.MutationChance * 100 + 0.5)) else ""
-		local signAnchor = part({ Name = "SignAnchor", Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(top + Vector3.new(0, 11, 0)), Transparency = 1, CanCollide = false, CanQuery = false, CastShadow = false, Parent = zf })
-		billboardSign(signAnchor, ("⬆ %s"):format(zone.Name:upper()), ("%s EXTRACTION • x%.1f FEE%s"):format(category.Label, category.Bonus, blessing), color, if secret then 60 else 600, 0)
+		-- High, world-sized (shrinks with distance) and only nearby: the balloon and smoke
+		-- column are what you spot from afar.
+		local signAnchor = part({ Name = "SignAnchor", Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(top + Vector3.new(0, 19, 0)), Transparency = 1, CanCollide = false, CanQuery = false, CastShadow = false, Parent = zf })
+		billboardSign(signAnchor, ("⬆ %s"):format(zone.Name:upper()), ("%s EXIT • x%.1f%s"):format(category.Label, category.Bonus, blessing), color, if secret then 60 else 220, 0, 11)
 
 		if zone.Id == "expedition_camp" then
 			for i, off in { Vector3.new(-24, 0, -9), Vector3.new(24, 0, -6), Vector3.new(-18, 0, 21) } do
@@ -1806,6 +1809,11 @@ function WorldBuilder.Build()
 	buildShipwreck()
 	buildLighthouse()
 	local secrets = Secrets.Build(terrain, world, rng)
+	-- The Falls: a jungle river valley at the foot of the mountain (river, lagoon, idol, cascades).
+	local falls = Falls.Build(terrain, world, rng, groundAt)
+	for _, a in falls.Avoid do
+		table.insert(secrets.Avoid, a)
+	end
 	-- The Deep South: Emberfall, Rimeheart and the Starfall Isles beyond the Waterfall Mountain.
 	local south = DeepSouth.Build(terrain, world, rng, groundAt)
 	for _, info in south.Spawns do

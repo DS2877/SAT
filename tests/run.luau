@@ -214,9 +214,25 @@ test("bench tiers: ordered, ascension-gated, and every ascension climb takes a s
 		local requirement = GameConfig.GetAscensionRequirement(level)
 		local minutes = (requirement - GameConfig.Strength.Start) / best / 60
 		check(requirement > previousRequirement, ("requirement grows at ascension %d"):format(level))
-		check(minutes >= 8 and minutes <= 50, ("ascension %d climb takes %.1f min (8-50)"):format(level, minutes))
+		-- The first Ascension is deliberately quick (10K): a new player should reach it early.
+		local low = if level == 0 then 3 else 8
+		check(minutes >= low and minutes <= 50, ("ascension %d climb takes %.1f min (%d-50)"):format(level, minutes, low))
 		previousRequirement = requirement
 	end
+	check(GameConfig.GetAscensionRequirement(0) == 10000, "the first Ascension needs 10,000 Strength")
+	-- Banking treasure makes you stronger too: worth a real chunk of benching, never more than it.
+	for level = 0, 3 do
+		local bestBench = 0
+		for _, tier in tiers do
+			if tier.RequiredAscension <= level then
+				bestBench = math.max(bestBench, Lifting.ExpectedRate(GameConfig.GetRepGain(tier, level), 600))
+			end
+		end
+		local rareBank = GameConfig.ExtractionStrength(1000, level)
+		local seconds = rareBank / bestBench
+		check(seconds >= 3 and seconds <= 120, ("banking a Rare at Ascension %d = %.0f s of your best bench (3-120)"):format(level, seconds))
+	end
+	check(GameConfig.ExtractionStrength(300, 0) >= 250, "even a Common bank gives a real Strength bump")
 	check(GameConfig.GetTrainingMultiplier(3) > GameConfig.GetTrainingMultiplier(2), "training speeds up every ascension")
 	check(GameConfig.GetRepGain(tiers[1], 0) >= 5, "even the first rep pays out a satisfying number")
 	check(GameConfig.Training.CritChance > 0 and GameConfig.Training.CritMultiplier > 1, "MEGA REP jackpot exists")
@@ -830,6 +846,23 @@ test("every treasure has its own hand-built model", function()
 	for _, def in Treasures.List do
 		check(source:find("Models." .. def.Id .. " = function", 1, true) ~= nil, "custom model for " .. def.Id)
 	end
+end)
+
+test("ascension keeps tutorial progress (milestones, tutorial step, stats)", function()
+	local AscensionReset = require("../src/shared/Logic/AscensionReset")
+	local data = DataSchema.Default()
+	data.Milestones = { FirstTraining = 1, FirstTreasure = 2, FirstExtraction = 3, FirstCollect = 4, FirstGadgetBought = 5 }
+	data.TutorialStep = 7
+	data.Stats.Extractions = 12
+	data.OwnedGadgets = { speed_soda = true }
+	AscensionReset.Apply(data, 1, "Ascended", GameConfig, function()
+		return 1
+	end)
+	check(next(data.OwnedGadgets) == nil, "gadgets are wiped by Ascension")
+	for name in { FirstTraining = true, FirstTreasure = true, FirstExtraction = true, FirstCollect = true, FirstGadgetBought = true } do
+		check(data.Milestones[name] ~= nil, name .. " survives Ascension")
+	end
+	check(data.TutorialStep == 7 and data.Stats.Extractions == 12, "tutorial step and stats survive")
 end)
 
 test("bats: a free starter, 3 cash upgrades, 7 more behind Ascension, each slapping further", function()

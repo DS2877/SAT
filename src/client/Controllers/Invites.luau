@@ -39,8 +39,20 @@ local function friendBonusFull(): boolean
 	return friends * free.FriendIncomeBonus >= free.FriendIncomeMax - 1e-6
 end
 
+-- The card is anchored on its right edge, so "off screen" means a whole card-width past it.
+local HIDDEN = UDim2.new(1, 320, 0.36, 0)
+local hideToken = 0
+
 local function hide()
-	Kit.tween(card, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Position = UDim2.new(1, 20, 0.36, 0) })
+	hideToken += 1
+	local token = hideToken
+	lastShown = os.clock() -- also cancels a pending auto-hide
+	Kit.tween(card, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Position = HIDDEN })
+	task.delay(0.26, function()
+		if token == hideToken then
+			card.Visible = false
+		end
+	end)
 end
 
 local function offer(reason: string, delaySeconds: number?)
@@ -50,8 +62,9 @@ local function offer(reason: string, delaySeconds: number?)
 	lastShown = os.clock()
 	shownCount += 1
 	task.delay(delaySeconds or 1.5, function()
+		hideToken += 1 -- a new card wins over a hide still finishing
 		headline.Text = reason
-		card.Position = UDim2.new(1, 20, 0.36, 0)
+		card.Position = HIDDEN
 		card.Visible = true
 		Kit.tween(card, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Position = UDim2.new(1, -12, 0.36, 0) })
 		Sounds.Play("Click", 0.4)
@@ -68,7 +81,7 @@ local function build(gui: ScreenGui)
 	card = Kit.panel({
 		Name = "InviteCard",
 		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, 20, 0.36, 0),
+		Position = HIDDEN,
 		Size = UDim2.fromOffset(270, 96),
 		Visible = false,
 		ZIndex = 30,
@@ -148,7 +161,7 @@ function Invites.Init(gui: ScreenGui)
 		elseif payload.Type == "Extracted" and (payload.First or rank(payload.TreasureId) >= Rarities.Rank("Epic")) then
 			offer(if payload.First then "🎉 YOUR FIRST BANK!" else "💰 BIG BANK!", if payload.First then 7 else 3)
 		elseif payload.Type == "EventStarted" then
-			offer("🌧 LOOT EVENT - BRING FRIENDS!", 1)
+			offer("🎉 EVENT ON - BRING FRIENDS!", 1)
 		elseif payload.Type == "SecretFound" then
 			offer("🔍 SECRET FOUND - SHOW THEM!", 3)
 		end
