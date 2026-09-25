@@ -1028,6 +1028,374 @@ Models.frostbane = function(k)
 	frostbaneFx(k)
 end
 
+-- DEEP SOUTH: shared pieces ---------------------------------------------------------------
+
+-- Flat triangular spike in the CFrame's XY plane, base centred on the CFrame, tip along +Y.
+local function spike2d(k: Kit, cf: CFrame, base: number, height: number, thick: number, color: Color3, mat: Enum.Material, extra)
+	local frame = cf * CFrame.Angles(0, rad(90), 0)
+	k.wedge(thick, height, base / 2, frame * CFrame.new(0, height * k.s / 2, -base * k.s / 4), color, mat, extra)
+	k.wedge(thick, height, base / 2, frame * CFrame.new(0, height * k.s / 2, base * k.s / 4) * CFrame.Angles(0, math.pi, 0), color, mat, extra)
+end
+
+-- Five-point star lying in the CFrame's XY plane (faces along Z).
+local function starShape(k: Kit, cf: CFrame, radius: number, thick: number, color: Color3, mat: Enum.Material, extra)
+	for i = 0, 4 do
+		spike2d(k, cf * CFrame.Angles(0, 0, rad(i * 72)) * CFrame.new(0, radius * 0.3 * k.s, 0), radius * 0.62, radius * 0.72, thick, color, mat, extra)
+	end
+	k.cyl(thick, radius * 0.75, cf * CFrame.Angles(0, rad(90), 0), color, mat, extra)
+end
+
+-- CFrame on a ring of radius r at angle a, its Y axis leaning `lean` degrees outward.
+local function onRing(k: Kit, a: number, r: number, y: number, lean: number): CFrame
+	return k.at(math.cos(a) * r, y, math.sin(a) * r, 0, -math.deg(a), -lean)
+end
+
+local LAVA = C(255, 110, 25)
+local ICE = C(200, 240, 255)
+local AURORA = { C(0, 229, 255), C(80, 255, 170), C(170, 110, 255), C(255, 120, 220), C(120, 255, 220) }
+
+-- EMBERFALL ---------------------------------------------------------------------------------
+
+Models.obsidian_shard = function(k)
+	local glass = C(30, 22, 40)
+	k.ball(1.6, 0.35, 1.3, k.at(0, -0.78, 0), C(60, 45, 40), M.Basalt)
+	crystal(k, 0, 0, 1.9, 0.6, 4, glass, M.Glass)
+	crystal(k, 0.45, 0.2, 1.1, 0.4, -28, glass, M.Glass)
+	crystal(k, -0.45, -0.1, 1.3, 0.42, 24, glass, M.Glass)
+	crystal(k, 0.1, 0.45, 0.8, 0.3, -10, glass, M.Glass)
+	-- Red-hot veins glowing through the black glass.
+	for i = 0, 2 do
+		k.box(0.06, 0.6, 0.06, k.at(-0.08 + i * 0.08, -0.35 + i * 0.4, -0.31, 0, 0, (i - 1) * 25), C(255, 60, 20), M.Neon)
+	end
+	k.box(0.05, 0.4, 0.05, k.at(-0.52, -0.2, -0.3, 0, 0, 30), C(255, 90, 30), M.Neon)
+end
+
+Models.ember_lantern = function(k)
+	local iron = C(50, 45, 45)
+	k.box(1.1, 0.14, 1.1, k.at(0, -0.8, 0), iron, M.Metal)
+	k.box(0.95, 0.12, 0.95, k.at(0, 0.55, 0), iron, M.Metal)
+	for _, x in { -0.48, 0.48 } do
+		for _, z in { -0.48, 0.48 } do
+			k.box(0.1, 1.35, 0.1, k.at(x, -0.12, z), iron, M.Metal)
+		end
+	end
+	k.box(0.88, 1.25, 0.88, k.at(0, -0.12, 0), C(255, 190, 120), M.Glass, { T = 0.55 })
+	-- A fat, angry flame: stacked teardrops, hotter toward the tip.
+	k.ball(0.6, 0.7, 0.6, k.at(0, -0.38, 0), C(255, 100, 20), M.Neon)
+	k.ball(0.38, 0.6, 0.38, k.at(0, 0.0, 0), C(255, 190, 60), M.Neon)
+	k.ball(0.16, 0.3, 0.16, k.at(0.04, 0.3, 0), C(255, 245, 190), M.Neon)
+	k.cone(0.5, 0.95, 3, k.at(0, 0.6, 0), iron, M.Metal)
+	k.torus(0.2, 0.07, 10, k.at(0, 1.22, 0), iron, M.Metal)
+end
+
+Models.salamander_scale = function(k)
+	local red = k.main
+	k.ball(1.9, 2.1, 0.35, k.at(0, 0.2, 0, -10, 0, 0), red, M.Glass, { R = 0.15 })
+	k.ball(1.45, 1.65, 0.3, k.at(0, 0.15, -0.06, -10, 0, 0), red:Lerp(C(255, 190, 60), 0.4), M.Glass)
+	-- A glowing ridge down the middle, ribs sweeping out like a leaf.
+	k.box(0.1, 1.6, 0.1, k.at(0, 0.2, -0.24, -10, 0, 0), C(255, 210, 90), M.Neon)
+	for _, i in { -2, -1, 1, 2 } do
+		k.box(0.08, 0.6, 0.08, k.at(i * 0.28, 0.25 - math.abs(i) * 0.1, -0.22, -10, 0, i * -24), C(255, 150, 50), M.Neon)
+	end
+	k.box(1.0, 0.18, 0.6, k.at(0, -0.84, 0.12), C(60, 40, 35), M.Basalt)
+end
+
+Models.molten_crown = function(k)
+	local rock = C(45, 35, 35)
+	k.torus(0.88, 0.32, 14, k.at(0, -0.5, 0, 90, 0, 0), rock, M.Basalt)
+	k.torus(0.9, 0.1, 16, k.at(0, -0.36, 0, 90, 0, 0), LAVA, M.Neon)
+	for i = 1, 7 do
+		local a = i / 7 * 2 * math.pi
+		local tall = i % 2 == 0
+		k.cone(if tall then 1.3 else 0.95, 0.36, 4, onRing(k, a, 0.88, -0.38, 12), if tall then C(255, 200, 90) else LAVA, M.Neon)
+	end
+	-- Lava dripping off the band.
+	for i = 1, 6 do
+		local a = i / 6 * 2 * math.pi + 0.3
+		k.ball(0.14, 0.34, 0.14, k.at(math.cos(a) * 0.98, -0.78, math.sin(a) * 0.98), LAVA, M.Neon)
+	end
+	k.ball(0.4, 0.5, 0.22, k.at(0, -0.48, -1.02), C(255, 40, 20), M.Glass)
+end
+
+Models.forge_hammer = function(k)
+	local steel = k.main
+	k.vcyl(1.8, 0.22, k.at(0, 0, 0), C(90, 60, 40), M.Wood)
+	for i = 0, 3 do
+		k.vcyl(0.1, 0.27, k.at(0, -0.72 + i * 0.16, 0), C(60, 40, 30), M.Fabric)
+	end
+	k.vcyl(0.14, 0.36, k.at(0, -0.86, 0), steel, M.Metal)
+	-- A head the size of an anvil, its faces still glowing from the forge.
+	k.box(1.4, 0.8, 0.8, k.at(0, 0.95, 0), steel, M.Metal)
+	for _, side in { -1, 1 } do
+		k.box(0.22, 0.95, 0.95, k.at(side * 0.75, 0.95, 0), steel:Lerp(WHITE, 0.15), M.Metal)
+		k.box(0.04, 0.8, 0.8, k.at(side * 0.87, 0.95, 0), C(255, 120, 30), M.Neon)
+		k.box(0.08, 0.84, 0.84, k.at(side * 0.38, 0.95, 0), GOLD, M.Metal)
+	end
+	for i = -1, 1 do
+		k.box(0.12, 0.3, 0.04, k.at(i * 0.14, 0.95, -0.41), C(255, 170, 60), M.Neon)
+	end
+end
+
+Models.heart_of_cinder = function(k)
+	local rock = C(40, 30, 30)
+	k.ball(1.2, 0.3, 1.0, k.at(0, -0.82, 0), C(70, 50, 40), M.Basalt)
+	heart(k, 0.15, 2.0, rock, M.Basalt)
+	-- Lava running through the cracks.
+	local cracks = {
+		{ -0.4, 0.75, 30, 0.45 },
+		{ -0.2, 0.4, -35, 0.45 },
+		{ 0.02, 0.05, 40, 0.5 },
+		{ 0.38, 0.62, -20, 0.5 },
+		{ 0.22, 0.28, 55, 0.35 },
+		{ 0, -0.35, -10, 0.4 },
+	}
+	for _, c in cracks do
+		k.box(0.07, c[4], 0.06, k.at(c[1], c[2], -0.48, 0, 0, c[3]), LAVA, M.Neon)
+	end
+	-- Stubby veins on top, still smoking hot.
+	for _, x in { -0.25, 0.15 } do
+		k.vcyl(0.35, 0.28, k.at(x, 1.12, 0.05), rock, M.Basalt)
+		k.vcyl(0.05, 0.2, k.at(x, 1.3, 0.05), LAVA, M.Neon)
+	end
+end
+
+Models.phoenix_egg = function(k)
+	k.ball(1.4, 0.3, 1.4, k.at(0, -0.8, 0), C(60, 40, 30), M.Basalt)
+	-- Flame feathers cradling the egg, fanned outward.
+	for i = 1, 8 do
+		local a = i / 8 * 2 * math.pi
+		local base = onRing(k, a, 0.72, -0.55, 35)
+		k.ball(0.08, 0.95, 0.4, base * CFrame.new(0, 0.3 * k.s, 0), C(255, 70, 20), M.Neon)
+		k.ball(0.07, 0.4, 0.22, base * CFrame.new(0, 0.8 * k.s, 0), C(255, 210, 60), M.Neon)
+	end
+	k.ball(1.5, 1.95, 1.5, k.at(0, 0.2, 0), C(235, 95, 30), M.Metal, { R = 0.2 })
+	k.torus(0.74, 0.08, 16, k.at(0, 0.2, 0, 90, 0, 15), C(255, 210, 70), M.Neon)
+	-- It's hatching: a zigzag crack of light across the front.
+	for i = 0, 3 do
+		k.box(0.07, 0.32, 0.06, k.at(-0.3 + i * 0.2, 0.6 + (i % 2) * 0.12, -0.72, 0, 0, if i % 2 == 0 then -40 else 40), C(255, 245, 190), M.Neon)
+	end
+end
+
+-- RIMEHEART ---------------------------------------------------------------------------------
+
+Models.glacier_pearl = function(k)
+	k.ball(1.9, 0.5, 1.5, k.at(0, -0.65, 0), ICE, M.Glass, { T = 0.3 })
+	k.ball(1.9, 0.5, 1.5, k.at(0, 0.3, 0.6, -55, 0, 0), ICE, M.Glass, { T = 0.3 })
+	for i = -2, 2 do
+		k.box(0.05, 0.05, 1.2, k.at(i * 0.3, 0.32, 0.62, -55, i * 10, 0), WHITE, M.Ice)
+	end
+	-- The pearl, huge and moon-bright.
+	k.ball(1.0, 1.0, 1.0, k.at(0, -0.15, -0.05), C(245, 250, 255), M.SmoothPlastic, { R = 0.35 })
+	k.ball(0.5, 0.5, 0.5, k.at(-0.12, 0.0, -0.3), WHITE, M.Neon, { T = 0.6 })
+	for _, x in { -0.85, 0.85 } do
+		shard(k, k.at(x, -0.8, -0.35, 0, 0, x * -25), 0.14, 0.35, ICE, M.Glass)
+	end
+end
+
+Models.frozen_compass = function(k)
+	-- A brass compass trapped in a block of ice, needle frozen mid-spin.
+	k.cyl(0.2, 1.25, k.at(0, 0, 0, 0, 90, 0), GOLD, M.Metal, { R = 0.2 })
+	k.cyl(0.05, 1.05, k.at(0, 0, -0.1, 0, 90, 0), C(240, 230, 200), M.SmoothPlastic)
+	k.box(0.1, 0.45, 0.03, k.at(0.07, 0.19, -0.14, 0, 0, -20), C(220, 40, 40), M.Neon)
+	k.box(0.1, 0.45, 0.03, k.at(-0.07, -0.19, -0.14, 0, 0, -20), WHITE, M.SmoothPlastic)
+	k.torus(0.12, 0.05, 8, k.at(0, 0.7, 0), GOLD, M.Metal)
+	k.box(1.75, 1.75, 1.75, k.at(0, 0, 0, 0, 20, 0), C(190, 235, 255), M.Glass, { T = 0.55 })
+	k.box(1.8, 0.16, 1.8, k.at(0, 0.95, 0, 0, 20, 0), WHITE, M.Snow)
+	for i = 1, 3 do
+		k.box(0.08, 0.3 + i * 0.1, 0.08, k.at(-0.6 + i * 0.3, -0.72 - i * 0.02, -0.72, 0, 20, 0), WHITE, M.Ice)
+	end
+end
+
+Models.wyrm_fang = function(k)
+	k.vcyl(0.4, 0.95, k.at(-0.35, -0.72, 0), C(120, 170, 200), M.Ice)
+	for i = 0, 8 do
+		local t = i / 8
+		local d = 0.85 * (1 - t * 0.85)
+		k.ball(d, 0.45, d, k.at(-0.35 + t * t * 0.9, -0.62 + t * 1.85, 0, 0, 0, -t * 40), k.main:Lerp(C(255, 250, 235), t), M.Marble)
+	end
+	k.torus(0.4, 0.07, 10, k.at(-0.35, -0.42, 0, 90, 0, 0), C(160, 230, 255), M.Neon)
+	k.ball(0.28, 0.34, 0.18, k.at(-0.35, -0.2, -0.38), C(60, 170, 255), M.Neon)
+end
+
+Models.aurora_harp = function(k)
+	local frame = C(225, 240, 255)
+	k.ball(1.4, 0.25, 0.8, k.at(-0.1, -0.82, 0), WHITE, M.Snow)
+	k.vcyl(2.05, 0.2, k.at(-0.8, 0.22, 0), frame, M.Marble)
+	-- Soundbox slanting up from the pillar's foot, a swan-neck curling across the top.
+	k.box(0.3, 2.4, 0.4, k.at(0.05, 0.1, 0, 0, 0, -39.8), frame, M.Marble)
+	for i = 0, 8 do
+		local t = i / 8
+		k.ball(0.24, 0.24, 0.24, k.at(-0.8 + 1.6 * t, 1.15 + 0.12 * math.sin(2 * math.pi * t) - 0.1 * t, 0), GOLD, M.Metal)
+	end
+	-- Strings of light, each a different colour of the aurora.
+	for i = 0, 6 do
+		local x = -0.6 + i * 0.2
+		local t = (x + 0.8) / 1.6
+		local top = 1.1 + 0.12 * math.sin(2 * math.pi * t) - 0.1 * t
+		local bottom = -0.8 + (x + 0.7) * 1.2 + 0.12
+		k.box(0.05, top - bottom, 0.05, k.at(x, (top + bottom) / 2, 0), AURORA[i % #AURORA + 1], M.Neon)
+	end
+end
+
+Models.crown_of_winter = function(k)
+	local silver = C(200, 215, 235)
+	k.torus(0.8, 0.24, 16, k.at(0, -0.5, 0, 90, 0, 0), silver, M.Metal, { R = 0.3 })
+	k.torus(0.82, 0.07, 18, k.at(0, -0.34, 0, 90, 0, 0), C(150, 230, 255), M.Neon)
+	for i = 1, 9 do
+		local a = i / 9 * 2 * math.pi
+		local height = if i % 3 == 0 then 1.35 elseif i % 3 == 1 then 0.9 else 0.65
+		shard(k, onRing(k, a, 0.8, -0.42, 10), 0.22, height, k.main, M.Glass, { T = 0.15 })
+	end
+	k.ball(0.45, 0.55, 0.24, k.at(0, -0.48, -0.9), C(40, 120, 255), M.Glass)
+	k.ball(0.2, 0.25, 0.1, k.at(0, -0.46, -1.0), C(150, 220, 255), M.Neon)
+	for i = 1, 4 do
+		local a = i / 4 * 2 * math.pi + 0.4
+		k.ball(0.3, 0.22, 0.3, k.at(math.cos(a) * 0.85, -0.66, math.sin(a) * 0.85), WHITE, M.Snow)
+	end
+end
+
+Models.everfrost_core = function(k)
+	k.ball(1.6, 0.25, 1.6, k.at(0, -0.85, 0), ICE, M.Ice)
+	-- A diamond of ice standing on its tip, a cold sun burning inside.
+	k.box(1.2, 1.2, 1.2, k.at(0, 0.25, 0, 45, 0, 35.26), k.main:Lerp(WHITE, 0.3), M.Glass, { T = 0.35 })
+	k.ball(0.75, 0.75, 0.75, k.at(0, 0.25, 0), C(160, 245, 255), M.Neon)
+	k.torus(1.05, 0.06, 20, k.at(0, 0.25, 0, 75, 0, 0), C(120, 220, 255), M.Neon, { T = 0.2 })
+	k.torus(0.95, 0.05, 18, k.at(0, 0.25, 0, 75, 60, 0), C(200, 250, 255), M.Neon, { T = 0.3 })
+	for i = 1, 4 do
+		local a = i / 4 * 2 * math.pi + 0.5
+		k.box(0.24, 0.24, 0.24, k.at(math.cos(a) * 1.0, 0.25 + math.sin(a * 2) * 0.35, math.sin(a) * 1.0, 45, 0, 35.26), ICE, M.Glass)
+	end
+end
+
+-- STARFALL ISLES ----------------------------------------------------------------------------
+
+Models.moondust_pouch = function(k)
+	k.ball(1.4, 1.3, 1.3, k.at(0, -0.3, 0), k.main, M.Fabric)
+	k.vcyl(0.3, 0.6, k.at(0, 0.45, 0), k.main, M.Fabric)
+	k.torus(0.32, 0.08, 10, k.at(0, 0.4, 0, 90, 0, 0), GOLD, M.Metal)
+	k.ball(0.85, 0.3, 0.85, k.at(0, 0.66, 0), k.main:Lerp(WHITE, 0.2), M.Fabric)
+	-- A crescent moon stitched on the front.
+	k.ball(0.5, 0.5, 0.05, k.at(0, -0.25, -0.66), C(255, 240, 180), M.Neon)
+	k.ball(0.42, 0.42, 0.06, k.at(0.13, -0.19, -0.68), k.main, M.Fabric)
+	-- Glowing dust heaped in the mouth and spilling over the side.
+	k.ball(0.6, 0.35, 0.6, k.at(0, 0.8, 0), C(225, 215, 255), M.Neon)
+	for i = 1, 6 do
+		local t = i / 6
+		local size = 0.3 * (1 - t * 0.6)
+		k.ball(size, size, size, k.at(0.3 + t * 0.75, 0.75 - t * t * 1.4, -0.1), C(225, 215, 255):Lerp(C(150, 220, 255), t), M.Neon, { T = t * 0.4 })
+	end
+end
+
+Models.stardust_vial = function(k)
+	-- A tall vial in a little gold cage, swirling with gold dust.
+	k.vcyl(1.5, 0.75, k.at(0, 0.1, 0), C(230, 240, 255), M.Glass, { T = 0.6 })
+	k.ball(0.75, 0.45, 0.75, k.at(0, -0.65, 0), C(230, 240, 255), M.Glass, { T = 0.6 })
+	k.vcyl(0.9, 0.6, k.at(0, -0.3, 0), C(255, 215, 100), M.Neon, { T = 0.25 })
+	for i = 1, 5 do
+		local a = i * 1.3
+		k.box(0.08, 0.08, 0.08, k.at(math.cos(a) * 0.2, 0.2 + i * 0.1, math.sin(a) * 0.2, 45, 45, 0), WHITE, M.Neon)
+	end
+	k.vcyl(0.3, 0.55, k.at(0, 0.98, 0), C(160, 110, 70), M.Wood)
+	for _, y in { -0.55, 0.55 } do
+		k.torus(0.44, 0.07, 12, k.at(0, y, 0, 90, 0, 0), GOLD, M.Metal)
+	end
+	for i = 1, 3 do
+		local a = i / 3 * 2 * math.pi
+		k.box(0.07, 1.4, 0.07, k.at(math.cos(a) * 0.44, 0, math.sin(a) * 0.44), GOLD, M.Metal)
+	end
+	starShape(k, k.at(0.5, 0.95, -0.2, 0, 0, 15), 0.22, 0.06, GOLD, M.Metal)
+end
+
+Models.comet_shard = function(k)
+	k.ball(0.55, 0.4, 0.5, k.at(0.7, -0.75, 0.2), C(70, 70, 90), M.Slate)
+	-- The shard, blazing, its tail streaming up behind it.
+	k.box(1.0, 1.0, 1.0, k.at(0.45, -0.28, 0, 45, 0, 35.26), C(200, 240, 255), M.Glass, { T = 0.3 })
+	k.box(0.65, 0.65, 0.65, k.at(0.45, -0.28, 0, 45, 0, 35.26), C(220, 245, 255), M.Neon)
+	for i = 1, 7 do
+		local t = i / 7
+		local size = 0.8 * (1 - t * 0.7)
+		k.ball(size, size * 1.7, size, k.at(0.45 - t * 1.3, -0.25 + t * 1.45, 0, 0, 0, 41), C(150, 220, 255):Lerp(C(190, 120, 255), t), M.Neon, { T = 0.1 + t * 0.5 })
+	end
+	for i = 1, 4 do
+		k.box(0.1, 0.1, 0.1, k.at(-0.2 + i * 0.12, 0.4 + (i % 2) * 0.35, 0.3 - i * 0.12, 45, 45, 0), WHITE, M.Neon)
+	end
+end
+
+Models.astrolabe = function(k)
+	local gold = k.main
+	k.vcyl(0.22, 0.9, k.at(0, -0.82, 0), DARK, M.Metal)
+	k.vcyl(2.05, 0.06, k.at(0, 0.3, 0), gold, M.Metal)
+	-- Rings inside rings, each tilted to its own sky.
+	k.torus(1.0, 0.1, 22, k.at(0, 0.3, 0), gold, M.Metal, { R = 0.3 })
+	k.torus(0.8, 0.09, 18, k.at(0, 0.3, 0, 0, 60, 0), gold, M.Metal, { R = 0.3 })
+	k.torus(0.62, 0.08, 14, k.at(0, 0.3, 0, 90, 0, 0), C(170, 210, 255), M.Metal, { R = 0.3 })
+	k.torus(0.45, 0.07, 12, k.at(0, 0.3, 0, 40, -30, 0), gold, M.Metal)
+	-- Tiny planets riding the rings.
+	local planets = { { 1.0, 0.3, 0, C(255, 120, 80) }, { -0.4, 0.3 + 0.69, 0.4, C(120, 200, 255) }, { 0, 0.3, -0.62, C(170, 255, 170) } }
+	for _, p in planets do
+		k.ball(0.2, 0.2, 0.2, k.at(p[1], p[2], p[3]), p[4], M.Neon)
+	end
+	k.ball(0.32, 0.32, 0.32, k.at(0, 0.3, 0), C(255, 240, 180), M.Neon)
+	starShape(k, k.at(0, 0.3, 0), 0.32, 0.06, C(255, 250, 220), M.Neon)
+end
+
+Models.nebula_orb = function(k)
+	local metal = C(40, 30, 60)
+	k.vcyl(0.2, 1.0, k.at(0, -0.8, 0), metal, M.Metal)
+	for i = 1, 3 do
+		local a = i / 3 * 2 * math.pi
+		k.box(0.12, 0.6, 0.12, onRing(k, a, 0.45, -0.72, 35) * CFrame.new(0, 0.3 * k.s, 0), metal, M.Metal)
+	end
+	-- A whole galaxy in a glass ball: swirling clouds and pinprick stars.
+	local clouds = {
+		{ -0.3, 0.45, 0.1, 1.15, C(190, 90, 255) },
+		{ 0.3, 0.15, -0.1, 1.0, C(255, 110, 210) },
+		{ 0.05, 0.7, -0.25, 0.8, C(90, 220, 255) },
+		{ 0, 0.1, 0.25, 0.75, C(120, 80, 255) },
+	}
+	for _, c in clouds do
+		k.ball(c[4], c[4] * 0.7, c[4], k.at(c[1], c[2], c[3], 0, 0, 20), c[5], M.Neon, { T = 0.35 })
+	end
+	for i = 0, 9 do
+		local a = i * 0.7
+		local r = 0.1 + i * 0.06
+		k.ball(0.1, 0.1, 0.1, k.at(math.cos(a) * r, 0.3 + math.sin(a * 1.7) * 0.2, math.sin(a) * r), WHITE, M.Neon)
+	end
+	k.ball(1.9, 1.9, 1.9, k.at(0, 0.3, 0), C(220, 200, 255), M.Glass, { T = 0.7 })
+end
+
+Models.fallen_star = function(k)
+	-- Crater: a glowing floor ringed by smashed rock.
+	k.ball(1.7, 0.2, 1.7, k.at(0, -0.85, 0), C(255, 180, 60), M.Neon)
+	for i = 1, 9 do
+		local a = i / 9 * 2 * math.pi
+		k.ball(0.5, 0.3, 0.4, k.at(math.cos(a) * 0.95, -0.78, math.sin(a) * 0.95, 0, -math.deg(a), 20), C(60, 50, 60), M.Basalt)
+	end
+	-- The star itself, stuck in at an angle, blazing.
+	local cf = k.at(0, 0.3, 0, -10, 0, 8)
+	starShape(k, cf, 1.0, 0.35, k.main, M.Neon)
+	k.ball(0.6, 0.6, 0.5, cf, C(255, 250, 220), M.Neon)
+	starShape(k, cf * CFrame.new(0, 0, -0.2 * k.s), 0.55, 0.06, WHITE, M.Neon, { T = 0.2 })
+end
+
+Models.celestial_crown = function(k)
+	local gold = C(255, 235, 170)
+	local divine = C(0, 229, 255)
+	k.torus(0.82, 0.28, 16, k.at(0, -0.5, 0, 90, 0, 0), gold, M.Metal, { R = 0.3 })
+	k.torus(0.85, 0.07, 18, k.at(0, -0.32, 0, 90, 0, 0), divine, M.Neon)
+	k.torus(0.85, 0.07, 18, k.at(0, -0.68, 0, 90, 0, 0), divine, M.Neon)
+	for i = 1, 5 do
+		local a = i / 5 * 2 * math.pi + math.pi / 2
+		k.cone(0.9, 0.28, 4, onRing(k, a, 0.82, -0.4, 8), gold, M.Metal)
+		starShape(k, k.at(math.cos(a) * 0.92, 0.62, math.sin(a) * 0.92, 0, 90 - math.deg(a), 0), 0.26, 0.08, WHITE, M.Neon)
+		local b = a + math.pi / 5
+		k.ball(0.22, 0.28, 0.12, k.at(math.cos(b) * 0.99, -0.5, math.sin(b) * 0.99, 0, 90 - math.deg(b), 0), if i % 2 == 0 then divine else C(200, 120, 255), M.Glass)
+	end
+	-- A star hovering over the crown, with a halo.
+	starShape(k, k.at(0, 0.85, 0), 0.45, 0.14, C(255, 250, 220), M.Neon)
+	k.torus(0.55, 0.05, 18, k.at(0, 1.32, 0, 90, 0, 0), divine, M.Neon, { T = 0.2 })
+end
+
 -- OG ----------------------------------------------------------------------------------------
 
 Models.first_doubloon = function(k)

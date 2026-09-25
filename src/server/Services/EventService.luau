@@ -1,6 +1,7 @@
 -- Server events: rare, announced moments that pull players to ONE REGION of the island
 -- (Wilds / Ruins / Coast / Falls) - never the whole map, so the rest stays calm and players
--- choose whether to rush over. Treasure Rain is a DAYTIME event (the only daytime loot);
+-- choose whether to rush over. Treasure Rain and the Deep South storms (RegionStorms) are
+-- DAYTIME events;
 -- Cursed Hour and Gold Rush are NIGHT modifiers that shape tonight's loot wave in one region
 -- (rolled at nightfall by DayCycle, or forced by admins). One event at a time. State is published as workspace attributes
 -- so every client (and late joiners) can show it without extra remotes:
@@ -24,6 +25,7 @@ local Net = require(Shared.Net)
 
 local TreasureService = require(script.Parent.TreasureService)
 local Analytics = require(script.Parent.Analytics)
+local RegionStorms = require(script.Parent.RegionStorms)
 
 local EventService = {}
 
@@ -130,6 +132,13 @@ function Runners.TreasureRain()
 			end
 		end
 		task.wait(interval)
+	end
+end
+
+-- Deep South storms (RegionStorms): Eruption, Blizzard, Meteor Shower.
+for stormId in cfg.Storms do
+	Runners[stormId] = function()
+		RegionStorms.Run(stormId, publish, groundAt)
 	end
 end
 
@@ -244,6 +253,11 @@ local ALIASES = {
 	curse = "CursedHour",
 	gold = "GoldRush",
 	goldrush = "GoldRush",
+	eruption = "Eruption",
+	volcano = "Eruption",
+	blizzard = "Blizzard",
+	meteor = "MeteorShower",
+	meteors = "MeteorShower",
 }
 
 local function isAdmin(player: Player): boolean
@@ -269,7 +283,7 @@ local function handleCommand(player: Player, message: string)
 	local started = eventId ~= nil and EventService.Start(eventId)
 	Net.Fire("Notify", player, {
 		Kind = "Toast",
-		Text = if started then "Event started: " .. eventId elseif active then "An event is already running" else "Unknown event (try /event rain, cursed or gold)",
+		Text = if started then "Event started: " .. eventId elseif active then "An event is already running" else "Unknown event (try /event rain, cursed, gold, eruption, blizzard or meteor)",
 		Tone = if started then "Info" else "Warn",
 	})
 end
@@ -309,17 +323,46 @@ function EventService.OnNightfall()
 	end
 end
 
--- Daytime: Treasure Rain now and then, only when the whole rain fits before nightfall.
+local function durationOf(eventId: string): number
+	return if cfg.Storms[eventId] then cfg.Storms[eventId].Duration else cfg[eventId].Duration
+end
+
+-- A daytime event that fits before nightfall: Treasure Rain, or a Deep South storm if
+-- someone on the server can reach that region.
+local function pickDayEvent(secondsLeft: number): string?
+	local options, total = {}, 0
+	for id, weight in cfg.DaytimeWeights do
+		if secondsLeft > durationOf(id) + 15 and (not cfg.Storms[id] or RegionStorms.Eligible(id)) then
+			table.insert(options, { Id = id, Weight = weight })
+			total += weight
+		end
+	end
+	table.sort(options, function(a, b)
+		return a.Id < b.Id
+	end)
+	local roll = rng:NextNumber() * total
+	for _, option in options do
+		roll -= option.Weight
+		if roll <= 0 then
+			return option.Id
+		end
+	end
+	return nil
+end
+
+-- Daytime: an event now and then, only when the whole event fits before nightfall.
 function EventService.StartScheduler()
 	task.spawn(function()
-		local nextRainAt = os.clock() + cfg.FirstDelay
+		local nextEventAt = os.clock() + cfg.FirstDelay
 		while true do
 			task.wait(5)
 			local state = DayNight.State(workspace:GetServerTimeNow())
-			local fits = not state.IsNight and state.SecondsLeft > cfg.TreasureRain.Duration + 15
-			if os.clock() >= nextRainAt and fits and not active and #Players:GetPlayers() > 0 then
-				EventService.Start("TreasureRain")
-				nextRainAt = os.clock() + rng:NextNumber(cfg.IntervalMin, cfg.IntervalMax)
+			if os.clock() >= nextEventAt and not state.IsNight and not active and #Players:GetPlayers() > 0 then
+				local eventId = pickDayEvent(state.SecondsLeft)
+				if eventId then
+					EventService.Start(eventId)
+					nextEventAt = os.clock() + rng:NextNumber(cfg.IntervalMin, cfg.IntervalMax)
+				end
 			end
 		end
 	end)

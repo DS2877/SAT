@@ -30,7 +30,7 @@ function Zones.ExtractionZoneAt(position: Vector3)
 end
 
 -- Region id used by spawns and events:
--- "District" | "Ruins" | "Coast" | "Frost" | "Marsh" | "Falls" | "Wilds".
+-- "District" | "Ruins" | "Coast" | "Frost" | "Marsh" | "Falls" | "Wilds" | "Ember" | "Rime" | "Star".
 local AREA_IDS = {
 	["TREASURE DISTRICT"] = "District",
 	["ANCIENT RUINS"] = "Ruins",
@@ -39,6 +39,9 @@ local AREA_IDS = {
 	["FROSTPEAK"] = "Frost",
 	["GLOWSHROOM MARSH"] = "Marsh",
 	["THE WILDS"] = "Wilds",
+	["EMBERFALL"] = "Ember",
+	["RIMEHEART"] = "Rime",
+	["STARFALL ISLES"] = "Star",
 }
 
 function Zones.AreaId(position: Vector3): string
@@ -61,6 +64,15 @@ function Zones.AreaName(position: Vector3): string
 	end
 	if flatDistance(position, WorldLayout.Marsh.Center) < WorldLayout.Marsh.Radius then
 		return "GLOWSHROOM MARSH"
+	end
+	-- The Deep South runs in bands across the peninsula beyond the Sundering channel.
+	local south = WorldLayout.DeepSouth
+	if position.Z < south.StarStart then
+		return "STARFALL ISLES"
+	elseif position.Z < south.RimeStart then
+		return "RIMEHEART"
+	elseif position.Z < south.EmberStart then
+		return "EMBERFALL"
 	end
 	if position.Z < -240 then
 		return "THE FALLS"

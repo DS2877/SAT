@@ -5,7 +5,9 @@
 local TerrainGen = {}
 
 local RES = 4
-local HALF = 608 -- generated square is [-HALF, HALF] on X and Z
+local HALF = 608 -- the main generated square is [-HALF, HALF] on X and Z
+-- The Deep South strip, generated too: x -384..384, z -1312..-608 (whole 64-stud chunks).
+local SOUTH_STRIP = { X0 = -384, Z0 = -1312, CellsX = 192, CellsZ = 176 }
 local Y_MIN = -28
 local Y_MAX = 72
 local GROUND = 10
@@ -39,6 +41,20 @@ TerrainGen.FLAT_ZONES = {
 	{ -240, 280, 16, 14 }, -- trapper's cabin
 	{ -320, 185, 18, 16 }, -- mining outpost
 	{ 110, -270, 20, 15 }, -- Eagle's Nest (secret)
+	-- The Deep South (World/DeepSouth). On the glacier these flatten to the plateau height.
+	{ 22, -565, 22, 16 }, -- Ashen Camp
+	{ 115, -560, 20, 14 }, -- Obsidian Temple
+	{ 140, -740, 26, 16 }, -- Lava Outpost
+	{ -150, -735, 18, 14 }, -- mining camp
+	{ -100, -650, 6, 6 }, -- (Mount Cinder's caldera, secret)
+	{ -100, -700, 8, 6 }, -- (the Old King's Forge, secret)
+	{ -170, -852, 8, 8 }, -- (Frostbane's Tomb, secret)
+	{ -160, -915, 24, 14 }, -- the Frozen Ship (secret)
+	{ 120, -915, 22, 14 }, -- Glacier Station
+	{ -60, -990, 26, 14 }, -- igloo village
+	{ 80, -985, 14, 10 }, -- the frozen mammoth
+	{ 8, -1218, 8, 6 }, -- (the Observatory, secret: over the sea)
+	{ -122, -1240, 8, 6 }, -- (the Rift, secret: over the sea)
 }
 
 -- FROSTPEAK peaks: extra-tall hills in a ring around the frozen lake.
@@ -117,7 +133,61 @@ function TerrainGen.Height(x: number, z: number): (number, number)
 	if (x - sunken.X) ^ 2 + (z - sunken.Z) ^ 2 < sunken.Radius ^ 2 then
 		return sunken.Height, coast
 	end
-	return base + inland, coast
+	local height = base + inland
+	-- The Sundering: a sea channel between the island's south shore and the Deep South.
+	local south = TerrainGen.SOUTH
+	if z < south.ChannelStart then
+		local t = smoothstep((south.ChannelStart - z) / 30)
+		height = height * (1 - t) + SEA_FLOOR * t
+		coast = math.max(coast, t)
+	end
+	local southHeight, southCoast = TerrainGen.SouthHeight(x, z)
+	if southHeight and southHeight > height then
+		return southHeight, southCoast
+	end
+	return height, coast
+end
+
+-- THE DEEP SOUTH: a long peninsula beyond the Waterfall Mountain (docs/EXPANSION_PLAN.md).
+--   Emberfall (lava lowlands, z > RimeStart) -> Rimeheart (a glacier plateau, ~40 high).
+--   Starfall Isles float over the sea beyond its tip (parts, not terrain).
+TerrainGen.SOUTH = {
+	ChannelStart = -430, -- the main island fades into sea from here...
+	Start = -505, -- ...and the peninsula begins here
+	End = -1005, -- its southern tip (Starfall Isles float beyond)
+	HalfWidth = 215,
+	RimeStart = -790, -- the glacier rises from here
+	StarStart = -1045, -- the Starfall Isles begin past the glacier tip
+	PlateauHeight = 40,
+}
+
+-- Height of the peninsula at (x, z), or nil where it doesn't reach. Pure.
+function TerrainGen.SouthHeight(x: number, z: number): (number?, number)
+	local S = TerrainGen.SOUTH
+	if z > S.Start + 30 or z < S.End - 70 then
+		return nil, 1
+	end
+	local half = S.HalfWidth + noise2(0, z, 1 / 90, 131) * 30 + noise2(x, z, 1 / 60, 137) * 12
+	local north = smoothstep((S.Start + 25 - z) / 60)
+	local southEnd = smoothstep((z - (S.End - 55)) / 70)
+	half *= math.min(north, southEnd)
+	if half <= 0 then
+		return nil, 1
+	end
+	local coast = 1 - smoothstep((half - math.abs(x)) / 45)
+	local ground, level
+	if z > S.RimeStart then
+		-- Emberfall: rough volcanic lowland with ridges.
+		ground = 13 + fbm(x, z) * 6 + math.max(0, noise2(x, z, 1 / 70, 141)) * 14
+		level = GROUND
+	else
+		-- Rimeheart: the glacier rises steeply into a high, mostly flat ice plateau.
+		local rise = smoothstep((S.RimeStart - z) / 45)
+		ground = 12 + rise * (S.PlateauHeight - 12) + fbm(x, z) * 3
+		level = 12 + rise * (S.PlateauHeight - 12) -- flat zones up here flatten to the plateau
+	end
+	ground = level + (ground - level) * TerrainGen.FlatMask(x, z)
+	return ground * (1 - coast) + SEA_FLOOR * coast, coast
 end
 
 -- BIOMES: every region has its own ground, so crossing into a new one is visible at a glance.
@@ -151,6 +221,12 @@ function TerrainGen.Biome(x: number, z: number, jitter: number?): string
 		return "Frost"
 	elseif within("Marsh") then
 		return "Marsh"
+	elseif z < TerrainGen.SOUTH.StarStart + j then
+		return "Star"
+	elseif z < TerrainGen.SOUTH.RimeStart + j then
+		return "Rime"
+	elseif z < TerrainGen.SOUTH.Start + j then
+		return "Ember"
 	elseif within("Volcano") then
 		return "Volcano"
 	elseif z < TerrainGen.FALLS_Z + j then
@@ -169,6 +245,9 @@ TerrainGen.BIOME_MATERIALS = {
 	Volcano = { "Basalt", "Basalt", "Rock", "CrackedLava", 0.45 }, -- ash fields
 	Frost = { "Snow", "Glacier", "Rock", "Glacier", 0.45 }, -- snowfields and blue ice cliffs
 	Marsh = { "Asphalt", "Mud", "Slate", "Concrete", 0.2 }, -- dark glowing bog (recoloured)
+	Ember = { "Basalt", "Rock", "Slate", "CrackedLava", 0.38 }, -- black rock, glowing cracks
+	Rime = { "Glacier", "Ice", "Glacier", "Snow", 0.25 }, -- all ice
+	Star = { "Rock", "Rock", "Slate" }, -- (only shores: the isles are built from parts)
 }
 
 local function surfaceMaterial(height: number, coast: number, slope: number, x: number, z: number)
@@ -191,18 +270,15 @@ local function surfaceMaterial(height: number, coast: number, slope: number, x: 
 	return (Enum.Material :: any)[name]
 end
 
--- Runs synchronously on purpose: the server bootstrap must not yield before services connect
--- their PlayerAdded handlers, otherwise early joiners would miss setup.
-function TerrainGen.Generate(terrain: Terrain)
-	local cells = HALF * 2 / RES
+local function generateRegion(terrain: Terrain, x0: number, z0: number, cellsX: number, cellsZ: number)
 	-- Height grid with a one-cell border for slope estimation.
 	local heights: { { number } } = {}
 	local coasts: { { number } } = {}
-	for i = 0, cells + 1 do
+	for i = 0, cellsX + 1 do
 		local hRow, cRow = {}, {}
-		local x = -HALF + RES * (i - 0.5)
-		for j = 0, cells + 1 do
-			local z = -HALF + RES * (j - 0.5)
+		local x = x0 + RES * (i - 0.5)
+		for j = 0, cellsZ + 1 do
+			local z = z0 + RES * (j - 0.5)
 			hRow[j], cRow[j] = TerrainGen.Height(x, z)
 		end
 		heights[i], coasts[i] = hRow, cRow
@@ -210,8 +286,8 @@ function TerrainGen.Generate(terrain: Terrain)
 
 	local chunk = 16
 	local ny = (Y_MAX - Y_MIN) / RES
-	for ci = 0, cells - 1, chunk do
-		for cj = 0, cells - 1, chunk do
+	for ci = 0, cellsX - 1, chunk do
+		for cj = 0, cellsZ - 1, chunk do
 			local materials, occupancy = {}, {}
 			for a = 1, chunk do
 				local i = ci + a
@@ -226,8 +302,8 @@ function TerrainGen.Generate(terrain: Terrain)
 						math.abs(heights[i + 1][j] - heights[i - 1][j]),
 						math.abs(heights[i][j + 1] - heights[i][j - 1])
 					) / (RES * 2)
-					local x = -HALF + RES * (i - 0.5)
-					local z = -HALF + RES * (j - 0.5)
+					local x = x0 + RES * (i - 0.5)
+					local z = z0 + RES * (j - 0.5)
 					local top = surfaceMaterial(h, coasts[i][j], slope, x, z)
 					for yi = 1, ny do
 						local bottom = Y_MIN + (yi - 1) * RES
@@ -248,11 +324,18 @@ function TerrainGen.Generate(terrain: Terrain)
 				end
 				materials[a], occupancy[a] = matX, occX
 			end
-			local min = Vector3.new(-HALF + ci * RES, Y_MIN, -HALF + cj * RES)
+			local min = Vector3.new(x0 + ci * RES, Y_MIN, z0 + cj * RES)
 			local region = Region3.new(min, min + Vector3.new(chunk * RES, ny * RES, chunk * RES))
 			terrain:WriteVoxels(region, RES, materials, occupancy)
 		end
 	end
+end
+
+-- Runs synchronously on purpose: the server bootstrap must not yield before services connect
+-- their PlayerAdded handlers, otherwise early joiners would miss setup.
+function TerrainGen.Generate(terrain: Terrain)
+	generateRegion(terrain, -HALF, -HALF, HALF * 2 / RES, HALF * 2 / RES)
+	generateRegion(terrain, SOUTH_STRIP.X0, SOUTH_STRIP.Z0, SOUTH_STRIP.CellsX, SOUTH_STRIP.CellsZ)
 end
 
 return TerrainGen

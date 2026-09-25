@@ -45,6 +45,9 @@ local AREA_COLORS = {
 	["THE FALLS"] = Color3.fromRGB(140, 230, 255),
 	["FROSTPEAK"] = Color3.fromRGB(190, 235, 255),
 	["GLOWSHROOM MARSH"] = Color3.fromRGB(200, 130, 255),
+	["EMBERFALL"] = Color3.fromRGB(255, 120, 60),
+	["RIMEHEART"] = Color3.fromRGB(160, 225, 255),
+	["STARFALL ISLES"] = Color3.fromRGB(200, 150, 255),
 }
 
 local function rarityColor(rarity: string): Color3

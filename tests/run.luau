@@ -184,7 +184,7 @@ test("every spawn area referenced by treasures can spawn something", function()
 		areas[def.SpawnArea] = true
 	end
 	for area in areas do
-		local known = { Wilds = true, Ruins = true, Coast = true, Falls = true, Frost = true, Marsh = true }
+		local known = { Wilds = true, Ruins = true, Coast = true, Falls = true, Frost = true, Marsh = true, Ember = true, Rime = true, Star = true }
 		check(known[area] == true, "known area " .. area)
 	end
 end)
@@ -743,7 +743,7 @@ test("regions escalate and secrets pay off", function()
 		end
 		previous = balance
 	end
-	check(Regions.Stars(3) == "★★★☆", "danger stars")
+	check(Regions.Stars(3) == "★★★☆☆☆☆", "danger stars")
 	for _, secret in Regions.Secrets do
 		check(GameConfig.Secrets[secret.Id] and GameConfig.Secrets[secret.Id].Reward > 0, "reward for " .. secret.Id)
 		check(TerrainGen.Biome(secret.Position.X, secret.Position.Z) == secret.Area, secret.Id .. " lies in " .. secret.Area)
@@ -939,6 +939,69 @@ test("leaderboard config + unique treasure values", function()
 	end
 end)
 
+test("deep south: a channel, then Emberfall lowlands, then a high glacier", function()
+	local roblox = require("@lune/roblox") :: any
+	Vector3 = roblox.Vector3
+	local WorldLayout = require("../src/shared/Config/WorldLayout")
+	local south = WorldLayout.DeepSouth
+	check(TerrainGen.SOUTH.Start == south.EmberStart and TerrainGen.SOUTH.RimeStart == south.RimeStart, "terrain and zones agree on the borders")
+	local channel = TerrainGen.Height(0, -470)
+	check(channel < 0, ("the Sundering is open sea (h=%.1f)"):format(channel))
+	local ember = TerrainGen.Height(0, -640)
+	check(ember > 8 and ember < 40, ("Emberfall is lowland (h=%.1f)"):format(ember))
+	local glacier = TerrainGen.Height(0, -900)
+	check(glacier > 34 and glacier < 72, ("Rimeheart is a high plateau (h=%.1f)"):format(glacier))
+	check(TerrainGen.Height(0, -1150) < 0, "open sea under the Starfall Isles")
+	check(TerrainGen.Height(300, -700) < 0, "the peninsula stays narrow")
+	check(TerrainGen.Biome(0, -640) == "Ember" and TerrainGen.Biome(0, -900) == "Rime", "south biomes")
+	for area, need in { Ember = 1, Rime = 2, Star = 3 } do
+		check(GameConfig.Regions[area].RequiredAscension == need, area .. " needs Ascension " .. need)
+	end
+end)
+
+test("waystones: a dais in the District, one stone per south region", function()
+	local roblox = require("@lune/roblox") :: any
+	Vector3 = roblox.Vector3
+	local WorldLayout = require("../src/shared/Config/WorldLayout")
+	local info = WorldLayout.Waystones
+	local district = WorldLayout.District
+	local fromCentre = (Vector3.new(info.Circle.X, 0, info.Circle.Z) - Vector3.new(district.Center.X, 0, district.Center.Z)).Magnitude
+	check(fromCentre + info.Radius + 4 < district.WallRadius, "the dais fits inside the District wall")
+	check(fromCentre + info.Radius + 4 < GameConfig.SafeZone.Radius, "arriving home lands in the safe zone")
+	local seen = {}
+	for _, region in info.Regions do
+		seen[region.Area] = true
+		check(GameConfig.Regions[region.Area] and (GameConfig.Regions[region.Area].RequiredAscension or 0) > 0, region.Area .. " stone leads to a sealed region")
+		check(TerrainGen.Biome(region.Stone.X, region.Stone.Z) == region.Area, region.Area .. " stone stands in its own region")
+	end
+	for _, area in { "Ember", "Rime", "Star" } do
+		check(seen[area] == true, "a waystone for " .. area)
+	end
+end)
+
+test("deep south storms: one per region, loot always possible", function()
+	local events = GameConfig.Events
+	for id, weight in events.DaytimeWeights do
+		check(weight > 0 and (id == "TreasureRain" or events.Storms[id] ~= nil), "daytime event " .. id .. " exists")
+	end
+	for id, storm in events.Storms do
+		check(events.DaytimeWeights[id] ~= nil, id .. " is scheduled")
+		check(GameConfig.Regions[storm.Area] ~= nil, id .. " hits a real region")
+		check(storm.Duration + 15 < GameConfig.DayNight.CycleSeconds - GameConfig.DayNight.NightSeconds, id .. " fits in a day")
+		check(storm.Warning >= 1.5, id .. " gives time to dodge")
+		check(storm.LootChance > 0 and storm.LootChance < 1, id .. " loot is a gamble")
+		for rarity, w in storm.Loot do
+			local found = false
+			for _, def in Treasures.List do
+				if def.SpawnArea == storm.Area and def.Rarity == rarity then
+					found = true
+				end
+			end
+			check(w > 0 and found, ("%s can drop a %s from %s"):format(id, rarity, storm.Area))
+		end
+	end
+end)
+
 test("terrain: gameplay spots are flat, island has hills and a coast", function()
 	-- Under the District slab the terrain is sunk to an exact voxel boundary (no poke-through).
 	for _, p in { { 0, 250, "district centre" }, { 0, 290, "spawn" }, { -62, 235, "gym" }, { 100, 330, "vaults" } } do
@@ -977,8 +1040,12 @@ test("terrain: gameplay spots are flat, island has hills and a coast", function(
 	check(TerrainGen.SurfaceZone(0, -60) == nil, "the Wilds keep their grass")
 	for angle = 0, 350, 10 do
 		local a = math.rad(angle)
-		local h, coast = TerrainGen.Height(math.cos(a) * 600, math.sin(a) * 600)
-		check(h < 0 and coast > 0.9, ("open sea at r=600, angle %d (h=%.1f)"):format(angle, h))
+		local x, z = math.cos(a) * 600, math.sin(a) * 600
+		-- (Straight south the Deep South peninsula reaches past r=600 on purpose.)
+		if not (z < -430 and math.abs(x) < 260) then
+			local h, coast = TerrainGen.Height(x, z)
+			check(h < 0 and coast > 0.9, ("open sea at r=600, angle %d (h=%.1f)"):format(angle, h))
+		end
 	end
 end)
 

@@ -6,8 +6,8 @@
 
 local Regions = {}
 
--- Order of the journey: the "easy" meadow first, the deadly jungle last.
-Regions.Order = { "Wilds", "Coast", "Marsh", "Ruins", "Frost", "Falls" }
+-- Order of the journey: the "easy" meadow first, the deadly jungle, then the Deep South.
+Regions.Order = { "Wilds", "Coast", "Marsh", "Ruins", "Frost", "Falls", "Ember", "Rime", "Star" }
 
 Regions.Info = {
 	District = {
@@ -45,6 +45,24 @@ Regions.Info = {
 		Tagline = "Frozen peaks and a lake of ice. The golems here never thaw.",
 		Color = { 190, 235, 255 },
 		Mood = { Tint = { 220, 238, 255 }, Saturation = -0.08, Contrast = 0.14, Density = 0.34, Haze = 1.8 },
+	},
+	Ember = {
+		Title = "EMBERFALL",
+		Tagline = "Rivers of lava under a red sky. The floor IS lava.",
+		Color = { 255, 90, 40 },
+		Mood = { Tint = { 255, 214, 190 }, Saturation = 0.22, Contrast = 0.2, Density = 0.38, Haze = 2.4 },
+	},
+	Rime = {
+		Title = "RIMEHEART",
+		Tagline = "A dead white glacier. Mind the crevasses. Mind the Wraiths.",
+		Color = { 150, 225, 255 },
+		Mood = { Tint = { 214, 236, 255 }, Saturation = -0.12, Contrast = 0.16, Density = 0.4, Haze = 2 },
+	},
+	Star = {
+		Title = "STARFALL ISLES",
+		Tagline = "Islands adrift in the sky at the end of the world.",
+		Color = { 190, 140, 255 },
+		Mood = { Tint = { 226, 214, 255 }, Saturation = 0.18, Contrast = 0.18, Density = 0.3, Haze = 1.4 },
 	},
 	Falls = {
 		Title = "THE FALLS",
@@ -120,10 +138,61 @@ Regions.Secrets = {
 		Position = Vector3.new(110, 63, -270),
 		Radius = 14,
 	},
+	-- THE DEEP SOUTH
+	{
+		Id = "caldera_vault",
+		Title = "THE CALDERA VAULT",
+		Text = "Inside the volcano. On an island. In a lake of lava.",
+		Area = "Ember",
+		Position = Vector3.new(-100, 100, -650),
+		Radius = 12,
+	},
+	{
+		Id = "old_kings_forge",
+		Title = "THE OLD KING'S FORGE",
+		Text = "The mine didn't collapse. It was sealed.",
+		Area = "Ember",
+		Position = Vector3.new(-100, 12, -700),
+		Radius = 14,
+	},
+	{
+		Id = "frostbane_tomb",
+		Title = "FROSTBANE'S TOMB",
+		Text = "Frozen knights kneel around an empty altar. Something was taken.",
+		Area = "Rime",
+		Position = Vector3.new(-170, 14, -852),
+		Radius = 12,
+	},
+	{
+		Id = "frozen_ship",
+		Title = "THE FROZEN SHIP",
+		Text = "Somebody sailed here before the sea froze.",
+		Area = "Rime",
+		Position = Vector3.new(-160, 42, -915),
+		Radius = 12,
+	},
+	{
+		Id = "observatory",
+		Title = "THE OBSERVATORY",
+		Text = "The highest point in the world. The stars feel close enough to steal.",
+		Area = "Star",
+		Position = Vector3.new(8, 121, -1218),
+		Radius = 12,
+	},
+	{
+		Id = "the_rift",
+		Title = "THE RIFT",
+		Text = "A crack in the sky. Something glitters on the other side.",
+		Area = "Star",
+		Position = Vector3.new(-122, 111, -1240),
+		Radius = 10,
+	},
 }
 
+Regions.MaxDanger = 7 -- the Deep South goes up to 7 stars
+
 function Regions.Stars(danger: number): string
-	return string.rep("★", danger) .. string.rep("☆", 4 - danger)
+	return string.rep("★", danger) .. string.rep("☆", math.max(0, Regions.MaxDanger - danger))
 end
 
 return Regions

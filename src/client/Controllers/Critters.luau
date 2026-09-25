@@ -1,6 +1,7 @@
 -- Small local life around YOU (decorative, never replicated, cheap):
 --   * critters that fit the region: rabbits in the Wilds, crabs on the Coast, frogs in the
---     Marsh and at the Falls, lizards in the Ruins, penguins in Frostpeak. They hop / scuttle
+--     Marsh and at the Falls, lizards in the Ruins, penguins in Frostpeak and Rimeheart,
+--     glowing salamanders in Emberfall. They hop / scuttle
 --     around and scatter when you run at them. A handful near you at a time, recycled.
 --   * windmill sails and mine wheels turn (tag "Spinner", built by World/Settlements).
 
@@ -111,6 +112,19 @@ local SPECIES: { [string]: Species } = {
 		Height = 0,
 		Duration = 0.35,
 	},
+	Salamander = {
+		Build = function()
+			local red = Color3.fromRGB(230, 70, 30)
+			local model, main = body("Salamander", Vector3.new(0.6, 0.4, 1.8), red)
+			piece(model, { Size = Vector3.new(0.24, 0.2, 1.5), Color = Color3.fromRGB(255, 160, 40), CFrame = main.CFrame * CFrame.new(0, -0.05, 1.5) })
+			piece(model, { Shape = Enum.PartType.Ball, Size = Vector3.new(0.55, 0.4, 0.6), Color = red, CFrame = main.CFrame * CFrame.new(0, 0.02, -1.05) })
+			piece(model, { Size = Vector3.new(0.15, 0.12, 1.2), Color = Color3.fromRGB(255, 200, 60), Material = Enum.Material.Neon, CFrame = main.CFrame * CFrame.new(0, 0.2, 0) })
+			return model
+		end,
+		Hop = 4.5,
+		Height = 0,
+		Duration = 0.3,
+	},
 	Penguin = {
 		Build = function()
 			local model, main = body("Penguin", Vector3.new(1, 1.6, 0.9), Color3.fromRGB(30, 32, 40))
@@ -125,7 +139,7 @@ local SPECIES: { [string]: Species } = {
 	},
 }
 
-local BY_AREA = { Wilds = "Rabbit", Coast = "Crab", Marsh = "Frog", Falls = "Frog", Ruins = "Lizard", Frost = "Penguin" }
+local BY_AREA = { Wilds = "Rabbit", Coast = "Crab", Marsh = "Frog", Falls = "Frog", Ruins = "Lizard", Frost = "Penguin", Ember = "Salamander", Rime = "Penguin" }
 
 type Critter = { Model: Model, Species: Species, Position: Vector3, Yaw: number, From: Vector3, To: Vector3, T: number, Moving: boolean, Idle: number }
 
@@ -153,7 +167,11 @@ local function spawnNear(center: Vector3)
 	if Zones.InSafeZone(probe) then
 		return
 	end
-	local species = SPECIES[BY_AREA[Zones.AreaId(probe)] or "Rabbit"]
+	local area = Zones.AreaId(probe)
+	if area == "Star" then
+		return -- nothing lives on the floating isles
+	end
+	local species = SPECIES[BY_AREA[area] or "Rabbit"]
 	local ground = groundAt(x, z, center.Y)
 	if not ground then
 		return

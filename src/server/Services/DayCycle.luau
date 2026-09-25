@@ -34,7 +34,17 @@ local DayCycle = {}
 
 local nightGate: BasePart? = nil
 
-local AREA_NAMES = { Wilds = "THE WILDS", Ruins = "THE ANCIENT RUINS", Coast = "SHIPWRECK COAST", Falls = "THE FALLS" }
+local AREA_NAMES = {
+	Wilds = "THE WILDS",
+	Ruins = "THE ANCIENT RUINS",
+	Coast = "SHIPWRECK COAST",
+	Falls = "THE FALLS",
+	Frost = "FROSTPEAK",
+	Marsh = "GLOWSHROOM MARSH",
+	Ember = "EMBERFALL",
+	Rime = "RIMEHEART",
+	Star = "THE STARFALL ISLES",
+}
 
 local function setGateSealed(sealed: boolean)
 	if nightGate then

@@ -23,6 +23,8 @@ local Secrets = require(script.Parent.World.Secrets)
 local Adventure = require(script.Parent.World.Adventure)
 local Settlements = require(script.Parent.World.Settlements)
 local MapBoard = require(script.Parent.World.MapBoard)
+local DeepSouth = require(script.Parent.World.DeepSouth)
+local Waystones = require(script.Parent.World.Waystones)
 
 local WorldBuilder = {}
 
@@ -1671,10 +1673,16 @@ function WorldBuilder.Build()
 	buildShipwreck()
 	buildLighthouse()
 	local secrets = Secrets.Build(terrain, world, rng)
+	-- The Deep South: Emberfall, Rimeheart and the Starfall Isles beyond the Waterfall Mountain.
+	local south = DeepSouth.Build(terrain, world, rng, groundAt)
+	for _, info in south.Spawns do
+		table.insert(secrets.Spawns, info)
+	end
 	buildWilds(secrets.Avoid)
 	buildExtractionZones()
 	dressDistrict()
 	dressLandmarks()
+	Waystones.Build(world, groundAt)
 
 	-- Resolve treasure spawn heights against the finished world
 	local spawns = {}
@@ -1695,13 +1703,16 @@ function WorldBuilder.Build()
 	for _, info in WorldLayout.GuardianSpawns do
 		table.insert(guardians, {
 			Type = info.Type,
-			Position = groundAt(info.Position.X, info.Position.Z, 40),
+			Position = groundAt(info.Position.X, info.Position.Z, info.RayFrom or 40),
 			PatrolRadius = info.PatrolRadius,
 		})
 	end
 
 	-- Boost rings last: random open clearings, clear of everything built above.
 	local boostPads = Adventure.BuildBoostRings(world, adventureAvoid)
+	for _, pad in south.BoostPads do
+		table.insert(boostPads, pad)
+	end
 
 	return {
 		TreasureSpawns = spawns,

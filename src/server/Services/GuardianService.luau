@@ -214,6 +214,40 @@ local function build(typeName: string, def, position: Vector3): (Model, BasePart
 		for _, m in { { -1.2, 0.9, -1.35 }, { 1.3, -0.6, -1.35 }, { -0.4, -1.4, -1.25 } } do
 			box(Vector3.new(0.9, 0.5, 0.2), accent, CFrame.new(m[1], m[2], m[3]), Enum.Material.Grass)
 		end
+	elseif design == "Wraith" then
+		-- WRAITH: a hooded spectre floating off the ground, tattered robe, clawed arms, a void
+		-- where its face should be and two burning eyes.
+		box(Vector3.new(2.4, 2.2, 1.6), body, CFrame.new(0, 0.8, 0), Enum.Material.Fabric)
+		box(Vector3.new(2.9, 1.8, 2.1), body, CFrame.new(0, -1, 0.1), Enum.Material.Fabric)
+		for i = 0, 5 do
+			local a = i / 6 * 2 * math.pi
+			spike(Vector3.new(0.7, 1.4, 0.4), body, CFrame.new(math.cos(a) * 1.1, -2.4, math.sin(a) * 0.8 + 0.1) * CFrame.Angles(math.pi, a, 0), Enum.Material.Fabric)
+		end
+		local hood = ball(Vector3.new(2, 2, 2), body, CFrame.new(0, 2.4, 0.15), Enum.Material.Fabric)
+		hood.Name = "Head"
+		spike(Vector3.new(1, 1, 1.2), body, CFrame.new(0, 3.5, 0.5) * CFrame.Angles(math.rad(-25), 0, 0), Enum.Material.Fabric)
+		box(Vector3.new(1.2, 1.1, 0.25), BLACK, CFrame.new(0, 2.3, -0.8))
+		for _, x in { -1, 1 } do
+			glowEye(Vector3.new(0.34, 0.14, 0.1), CFrame.new(x * 0.25, 2.4, -0.95) * CFrame.Angles(0, 0, math.rad(x * -15)), Enum.PartType.Block)
+			ball(Vector3.new(0.9, 0.8, 0.9), accent, CFrame.new(x * 1.3, 1.7, 0), Enum.Material.Metal)
+			segment(Vector3.new(x * 1.35, 1.4, 0), Vector3.new(x * 1.9, -0.2, -0.9), 0.5, body, Enum.Material.Fabric)
+			for c = -1, 1 do
+				spike(Vector3.new(0.14, 0.7, 0.14), accent, CFrame.new(x * 2 + c * 0.14, -0.7, -1.2) * CFrame.Angles(math.rad(160), 0, math.rad(c * 12)), Enum.Material.Metal)
+			end
+			spike(Vector3.new(0.35, 1, 0.35), eye, CFrame.new(x * 1.7, 2.7, 0.7) * CFrame.Angles(0, 0, math.rad(x * -20)), Enum.Material.Neon)
+		end
+		local mist = Instance.new("ParticleEmitter")
+		mist.Name = "WraithMist"
+		mist.Texture = "rbxasset://textures/particles/smoke_main.dds"
+		mist.Color = ColorSequence.new(eye:Lerp(Color3.new(1, 1, 1), 0.4))
+		mist.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.55), NumberSequenceKeypoint.new(1, 1) })
+		mist.Size = NumberSequence.new(1.5 * S, 4 * S)
+		mist.Lifetime = NumberRange.new(1.2, 2)
+		mist.Rate = 10
+		mist.Speed = NumberRange.new(0.5, 1.5)
+		mist.EmissionDirection = Enum.NormalId.Bottom
+		mist.LightInfluence = 0
+		mist.Parent = root
 	else -- Spider
 		-- GIANT CAVE SPIDER: eight jointed legs, glowing eye cluster, venom-marked abdomen.
 		local cephalo = ball(Vector3.new(2.6, 1.8, 2.8), body, CFrame.new(0, 0.2, -1.3))

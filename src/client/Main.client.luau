@@ -28,6 +28,7 @@ local MapBoard = require(Controllers.MapBoard)
 local Guide = require(Controllers.Guide)
 local Invites = require(Controllers.Invites)
 local TreasureMotion = require(Controllers.TreasureMotion)
+local DeepSouthFx = require(Controllers.DeepSouth)
 local MenuController = require(script.Parent.Menus.MenuController)
 
 local player = Players.LocalPlayer
@@ -74,6 +75,7 @@ MapBoard.Init()
 Guide.Init(gui)
 Invites.Init(gui)
 TreasureMotion.Init()
+DeepSouthFx.Init()
 MenuController.Init(gui)
 HUD.OpenMenu = MenuController.Open
 TrainingUI.OpenStore = function()

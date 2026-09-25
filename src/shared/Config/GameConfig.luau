@@ -65,7 +65,7 @@ GameConfig.Collection = {
 	SetBonusPerSet = 0.10,
 }
 
--- REGIONS: the island gets harder the further you go. Danger (1-4 stars) and the strength we
+-- REGIONS: the island gets harder the further you go. Danger (1-7 stars) and the strength we
 -- recommend are shown on the region gates and the title card when you cross in; the first
 -- visit pays a one-time discovery bonus (Config/Regions has names, colours and moods).
 GameConfig.Regions = {
@@ -75,6 +75,10 @@ GameConfig.Regions = {
 	Ruins = { Danger = 3, RecommendedStrength = 8000, DiscoveryReward = 25000 },
 	Frost = { Danger = 3, RecommendedStrength = 12000, DiscoveryReward = 50000 },
 	Falls = { Danger = 4, RecommendedStrength = 20000, DiscoveryReward = 100000 },
+	-- THE DEEP SOUTH: unlocked by Ascension (RequiredAscension), enforced by RegionGates.
+	Ember = { Danger = 5, RecommendedStrength = 30000, DiscoveryReward = 200000, RequiredAscension = 1 },
+	Rime = { Danger = 6, RecommendedStrength = 45000, DiscoveryReward = 400000, RequiredAscension = 2 },
+	Star = { Danger = 7, RecommendedStrength = 70000, DiscoveryReward = 800000, RequiredAscension = 3 },
 }
 
 -- Hidden places (Config/Regions.Secrets): one-time cash for finding each, plus a spawn point
@@ -91,6 +95,12 @@ GameConfig.Secrets = {
 	hollow_oak = { Reward = 8000 },
 	smugglers_den = { Reward = 20000 },
 	eagles_nest = { Reward = 120000 },
+	caldera_vault = { Reward = 250000 },
+	old_kings_forge = { Reward = 200000 },
+	frostbane_tomb = { Reward = 400000 },
+	frozen_ship = { Reward = 350000 },
+	observatory = { Reward = 600000 },
+	the_rift = { Reward = 800000 },
 }
 
 -- BOOST PADS along the trails: step on one for a burst of speed. Carriers AND chasers use them,
@@ -163,6 +173,9 @@ GameConfig.Treasure = {
 		[2] = { Common = 30, Uncommon = 36, Rare = 25, Epic = 7.5, Legendary = 1.5 },
 		[3] = { Common = 8, Uncommon = 22, Rare = 38, Epic = 25, Legendary = 7 },
 		[4] = { Common = 0, Uncommon = 12, Rare = 33, Epic = 40, Legendary = 15 },
+		[5] = { Common = 0, Uncommon = 8, Rare = 30, Epic = 42, Legendary = 20 },
+		[6] = { Common = 0, Uncommon = 6, Rare = 24, Epic = 44, Legendary = 26 },
+		[7] = { Common = 0, Uncommon = 4, Rare = 18, Epic = 45, Legendary = 33 },
 	},
 	AnywhereWeights = {
 		Mythic = 0.2,
@@ -192,6 +205,14 @@ GameConfig.Treasure = {
 	SwiftSpeedBonus = 1.15, -- SpecialEffect "Swift": carrier speed multiplier
 	NocturnalMultiplier = 2, -- SpecialEffect "Nocturnal": Vault income multiplier at night
 	VaultLabelDistance = 22,
+}
+
+-- Deep South hazards (Services/HazardService).
+GameConfig.Hazards = {
+	LavaReach = 3, -- studs above a lava surface that still burn
+	LavaKnockback = 1.8, -- x the normal hit knockback
+	SeaFallHeight = 22, -- below this in the Starfall Isles you've fallen into the sea
+	Cooldown = 1.5, -- seconds between hazard hits for one player
 }
 
 -- In-game feedback (Services/FeedbackService, read with .github/workflows/feedback.yml).
@@ -369,6 +390,58 @@ GameConfig.Events = {
 	},
 	-- Treasure Rain happens during the DAY (the only daytime loot). Cursed Hour and Gold Rush
 	-- are NIGHT modifiers: rolled at nightfall, they shape tonight's loot wave in one region.
+	-- DEEP SOUTH STORMS (daytime, one region each; only rolled when someone on the server has
+	-- the Ascension to go there). Things fall from the sky onto warning rings: get hit and
+	-- you're flung and DROP what you carry - but some of them crack open with loot.
+	Storms = {
+		Eruption = {
+			Area = "Ember",
+			Name = "ERUPTION",
+			Icon = "🌋",
+			Site = "MOUNT CINDER",
+			Text = "Lava bombs over EMBERFALL - some crack open with treasure!",
+			Duration = 60,
+			Strikes = 26,
+			Warning = 2.2, -- seconds between the ring appearing and the impact
+			BlastRadius = 9,
+			Knockback = 2.2,
+			LootChance = 0.3,
+			Loot = { Rare = 50, Epic = 35, Legendary = 12, Mythic = 3 },
+			Color = { 255, 110, 30 },
+		},
+		Blizzard = {
+			Area = "Rime",
+			Name = "BLIZZARD",
+			Icon = "🌨",
+			Site = "RIMEHEART",
+			Text = "Wind, whiteout and falling ice over RIMEHEART - frozen caches inside!",
+			Duration = 75,
+			Strikes = 18,
+			Warning = 2,
+			BlastRadius = 7,
+			Knockback = 1.6,
+			LootChance = 0.35,
+			Loot = { Rare = 45, Epic = 38, Legendary = 14, Mythic = 3 },
+			Color = { 170, 230, 255 },
+		},
+		MeteorShower = {
+			Area = "Star",
+			Name = "METEOR SHOWER",
+			Icon = "☄",
+			Site = "THE STARFALL ISLES",
+			Text = "Stars are falling on the ISLES - catch one if you dare!",
+			Duration = 60,
+			Strikes = 18,
+			Warning = 2.5,
+			BlastRadius = 7,
+			Knockback = 1.8,
+			LootChance = 0.45,
+			Loot = { Epic = 55, Legendary = 35, Mythic = 9, Divine = 1 },
+			Color = { 200, 160, 255 },
+		},
+	},
+	-- Which daytime event the scheduler starts (storms only when someone qualifies).
+	DaytimeWeights = { TreasureRain = 3, Eruption = 1, Blizzard = 1, MeteorShower = 1 },
 	NightEventChance = 0.4,
 	NightWeights = { CursedHour = 1, GoldRush = 1.5 },
 	CurseLingerSeconds = 120, -- the cursed region's guardians stay furious into the morning

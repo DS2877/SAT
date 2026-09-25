@@ -12,6 +12,20 @@
   (shop counter, your Vault terminal, the altar) and close when you walk away.
 - Music mix: playlist 25% under master; Mountain King +10% and starts 15 s in (also on loop).
 
+## DEEP SOUTH EXPANSION (docs/EXPANSION_PLAN.md) - built, awaiting a live playtest
+- Three Ascension-gated regions south of the Waterfall Mountain: Emberfall (Asc 1, danger 5),
+  Rimeheart (Asc 2, danger 6), Starfall Isles (Asc 3, danger 7). World code in
+  `src/server/World/DeepSouth/`, gates in `Services/RegionGates`, hazards in
+  `Services/HazardService`, client effects (gate colours, low gravity, blizzard) in
+  `Controllers/DeepSouth`.
+- 20 treasures + models, 6 guardians, 6 secrets, 4 exits, launch pads and boost rings.
+- Waystones (`World/Waystones`, `Services/WaystoneService`) and storms
+  (`Services/RegionStorms`: Eruption / Blizzard / Meteor Shower, admin `/event eruption`,
+  `/event blizzard`, `/event meteor`).
+- Map board: 900 x 405 canvas with a Deep South strip; locked regions are veiled per player.
+- Risks to check live: phone performance on the bigger world (StreamingEnabled is still off),
+  lava and crevasse hit boxes, the isles' updraft arcs, waystone landing spots.
+
 ## CURRENT PHASE
 Roadmap phase 1 — STABILISE the current build (see docs/ROADMAP.md). No big new features
 until the whole core loop passes the mobile checklist (docs/PLAYTEST_CHECKLIST.md).

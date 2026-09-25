@@ -27,6 +27,9 @@ local Exploration = require(Services.Exploration)
 local MonetizationService = require(Services.MonetizationService)
 local BoostService = require(Services.BoostService)
 local FeedbackService = require(Services.FeedbackService)
+local RegionGates = require(Services.RegionGates)
+local HazardService = require(Services.HazardService)
+local WaystoneService = require(Services.WaystoneService)
 
 Net.Init()
 Players.RespawnTime = GameConfig.Player.RespawnTime
@@ -48,6 +51,9 @@ EventService.Init()
 MonetizationService.Init()
 BoostService.Init(world.BoostPads)
 FeedbackService.Init()
+RegionGates.Init()
+HazardService.Init()
+WaystoneService.Init()
 
 -- Funnel step 1: every first-time player (lets the dashboard show where newcomers drop off).
 PlayerData.Loaded:Connect(function(player)

@@ -224,7 +224,15 @@ local function watchGeysers()
 				local offset = root.Position - core.Position
 				if math.abs(offset.Y) < 6 and Vector2.new(offset.X, offset.Z).Magnitude <= cfg.Radius then
 					local target = core:GetAttribute("Target")
-					if typeof(target) == "Vector3" then
+					local need = tonumber(core:GetAttribute("RequiredAscension")) or 0
+					if need > (tonumber(player:GetAttribute("Ascension")) or 0) then
+						-- Sealed: the Starfall launch only answers to Ascension 3.
+						if os.clock() - lastLaunch > 2.5 then
+							lastLaunch = os.clock()
+							HUD.ShowStatus(("🔒 ASCENSION %d NEEDED"):format(need), nil, Color3.fromRGB(255, 110, 100), 1.6)
+							Sounds.Play("Error")
+						end
+					elseif typeof(target) == "Vector3" then
 						launch(target)
 					end
 					return

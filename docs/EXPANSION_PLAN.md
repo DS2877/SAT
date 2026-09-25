@@ -1,6 +1,25 @@
 # Expansion plan: the Deep South (beyond the Waterfall Mountain)
 
-Status: PLAN ONLY (not built). Written 2026-09-25.
+Status: BUILT (phases 1-3 in one pass, 2026-09-25), not yet playtested live. Written 2026-09-25.
+
+What shipped, compared with this plan:
+- Terrain south strip, Zones bands, danger scale 7, `RegionGates` (Ascension 1/2/3, Rune Gates
+  painted per player), `HazardService` (lava, crevasse falls, the sea under the isles).
+- Emberfall: Mount Cinder with a crater lake, lava rivers, the Obsidian Bridge, Ashen Camp,
+  the Obsidian Temple, Lava Outpost, the mining camp and the tunnel to the Old King's Forge,
+  the Steamfields. Secrets: Caldera Vault, Old King's Forge.
+- Rimeheart: the ice gorge climb, two crevasses with plank and ice bridges, Glacier Station,
+  igloos, the frozen mammoth, the Frozen Ship, Frostbane's Tomb (tunnel + crypt).
+- Starfall Isles: seven floating isles, light bridges, updrafts, low gravity, the Starwell,
+  the Observatory, the hidden Rift, the Skyport exit.
+- 20 new treasures with hand-built models, 6 new guardian types (incl. the new Wraith model).
+- Storms as daytime events: Eruption, Blizzard, Meteor Shower (`RegionStorms`).
+- Waystones instead of the Cliff Lift: a dais in the District with a stone per region
+  (Ascension + reached on foot once, daytime, empty hands) and a return stone at each camp.
+- The map board is wider (900 x 405) with a Deep South strip and lock veils.
+
+Not done yet: StreamingEnabled (phase 0), music per biome, the balance simulation for the
+new regions.
 
 ## 1. Goal and shape
 

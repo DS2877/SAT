@@ -261,6 +261,11 @@ local function openGround(x: number, z: number): Vector3?
 	return centre.Position
 end
 
+-- One ring on the given ground spot (the Deep South places its own along the road).
+function Adventure.BoostRingAt(parent: Instance, ground: Vector3, rng: Random)
+	return buildBoostRing(parent, ground, rng)
+end
+
 -- Returns { { Position } } for BoostService.
 -- Scatters boost rings at RANDOM spots over the Wilds - a new layout every server - spread
 -- across every region and kept apart from each other and from landmarks.
@@ -337,6 +342,7 @@ local function buildGeyser(parent: Instance, info, groundAt, avoid)
 	steam.Parent = core
 	light(core, color, 16, 1.4)
 	core:SetAttribute("Target", info.Target)
+	core:SetAttribute("RequiredAscension", info.RequiredAscension or 0) -- the Starfall launch
 	CollectionService:AddTag(core, "LaunchPad")
 	-- A little sign so players know it's a ride, not a hazard.
 	local signPart = part({ Name = "GeyserSign", Size = Vector3.new(0.5, 0.5, 0.5), CFrame = CFrame.new(ground + Vector3.new(0, 5, 0)), Transparency = 1, CanCollide = false, CanQuery = false, CastShadow = false, Parent = geyser })
