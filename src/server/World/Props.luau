@@ -11,6 +11,8 @@ local Props = {}
 
 Props.DefaultParent = workspace :: Instance
 
+local SHADOW_MIN_SIZE = 6 -- studs (largest dimension)
+
 function Props.part(props): BasePart
 	local p: BasePart = if props.Class then Instance.new(props.Class) :: BasePart else Instance.new("Part")
 	if props.Shape then
@@ -25,7 +27,10 @@ function Props.part(props): BasePart
 	p.CanCollide = if props.CanCollide == nil then true else props.CanCollide
 	p.CanQuery = if props.CanQuery == nil then true else props.CanQuery
 	p.CanTouch = false
-	p.CastShadow = if props.CastShadow == nil then true else props.CastShadow
+	-- Phones: shadows only from things big enough to matter. Small decor (lanterns, planks,
+	-- crops, twigs, rails...) never casts one unless it asks to.
+	local size = props.Size :: Vector3
+	p.CastShadow = if props.CastShadow == nil then math.max(size.X, size.Y, size.Z) >= SHADOW_MIN_SIZE else props.CastShadow
 	p.TopSurface = Enum.SurfaceType.Smooth
 	p.BottomSurface = Enum.SurfaceType.Smooth
 	p.Name = props.Name or "Part"

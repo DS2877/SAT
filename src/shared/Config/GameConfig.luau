@@ -194,6 +194,14 @@ GameConfig.Treasure = {
 	VaultLabelDistance = 22,
 }
 
+-- In-game feedback (Services/FeedbackService, read with .github/workflows/feedback.yml).
+GameConfig.Feedback = {
+	StoreName = "PlayerFeedback",
+	MaxLength = 280, -- characters per message
+	MaxPerDay = 400, -- entries kept per UTC day (one DataStore key per day)
+	Cooldown = 60, -- seconds between messages per player
+}
+
 GameConfig.Extraction = {
 	Duration = 10,
 	TickRate = 0.1,

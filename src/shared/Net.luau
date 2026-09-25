@@ -36,6 +36,7 @@ Net.ClientToServer = {
 	"TutorialProgress",
 	"SetSetting", -- (name, value) player preferences, e.g. Music on/off
 	"DropTreasure", -- put down the treasure you are carrying
+	"SendFeedback", -- (vote -1/0/1, text) from the 💬 menu
 }
 
 local FOLDER_NAME = "Remotes"

@@ -112,6 +112,23 @@ local function buildStats()
 	end
 	player:GetAttributeChangedSignal("MusicMuted"):Connect(syncMusicIcon)
 	syncMusicIcon()
+	-- Feedback (💬) sits right beside it: small, always reachable, never in the way.
+	Kit.button({
+		Name = "FeedbackButton",
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(1, 50, 0.5, 0),
+		Size = UDim2.fromOffset(34, 34),
+		Text = "💬",
+		TextSize = 18,
+		BackgroundColor3 = Theme.Color.Panel,
+		BackgroundTransparency = Theme.Transparency.Panel,
+		Radius = Theme.Radius.Round,
+		Parent = refs.Strength.Parent,
+	}, function()
+		if HUD.OpenMenu then
+			HUD.OpenMenu("Feedback")
+		end
+	end)
 	refs.Cash = pill("Cash", "💰", Theme.Color.Cash, 2)
 	-- Vault income + day/night clock: "your money machine" is always in view.
 	refs.Income = Kit.label({
@@ -754,6 +771,11 @@ local function refreshObjective()
 	navTarget = eventTarget
 end
 HUD.RefreshObjective = refreshObjective
+
+-- Where the objective is pointing right now ({ Name, Position } or nil), for Controllers/Guide.
+function HUD.NavTarget()
+	return navTarget
+end
 
 local function refreshStats(data, previous)
 	refs.Strength.Text = Kit.bigNumber(data.Strength)

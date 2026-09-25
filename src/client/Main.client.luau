@@ -25,6 +25,8 @@ local ChatTags = require(Controllers.ChatTags)
 local Pads = require(Controllers.Pads)
 local Critters = require(Controllers.Critters)
 local MapBoard = require(Controllers.MapBoard)
+local Guide = require(Controllers.Guide)
+local Invites = require(Controllers.Invites)
 local MenuController = require(script.Parent.Menus.MenuController)
 
 local player = Players.LocalPlayer
@@ -68,6 +70,8 @@ ChatTags.Init()
 Pads.Init()
 Critters.Init()
 MapBoard.Init()
+Guide.Init(gui)
+Invites.Init(gui)
 MenuController.Init(gui)
 HUD.OpenMenu = MenuController.Open
 TrainingUI.OpenStore = function()

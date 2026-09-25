@@ -247,6 +247,20 @@ awaiting the phase-1 mobile playtest.
 - Map "up" = into the Wilds, so left/right match what you see at the gate.
 - Full screen via Menus/Map (world-anchored: closes when you walk away).
 
+## RETENTION + GROWTH PASS
+- Guided first run (Controllers/Guide): until the first Vault collect, glowing footprints
+  lead from you to the objective's target plus a gold beacon on it; the very first bank is
+  a full-screen "BANKED IT!" moment (fee, $/s, go collect, then train).
+- Invites (Controllers/Invites): a small card with one "INVITE FRIENDS" button (Roblox's own
+  dialog) at share-worthy moments: Legendary+ pickup, Epic+ or first bank, server events,
+  secrets. 6 min apart, max 3 per session, never once the friend bonus is full.
+- Feedback (💬 next to the music toggle): 👍/👎 + up to 280 chars -> FeedbackService ->
+  DataStore "PlayerFeedback", one key per UTC day, no user ids/names stored. Read it with the
+  "Read player feedback" workflow (edit tools/feedback/request.txt = days, or run manually).
+  NOTE: the repo is public, so workflow output is public too - that's why no ids are kept.
+- Phones: small parts (< 6 studs) no longer cast shadows, boost rings lost their 24
+  PointLights and half their sparkles, Lighting.Technology Future -> ShadowMap.
+
 ## KNOWN BUGS / RISKS
 - Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp
   slopes, IK arms on the bench, nightfall teleport, collect board placement on every plot.

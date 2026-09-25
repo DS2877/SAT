@@ -209,6 +209,9 @@ function handlers.GuardianAttack(payload)
 end
 
 function handlers.Extracted(payload)
+	if payload.First then
+		return -- the first bank ever gets its own big moment (Controllers/Guide)
+	end
 	Notifications.Reward(payload)
 end
 

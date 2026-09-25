@@ -148,8 +148,10 @@ local function complete(player: Player, session: Session)
 		end)
 		Analytics.Event(player, "CollectionSetComplete", { Area = def.SpawnArea })
 	end
+	local first = PlayerData.Milestone(player, "FirstExtraction")
 	Net.Fire("Feedback", player, {
 		Type = "Extracted",
+		First = first, -- the very first bank: the client makes a big moment of it
 		TreasureId = def.Id,
 		Mutation = mutation,
 		Reward = reward,
@@ -177,7 +179,7 @@ local function complete(player: Player, session: Session)
 			Rarity = def.Rarity,
 		})
 	end
-	if PlayerData.Milestone(player, "FirstExtraction") then
+	if first then
 		Analytics.Funnel(player, "FirstExtraction")
 	end
 	Analytics.Event(player, "Extracted", { Treasure = def.Id, Zone = session.Zone.Id, Reward = reward })

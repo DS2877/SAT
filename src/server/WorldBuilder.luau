@@ -65,7 +65,9 @@ local function part(props): BasePart
 	p.Transparency = props.Transparency or 0
 	p.CanCollide = if props.CanCollide == nil then true else props.CanCollide
 	p.CanQuery = if props.CanQuery == nil then true else props.CanQuery
-	p.CastShadow = if props.CastShadow == nil then true else props.CastShadow
+	-- Phones: only big parts cast shadows by default (same rule as World/Props).
+	local size = props.Size :: Vector3
+	p.CastShadow = if props.CastShadow == nil then math.max(size.X, size.Y, size.Z) >= 6 else props.CastShadow
 	p.TopSurface = Enum.SurfaceType.Smooth
 	p.BottomSurface = Enum.SurfaceType.Smooth
 	p.Name = props.Name or "Part"

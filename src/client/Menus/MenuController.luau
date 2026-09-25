@@ -56,6 +56,13 @@ local MENUS = {
 		Subtitle = "More danger, rarer loot • check your strength before you go",
 		Accent = Color3.fromRGB(70, 170, 120),
 	},
+	Feedback = {
+		Module = script.Parent.Feedback,
+		Title = "FEEDBACK",
+		Icon = "💬",
+		Subtitle = "Tell us what to add or fix • we read every message",
+		Accent = Color3.fromRGB(90, 160, 255),
+	},
 	Store = {
 		Module = script.Parent.Store,
 		Title = "STORE",

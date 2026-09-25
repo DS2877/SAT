@@ -218,7 +218,7 @@ local function buildBoostRing(parent: Instance, ground: Vector3, rng: Random)
 	sparkle.LightInfluence = 0
 	sparkle.Size = NumberSequence.new(0.5, 0)
 	sparkle.Lifetime = NumberRange.new(0.5, 0.9)
-	sparkle.Rate = 12
+	sparkle.Rate = 5
 	sparkle.Speed = NumberRange.new(1, 3)
 	sparkle.SpreadAngle = Vector2.new(180, 180)
 	sparkle.Parent = core
@@ -229,7 +229,7 @@ local function buildBoostRing(parent: Instance, ground: Vector3, rng: Random)
 	burst.Speed = NumberRange.new(14, 26)
 	burst.Lifetime = NumberRange.new(0.4, 0.7)
 	burst.Parent = core
-	light(core, BOOST, 16, 1.6)
+	-- No PointLight: two dozen of them cost phones a lot; the neon hoop glows on its own.
 
 	-- Round launch plate on the ground.
 	local plateCf = CFrame.new(ground) * CFrame.Angles(0, 0, math.rad(90))

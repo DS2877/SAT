@@ -1,0 +1,29 @@
+name: Read player feedback
+
+# Prints the in-game feedback (the 💬 button) from the Roblox DataStore. Runs manually, or
+# when tools/feedback/request.txt changes (its first line = number of days to read).
+on:
+  push:
+    paths:
+      - "tools/feedback/request.txt"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "How many days back to read"
+        required: true
+        default: "7"
+
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read feedback
+        env:
+          ROBLOX_API_KEY: ${{ secrets.SAT_PUBLISHING_KEY }}
+          UNIVERSE_ID: ${{ vars.ROBLOX_TEST_UNIVERSE_ID || '10767602971' }}
+          DAYS: ${{ inputs.days }}
+        run: |
+          if [ -z "$DAYS" ]; then DAYS="$(head -n1 tools/feedback/request.txt | tr -dc '0-9')"; fi
+          export DAYS="${DAYS:-7}"
+          python3 tools/feedback/read.py
