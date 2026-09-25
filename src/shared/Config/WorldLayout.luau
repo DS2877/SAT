@@ -32,7 +32,7 @@ WorldLayout.Shop = Vector3.new(70, 10, 215)
 WorldLayout.MapBoard = {
 	Position = Vector3.new(-25, 11, 121), -- ground (plaza top) under the board
 	Facing = Vector3.new(-6, 11, 150),
-	Width = 20, -- studs (20:9 like the 900 x 405 map canvas)
+	Width = 16, -- studs (16:9 like the 960 x 540 map canvas)
 	Height = 9,
 	Lift = 2.2, -- board bottom above the ground
 }
