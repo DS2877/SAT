@@ -130,7 +130,7 @@ local function buildPedestal(parent: Instance, base: CFrame, def, ghost: boolean
 		local info = Rarities.Info[def.Rarity]
 		newPart(parent, { Name = "Rim", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.15, 3.3, 3.3), CFrame = base * CFrame.new(0, 3.35, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = info.Color, Material = Enum.Material.Neon, CanCollide = false })
 		local s = math.min(TreasureVisual.Scale(def), cfg.DisplayMaxScale)
-		local model = TreasureVisual.Build(def, base * CFrame.new(0, 3.5 + s * 0.9, 0), cfg.DisplayMaxScale, mutation)
+		local model = TreasureVisual.Build(def, base * CFrame.new(0, 3.5 + s * 0.9, 0), cfg.DisplayMaxScale, mutation, { Display = true })
 		model:SetAttribute("TreasureId", def.Id)
 		model:SetAttribute("VaultDisplay", true)
 		local handle = model.PrimaryPart :: BasePart
@@ -428,7 +428,7 @@ local function bringHome(player: Player, def, mutation: string?)
 	end
 
 	local s = TreasureVisual.Scale(def)
-	local trophy = TreasureVisual.Build(def, root.CFrame * CFrame.new(0, 3.2 + s * 0.8, 0), nil, mutation)
+	local trophy = TreasureVisual.Build(def, root.CFrame * CFrame.new(0, 3.2 + s * 0.8, 0), nil, mutation, { Display = true })
 	trophy.Name = "HomeTrophy"
 	local handle = trophy.PrimaryPart :: BasePart
 	for _, d in trophy:GetDescendants() do

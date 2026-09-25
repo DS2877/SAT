@@ -261,6 +261,19 @@ awaiting the phase-1 mobile playtest.
 - Phones: small parts (< 6 studs) no longer cast shadows, boost rings lost their 24
   PointLights and half their sparkles, Lighting.Technology Future -> ShadowMap.
 
+## TREASURE LOOK 2 (bespoke models)
+- Shared/TreasureModels: one hand-built, exaggerated model per treasure (all 52, test-locked),
+  built with a small kit (ellipsoids via SpecialMesh, rings, cones, coins). Rendered offline
+  with three.js to check the look (not yet seen in Roblox itself).
+- Size grows +12% per rarity tier (was 7%): an OG is ~2x a Common of the same kind.
+- Rarity flair: Epic/Legendary orbiting gems, Legendary+ golden halo, Mythic dark shards +
+  flames, Divine wings + white halo, Secret black/white orbit rings, OG crown + coin ring.
+- Mutations: re-skin + sparks, star glints, coloured PointLight, outline (Highlight, world
+  treasure only), Moonlit motes, Rainbow sparks. Showcase copies (Vault, Collection,
+  trophies) pass { Display = true } for lighter effects.
+- Controllers/TreasureMotion: world/dropped treasure spins and bobs (rarer = livelier);
+  the camera starts zoomed out (26 studs) on the first spawn.
+
 ## KNOWN BUGS / RISKS
 - Untested at runtime: NPC humanoid rigs (hip height), Balloon LinearVelocity feel, terrain ramp
   slopes, IK arms on the bench, nightfall teleport, collect board placement on every plot.

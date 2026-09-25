@@ -1,16 +1,22 @@
--- Procedural treasure models (placeholder art until real meshes exist).
--- Build(def) returns a Model whose PrimaryPart "Handle" is the pickup/weld root.
+-- Treasure look. Build(def) returns a Model whose PrimaryPart "Handle" is the pickup/weld root.
 -- All parts are welded to Handle; anchoring Handle anchors the whole treasure.
 --
--- You read a treasure from its LOOK: size grows with rarity, Rare+ glow and every rarity above
--- Common has its own aura particles; a mutation re-skins the body (Silver/Gold metal, Diamond
--- glass, Moonlit neon, Rainbow = tagged so clients cycle hues) and adds sparkles.
+-- You read a treasure from its LOOK:
+--   * BODY: a hand-built, exaggerated model of the thing itself (Shared/TreasureModels); the
+--     generic Shape builders below are only a fallback.
+--   * RARITY: much bigger the rarer it is, Rare+ glow, every tier above Common has its aura,
+--     and the top tiers get FLAIR on top: Epic orbiting gems, Legendary a golden halo,
+--     Mythic dark shards and flames, Divine wings, Secret black/white orbit rings, OG a crown
+--     and a ring of coins. (Clients spin and bob world treasure, so orbits really orbit.)
+--   * MUTATION: re-skins the body (Silver/Gold metal, Diamond glass, Moonlit neon, Rainbow
+--     cycling) and adds glow, a coloured light, sparks, glints and an outline.
 
 local CollectionService = game:GetService("CollectionService")
 
 local Rarities = require(script.Parent.Config.Rarities)
 local Treasures = require(script.Parent.Config.Treasures)
 local Mutations = require(script.Parent.Config.Mutations)
+local TreasureModels = require(script.Parent.TreasureModels)
 
 local TreasureVisual = {}
 
@@ -190,10 +196,13 @@ local AURA = {
 	OG = { Rate = 48, Size = 1, Speed = 3.5 },
 }
 
--- Bigger for rarer treasure so a Legendary looks like a prize from far away.
+-- Bigger for rarer treasure so a Legendary looks like a prize from far away: +12% per tier
+-- (an OG is about twice the size of a Common of the same kind).
+TreasureVisual.RARITY_GROWTH = 0.12
+
 function TreasureVisual.Scale(def): number
 	local base = Treasures.DisplayScale[def.DisplaySize] or 1.5
-	return base * (1 + 0.07 * (Rarities.Rank(def.Rarity) - 1))
+	return base * (1 + TreasureVisual.RARITY_GROWTH * (Rarities.Rank(def.Rarity) - 1))
 end
 
 function TreasureVisual.RarityAura(handle: BasePart, def)
@@ -219,37 +228,168 @@ function TreasureVisual.RarityAura(handle: BasePart, def)
 	emitter.Parent = handle
 end
 
-local function applyMutation(model: Model, handle: BasePart, mutation: string?)
+-- RARITY FLAIR ------------------------------------------------------------------------------
+
+local GOLD = Color3.fromRGB(255, 205, 60)
+
+local function flair(k: TreasureModels.Kit, handle: BasePart, def, display: boolean)
+	local rank = Rarities.Rank(def.Rarity)
+	local info = Rarities.Info[def.Rarity]
+	local neon = Enum.Material.Neon
+	-- Epic, Legendary: little gems orbiting the treasure.
+	if rank == 4 or rank == 5 then
+		for i = 1, 3 do
+			local a = i / 3 * 2 * math.pi
+			k.box(0.2, 0.2, 0.2, k.at(math.cos(a) * 1.3, 0.25 + (i % 2) * 0.3, math.sin(a) * 1.3, 45, 0, 45), info.Color, Enum.Material.Glass)
+		end
+	end
+	-- Legendary and up: a golden halo.
+	if rank >= 5 and rank ~= 8 then
+		k.torus(0.5, 0.07, 14, k.at(0, 1.55, 0, 90, 0, 0), if rank == 7 then Color3.new(1, 1, 1) else GOLD, neon)
+	end
+	-- Mythic: dark shards circling, and flames.
+	if rank == 6 then
+		for i = 1, 5 do
+			local a = i / 5 * 2 * math.pi
+			k.wedge(0.16, 0.45, 0.16, k.at(math.cos(a) * 1.35, 0.1 + (i % 2) * 0.35, math.sin(a) * 1.35, 0, 0, (i % 2) * 180), Color3.fromRGB(40, 0, 10), neon)
+		end
+		if not display then
+			local fire = Instance.new("Fire")
+			fire.Color = info.Color
+			fire.SecondaryColor = Color3.fromRGB(40, 0, 0)
+			fire.Size = handle.Size.X * 0.35
+			fire.Heat = 6
+			fire.Parent = handle
+		end
+	end
+	-- Divine: glowing wings.
+	if rank == 7 then
+		for _, x in { -1, 1 } do
+			for j = 0, 2 do
+				k.ball(0.9 - j * 0.2, 0.3, 0.06, k.at(x * (0.75 + j * 0.3), 0.55 + j * 0.2, 0.35, 0, 0, x * (-25 - j * 12)), Color3.new(1, 1, 1), neon, { T = 0.25 + j * 0.15 })
+			end
+		end
+	end
+	-- Secret: black and white orbit rings.
+	if rank == 8 then
+		k.torus(1.4, 0.07, 18, k.at(0, 0.2, 0, 75, 0, 25), Color3.fromRGB(17, 17, 17), Enum.Material.SmoothPlastic)
+		k.torus(1.5, 0.07, 18, k.at(0, 0.2, 0, 75, 0, -35), Color3.new(1, 1, 1), neon)
+	end
+	-- OG: a floating crown and a ring of gold coins.
+	if rank >= 9 then
+		k.vcyl(0.22, 0.75, k.at(0, 1.6, 0), GOLD, Enum.Material.Metal, { R = 0.3 })
+		for i = 1, 5 do
+			local a = i / 5 * 2 * math.pi
+			k.wedge(0.14, 0.3, 0.08, k.at(math.cos(a) * 0.33, 1.83, math.sin(a) * 0.33, 0, -math.deg(a) - 90, 0), GOLD, Enum.Material.Metal)
+		end
+		for i = 1, 6 do
+			local a = i / 6 * 2 * math.pi
+			k.coin(0.34, k.at(math.cos(a) * 1.35, 0.2 + math.sin(a * 2) * 0.15, math.sin(a) * 1.35, 90, -math.deg(a), 0))
+		end
+	end
+end
+
+-- MUTATIONS ---------------------------------------------------------------------------------
+
+local SPARKLE = "rbxasset://textures/particles/sparkles_main.dds"
+
+local function emitter(handle: BasePart, name: string, props)
+	local e = Instance.new("ParticleEmitter")
+	e.Name = name
+	e.Texture = SPARKLE
+	e.LightEmission = 1
+	e.LightInfluence = 0
+	e.SpreadAngle = Vector2.new(180, 180)
+	e.Shape = Enum.ParticleEmitterShape.Sphere
+	for key, value in props do
+		(e :: any)[key] = value
+	end
+	e.Parent = handle
+	return e
+end
+
+local RAINBOW = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 70, 70)),
+	ColorSequenceKeypoint.new(0.25, Color3.fromRGB(255, 200, 40)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(90, 255, 90)),
+	ColorSequenceKeypoint.new(0.75, Color3.fromRGB(60, 180, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(220, 90, 255)),
+})
+
+local function applyMutation(model: Model, handle: BasePart, mutation: string?, display: boolean)
 	local info = Mutations.Get(mutation)
 	if not info then
 		return
 	end
 	local color = Mutations.Color(info.Color)
+	local sparkColor = Mutations.Color(info.Sparkle)
 	local material = (Enum.Material :: any)[info.Material] or Enum.Material.SmoothPlastic
 	for _, d in model:GetDescendants() do
 		if d:IsA("BasePart") and d ~= handle and d.Material ~= Enum.Material.Neon then
 			d.Material = material
 			d.Color = color
 			if info.Material == "Glass" then
-				d.Transparency = math.max(d.Transparency, 0.25)
-				d.Reflectance = 0.3
+				d.Transparency = math.max(d.Transparency, 0.2)
+				d.Reflectance = 0.35
 			elseif info.Material == "Metal" then
-				d.Reflectance = 0.25
+				d.Reflectance = 0.45
 			end
 		end
 	end
-	local sparkles = Instance.new("ParticleEmitter")
-	sparkles.Name = "MutationSparkles"
-	sparkles.Color = ColorSequence.new(Mutations.Color(info.Sparkle))
-	sparkles.LightEmission = 1
-	sparkles.LightInfluence = 0
-	sparkles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-	sparkles.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(1, 0) })
-	sparkles.Lifetime = NumberRange.new(0.6, 1.2)
-	sparkles.Rate = 18
-	sparkles.Speed = NumberRange.new(0.5, 1.5)
-	sparkles.SpreadAngle = Vector2.new(180, 180)
-	sparkles.Parent = handle
+	local s = handle.Size.X
+	local sparks = if info.Rainbow then RAINBOW else ColorSequence.new(sparkColor)
+	-- Sparks bursting off it...
+	emitter(handle, "MutationSparkles", {
+		Color = sparks,
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, s * 0.18), NumberSequenceKeypoint.new(1, 0) }),
+		Lifetime = NumberRange.new(0.5, 1.1),
+		Rate = if display then 10 else 26,
+		Speed = NumberRange.new(s * 0.4, s * 1.1),
+		Drag = 3,
+	})
+	-- ...big star glints flashing on its surface...
+	emitter(handle, "MutationGlint", {
+		Color = sparks,
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.3, s * 0.45), NumberSequenceKeypoint.new(1, 0) }),
+		Lifetime = NumberRange.new(0.25, 0.4),
+		Rate = if display then 2 else 5,
+		Speed = NumberRange.new(0, 0),
+		Rotation = NumberRange.new(0, 90),
+	})
+	-- ...Moonlit also sheds drifting motes of moonlight.
+	if mutation == "Moonlit" then
+		emitter(handle, "Moonmotes", {
+			Texture = "rbxasset://textures/particles/smoke_main.dds",
+			Color = ColorSequence.new(sparkColor),
+			Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, s * 0.1), NumberSequenceKeypoint.new(1, s * 0.35) }),
+			Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 1) }),
+			Lifetime = NumberRange.new(1.5, 2.5),
+			Rate = 6,
+			Speed = NumberRange.new(0.5, 1.5),
+			SpreadAngle = Vector2.new(20, 20),
+			Acceleration = Vector3.new(0, 1, 0),
+		})
+	end
+	-- A glow you see from afar, and an outline that makes it pop (world treasure only: the
+	-- engine renders a limited number of outlines at once).
+	local light = Instance.new("PointLight")
+	light.Name = "MutationLight"
+	light.Color = if info.Rainbow then Color3.new(1, 1, 1) else sparkColor
+	light.Range = s * 3.5
+	light.Brightness = 2.2
+	light.Shadows = false
+	light.Parent = handle
+	if not display then
+		local outline = Instance.new("Highlight")
+		outline.Name = "MutationOutline"
+		outline.Adornee = model
+		outline.FillColor = if info.Rainbow then Color3.new(1, 1, 1) else color
+		outline.FillTransparency = 0.8
+		outline.OutlineColor = if info.Rainbow then Color3.new(1, 1, 1) else sparkColor
+		outline.OutlineTransparency = 0.1
+		outline.DepthMode = Enum.HighlightDepthMode.Occluded
+		outline.Parent = model
+	end
 	model:SetAttribute("Mutation", mutation)
 	if info.Rainbow then
 		CollectionService:AddTag(model, "RainbowTreasure")
@@ -258,7 +398,9 @@ end
 
 -- Returns Model with PrimaryPart "Handle" (invisible root). Handle is left Anchored = true.
 -- maxScale caps the size (e.g. Vault pedestals). mutation: Mutations name or nil.
-function TreasureVisual.Build(def, cframe: CFrame?, maxScale: number?, mutation: string?): Model
+-- opts.Display: a showcase copy (Vault pedestal, trophies): lighter effects, no outline.
+function TreasureVisual.Build(def, cframe: CFrame?, maxScale: number?, mutation: string?, opts: { Display: boolean? }?): Model
+	local display = opts ~= nil and opts.Display == true
 	local model = Instance.new("Model")
 	model.Name = def.Name
 	local s = math.min(TreasureVisual.Scale(def), maxScale or math.huge)
@@ -275,20 +417,27 @@ function TreasureVisual.Build(def, cframe: CFrame?, maxScale: number?, mutation:
 	handle.Parent = model
 	model.PrimaryPart = handle
 
-	local builder = Shapes[def.Shape] or Shapes.Gem
-	builder(model, handle, s, color(def), accentFor(def), material(def))
+	local kit = TreasureModels.Kit(model, handle, s, color(def), accentFor(def), material(def))
+	local custom = TreasureModels.Builders[def.Id]
+	if custom then
+		custom(kit)
+	else
+		local builder = Shapes[def.Shape] or Shapes.Gem
+		builder(model, handle, s, color(def), accentFor(def), material(def))
+	end
+	flair(kit, handle, def, display)
 
 	local info = Rarities.Info[def.Rarity]
 	if info and info.Glow then
 		local light = Instance.new("PointLight")
 		light.Color = info.Color
-		light.Range = 8 + info.Rank * 2
+		light.Range = 8 + info.Rank * 2.5
 		light.Brightness = 1.2 + info.Rank * 0.25
 		light.Shadows = false
 		light.Parent = handle
 	end
 	TreasureVisual.RarityAura(handle, def)
-	applyMutation(model, handle, mutation)
+	applyMutation(model, handle, mutation, display)
 	return model
 end
 

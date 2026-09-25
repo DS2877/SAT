@@ -27,6 +27,7 @@ local Critters = require(Controllers.Critters)
 local MapBoard = require(Controllers.MapBoard)
 local Guide = require(Controllers.Guide)
 local Invites = require(Controllers.Invites)
+local TreasureMotion = require(Controllers.TreasureMotion)
 local MenuController = require(script.Parent.Menus.MenuController)
 
 local player = Players.LocalPlayer
@@ -72,6 +73,7 @@ Critters.Init()
 MapBoard.Init()
 Guide.Init(gui)
 Invites.Init(gui)
+TreasureMotion.Init()
 MenuController.Init(gui)
 HUD.OpenMenu = MenuController.Open
 TrainingUI.OpenStore = function()

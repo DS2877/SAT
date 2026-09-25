@@ -341,7 +341,7 @@ local function buildSpawnPavilion(district: Folder)
 	end
 	local crownDef = Treasures.Get("golden_crown")
 	if crownDef then
-		local crown = TreasureVisual.Build(crownDef, CFrame.new(base + Vector3.new(0, 24.5, 0)), 3)
+		local crown = TreasureVisual.Build(crownDef, CFrame.new(base + Vector3.new(0, 24.5, 0)), 3, nil, { Display = true })
 		crown.Name = "SpawnCrown"
 		crown.Parent = pav
 		local crownHandle = crown.PrimaryPart :: BasePart

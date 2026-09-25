@@ -25,7 +25,7 @@ local function viewport(def, discovered: boolean): ViewportFrame
 		LightColor = Color3.new(1, 1, 1),
 		LightDirection = Vector3.new(-1, -1, -1),
 	})
-	local model = TreasureVisual.Build(def, CFrame.new())
+	local model = TreasureVisual.Build(def, CFrame.new(), nil, nil, { Display = true })
 	if not discovered then
 		for _, d in model:GetDescendants() do
 			if d:IsA("BasePart") then

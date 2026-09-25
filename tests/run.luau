@@ -809,6 +809,13 @@ test("corrupt values are sanitised", function()
 end)
 
 -- CONTENT INVARIANTS -----------------------------------------------------------------
+test("every treasure has its own hand-built model", function()
+	local source = require("@lune/fs").readFile("src/shared/TreasureModels.luau")
+	for _, def in Treasures.List do
+		check(source:find("Models." .. def.Id .. " = function", 1, true) ~= nil, "custom model for " .. def.Id)
+	end
+end)
+
 test("rarity palette + every tier can spawn", function()
 	local source = require("@lune/fs").readFile("src/shared/Config/Rarities.luau")
 	local palette = {
