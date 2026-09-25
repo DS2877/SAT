@@ -94,6 +94,10 @@ end
 
 -- studWidth given: the sign is sized in world studs and shrinks with distance (local signs).
 -- Otherwise it is a compact fixed-pixel label readable from far away (landmarks, beacons).
+-- Landmark names float LANDMARK_LIFT studs over their landmark, so they clear the District
+-- wall, the trees and the hills when you look out from the plaza.
+local LANDMARK_LIFT = 34
+
 local function billboardSign(
 	parent: BasePart,
 	title: string,
@@ -107,7 +111,7 @@ local function billboardSign(
 	if studWidth then
 		gui.Size = UDim2.fromScale(studWidth, studWidth * (if subtitle then 0.26 else 0.16))
 	else
-		gui.Size = UDim2.fromOffset(190, if subtitle then 46 else 30)
+		gui.Size = UDim2.fromOffset(230, if subtitle then 54 else 36)
 	end
 	gui.StudsOffset = Vector3.new(0, offset, 0)
 	gui.MaxDistance = maxDistance
@@ -1131,16 +1135,88 @@ end
 
 -- LANDMARKS ---------------------------------------------------------------------
 
+-- Dress the Waterfall Mountain (TerrainGen.MOUNTAIN): pines up the slopes, jungle on the
+-- terrace, rocks on the mid-ledges and vines hanging over the lip, so no face is bare rock.
+local function dressMountain(parent: Instance)
+	local M = TerrainGen.MOUNTAIN
+	local f = folder("MountainDressing", parent)
+	local keepClear = {
+		{ -40, -345, 14 }, -- lookout
+		{ -70, -350, 18 }, -- hermit's hut
+		{ -40, -332, 12 }, -- geyser landing
+		{ 50, -380, 18 }, -- the Ashen Pass
+		{ 95, -300, 16 }, -- ramp landing
+	}
+	local function clear(x: number, z: number): boolean
+		if math.abs(x) < M.FallsHalfWidth then
+			return false -- the river and the falls
+		end
+		for _, c in keepClear do
+			if (x - c[1]) ^ 2 + (z - c[2]) ^ 2 < c[3] ^ 2 then
+				return false
+			end
+		end
+		return true
+	end
+	local function slopeAt(x: number, z: number): number
+		local dx = TerrainGen.Height(x + 4, z) - TerrainGen.Height(x - 4, z)
+		local dz = TerrainGen.Height(x, z + 4) - TerrainGen.Height(x, z - 4)
+		return math.max(math.abs(dx), math.abs(dz)) / 8
+	end
+	local placed = 0
+	for _ = 1, 900 do
+		if placed >= 150 then
+			break
+		end
+		local x, z = rng:NextNumber(-300, 330), rng:NextNumber(-520, -280)
+		local h = TerrainGen.Height(x, z)
+		if h > 22 and clear(x, z) then
+			local slope = slopeAt(x, z)
+			local ground = groundAt(x, z, 220)
+			if math.abs(ground.Y - h) < 3 then
+				local onTerrace = math.abs(h - M.Top) < 2
+				local onLedge = math.abs(h - M.LedgeTop) < 3 and slope < 0.35
+				if onTerrace and slope < 0.3 then
+					if rng:NextNumber() < 0.55 then
+						Props.JungleTree(f, ground, rng)
+					else
+						Props.Fern(f, ground, rng)
+					end
+					placed += 1
+				elseif onLedge then
+					if rng:NextNumber() < 0.5 then
+						Props.Rocks(f, ground, rng)
+					else
+						Props.Bush(f, ground, rng)
+					end
+					placed += 1
+				elseif slope < 0.8 and h > 40 then
+					Props.Pine(f, ground, rng)
+					placed += 1
+				end
+			end
+		end
+	end
+	-- Vines over the terrace lip, either side of the falls.
+	for _ = 1, 16 do
+		local side = if rng:NextNumber() < 0.5 then -1 else 1
+		local x = side * rng:NextNumber(M.FallsHalfWidth + 4, if side < 0 then 80 else 72)
+		local lip = groundAt(x, M.Terrace.Front - 1, 220)
+		if lip.Y > M.Top - 4 then
+			Props.Vine(f, lip + Vector3.new(0, 0.5, 3), rng:NextNumber(10, 24), rng)
+		end
+	end
+end
+
 local function buildWaterfall()
 	local w = WorldLayout.Waterfall
 	local falls = folder("GiantWaterfall")
-	terrain:FillBlock(CFrame.new(w.CliffCenter), w.CliffSize, Enum.Material.Rock)
-	terrain:FillBlock(CFrame.new(-150, 65, -385), Vector3.new(170, 130, 60), Enum.Material.Rock)
-	terrain:FillBlock(CFrame.new(150, 55, -380), Vector3.new(120, 110, 60), Enum.Material.Rock)
+	-- The mountain itself is sculpted by TerrainGen (TerrainGen.MOUNTAIN).
 	local topY = w.CliffCenter.Y + w.CliffSize.Y / 2
-	terrain:FillBlock(CFrame.new(0, topY - 1, w.CliffCenter.Z), Vector3.new(w.CliffSize.X, 2, w.CliffSize.Z), Enum.Material.Grass)
-	-- River on the cliff top feeding the falls
-	terrain:FillBlock(CFrame.new(0, topY - 2, w.CliffCenter.Z - 10), Vector3.new(w.FallWidth, 4, 60), Enum.Material.Water)
+	-- River across the top, running right to the lip of the falls: a rocky bed, then water.
+	local faceLip = w.CliffCenter.Z + w.CliffSize.Z / 2 - 1
+	terrain:FillBlock(CFrame.new(0, topY - 3, (faceLip - 390) / 2), Vector3.new(w.FallWidth + 8, 6, faceLip + 390), Enum.Material.Slate)
+	terrain:FillBlock(CFrame.new(0, topY - 2, (faceLip - 388) / 2), Vector3.new(w.FallWidth, 4, faceLip + 388), Enum.Material.Water)
 	-- Hidden cave behind the falls (secret extraction)
 	terrain:FillBlock(CFrame.new(w.CaveCenter), w.CaveSize, Enum.Material.Air)
 	-- Plunge pool
@@ -1174,9 +1250,9 @@ local function buildWaterfall()
 	mist.SpreadAngle = Vector2.new(60, 20)
 	mist.Parent = mistAttachment
 
-	-- Ramp up to the cliff top lookout
-	local bottom = Vector3.new(40, 10, faceZ + 9)
-	local topPos = Vector3.new(170, topY, faceZ + 9)
+	-- Ramp up the terrace's east flank to the cliff top (lands on TerrainGen.MOUNTAIN.RampLanding)
+	local bottom = Vector3.new(225, 10, faceZ + 9)
+	local topPos = Vector3.new(95, topY, faceZ + 9)
 	local delta = topPos - bottom
 	local angle = math.atan2(delta.Y, delta.X)
 	part({
@@ -1188,7 +1264,8 @@ local function buildWaterfall()
 		Parent = falls,
 	})
 	local lookout = part({ Name = "Lookout", Size = Vector3.new(16, 1, 16), CFrame = CFrame.new(-40, topY + 0.5, w.CliffCenter.Z), Color = C.Wood, Material = Enum.Material.WoodPlanks, Parent = falls })
-	billboardSign(sheet, "GIANT WATERFALL", nil, Color3.fromRGB(170, 235, 255), 900, sheet.Size.Y / 2 + 6)
+	dressMountain(falls)
+	billboardSign(sheet, "GIANT WATERFALL", nil, Color3.fromRGB(170, 235, 255), 900, sheet.Size.Y / 2 + LANDMARK_LIFT + 10)
 	return lookout
 end
 
@@ -1237,7 +1314,7 @@ local function buildTemple()
 		CanQuery = false,
 		Parent = temple,
 	})
-	billboardSign(beacon, "ANCIENT TEMPLE", nil, C.Gold, 900, 4)
+	billboardSign(beacon, "ANCIENT TEMPLE", nil, C.Gold, 900, LANDMARK_LIFT)
 
 	-- Giant statues guarding the courtyard
 	for _, x in { -35, 35 } do
@@ -1273,7 +1350,7 @@ local function buildShipwreck()
 	part({ Name = "Mast", Shape = Enum.PartType.Cylinder, Size = Vector3.new(38, 2, 2), CFrame = mastCf * CFrame.Angles(0, 0, math.rad(90)), Color = C.Wood, Material = Enum.Material.Wood, Parent = ship })
 	part({ Name = "Sail", Size = Vector3.new(0.4, 14, 20), CFrame = mastCf * CFrame.new(0, 6, 0) * CFrame.Angles(0, math.rad(90), math.rad(8)), Color = Color3.fromRGB(235, 225, 200), Material = Enum.Material.Fabric, Parent = ship })
 	local flag = part({ Name = "Flag", Size = Vector3.new(0.2, 4, 6), CFrame = mastCf * CFrame.new(0, 20, 3), Color = Color3.fromRGB(25, 25, 30), Material = Enum.Material.Fabric, CanCollide = false, Parent = ship })
-	billboardSign(flag, "SHIPWRECK COAST", nil, Color3.fromRGB(255, 240, 200), 900, 4)
+	billboardSign(flag, "SHIPWRECK COAST", nil, Color3.fromRGB(255, 240, 200), 900, LANDMARK_LIFT)
 	-- Crates as steps onto the deck
 	for i, off in { Vector3.new(22, -3, 12), Vector3.new(16, -1, 14), Vector3.new(10, 1, 13) } do
 		local size = 6 - i
@@ -1409,12 +1486,12 @@ local function buildExtractionZones()
 		billboardSign(signAnchor, ("⬆ %s"):format(zone.Name:upper()), ("%s EXTRACTION • x%.1f FEE%s"):format(category.Label, category.Bonus, blessing), color, if secret then 60 else 600, 0)
 
 		if zone.Id == "expedition_camp" then
-			for i, off in { Vector3.new(-16, 0, -6), Vector3.new(16, 0, -4), Vector3.new(-12, 0, 14) } do
+			for i, off in { Vector3.new(-24, 0, -9), Vector3.new(24, 0, -6), Vector3.new(-18, 0, 21) } do
 				local tentCf = CFrame.new(ground + off + Vector3.new(0, 3, 0)) * CFrame.Angles(0, math.rad(i * 70), 0)
 				part({ Name = "TentL", Class = "WedgePart", Size = Vector3.new(8, 6, 4), CFrame = tentCf * CFrame.new(0, 0, -2), Color = Color3.fromRGB(230, 200, 140), Material = Enum.Material.Fabric, Parent = zf })
 				part({ Name = "TentR", Class = "WedgePart", Size = Vector3.new(8, 6, 4), CFrame = tentCf * CFrame.new(0, 0, 2) * CFrame.Angles(0, math.rad(180), 0), Color = Color3.fromRGB(210, 180, 120), Material = Enum.Material.Fabric, Parent = zf })
 			end
-			local fire = part({ Name = "Campfire", Size = Vector3.new(3, 1, 3), CFrame = CFrame.new(ground + Vector3.new(14, 0.5, 12)), Color = C.DarkWood, Material = Enum.Material.Wood, Parent = zf })
+			local fire = part({ Name = "Campfire", Size = Vector3.new(3, 1, 3), CFrame = CFrame.new(ground + Vector3.new(21, 0.5, 18)), Color = C.DarkWood, Material = Enum.Material.Wood, Parent = zf })
 			Instance.new("Fire").Parent = fire
 			local smoke = Instance.new("Smoke")
 			smoke.Color = Color3.fromRGB(190, 190, 190)
@@ -1422,7 +1499,7 @@ local function buildExtractionZones()
 			smoke.RiseVelocity = 4
 			smoke.Size = 2.5
 			smoke.Parent = fire
-			for _, off in { Vector3.new(10, 1.5, -14), Vector3.new(12, 1.5, -11), Vector3.new(-18, 1.5, 6) } do
+			for _, off in { Vector3.new(15, 1.5, -21), Vector3.new(18, 1.5, -18), Vector3.new(-26, 1.5, 9) } do
 				part({ Name = "Crate", Size = Vector3.new(3, 3, 3), CFrame = CFrame.new(ground + off), Color = C.Wood, Material = Enum.Material.WoodPlanks, Parent = zf })
 			end
 		elseif zone.Id == "temple_courtyard" then

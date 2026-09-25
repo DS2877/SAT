@@ -959,6 +959,19 @@ test("deep south: a channel, then Emberfall lowlands, then a high glacier", func
 	end
 end)
 
+test("exits are big, and no treasure spawns inside one", function()
+	local roblox = require("@lune/roblox") :: any
+	Vector3 = roblox.Vector3
+	local WorldLayout = require("../src/shared/Config/WorldLayout")
+	for _, zone in WorldLayout.ExtractionZones do
+		check(zone.Radius >= 13, zone.Id .. " is an easy-to-hit circle")
+		for _, spawn in WorldLayout.TreasureSpawns do
+			local d = Vector3.new(spawn.Position.X - zone.Position.X, 0, spawn.Position.Z - zone.Position.Z).Magnitude
+			check(d > zone.Radius + 2, ("spawn at (%d, %d) is outside %s"):format(spawn.Position.X, spawn.Position.Z, zone.Id))
+		end
+	end
+end)
+
 test("waystones: a dais in the District, one stone per south region", function()
 	local roblox = require("@lune/roblox") :: any
 	Vector3 = roblox.Vector3
@@ -1002,6 +1015,36 @@ test("deep south storms: one per region, loot always possible", function()
 	end
 end)
 
+test("the Waterfall Mountain: a terrace between peaks, inside its own voxel box", function()
+	local M = TerrainGen.MOUNTAIN
+	local box = M.Box
+	check((box.X0 % 64) == 0 and (box.Z0 % 64) == 0 and box.CellsX % 16 == 0 and box.CellsZ % 16 == 0, "the box is whole terrain chunks")
+	local highest, outside = -math.huge, 0
+	for x = -340, 360, 8 do
+		for z = -600, -260, 8 do
+			local h = TerrainGen.Height(x, z)
+			local inBox = x >= box.X0 and x < box.X0 + box.CellsX * 4 and z >= box.Z0 and z < box.Z0 + box.CellsZ * 4
+			if inBox then
+				highest = math.max(highest, h)
+			elseif h > 70 then
+				outside += 1
+			end
+		end
+	end
+	check(highest < box.YMax - 4, ("the peaks fit the mountain box (max %.1f)"):format(highest))
+	check(highest > M.Top + 30, ("real peaks rise over the terrace (max %.1f)"):format(highest))
+	check(outside == 0, "nothing tall is left outside the box")
+	for _, p in { { -40, -345, "lookout" }, { -70, -350, "hermit's hut" }, { -42, -334, "geyser landing" }, { 50, -380, "Ashen Pass start" }, { 95, -307, "ramp landing" }, { -40, -345, "cliff-top treasure" } } do
+		check(math.abs(TerrainGen.Height(p[1], p[2]) - M.Top) < 1.5, p[3] .. " is on the terrace")
+	end
+	-- The falls drop sheer: the terrace edge, then the pool right below.
+	check(TerrainGen.Height(0, -309) > M.Top - 2 and TerrainGen.Height(0, -300) < 12, "a sheer drop where the water falls")
+	-- The foot of the cliff stays playable.
+	for _, p in { { -45, -266, "Cliff Geyser" }, { -72, -262, "jungle treasure" }, { 170, -266, "ramp-side treasure" }, { 0, -285, "plunge pool" } } do
+		check(math.abs(TerrainGen.Height(p[1], p[2]) - 10) < 0.5, p[3] .. " on flat ground")
+	end
+end)
+
 test("terrain: gameplay spots are flat, island has hills and a coast", function()
 	-- Under the District slab the terrain is sunk to an exact voxel boundary (no poke-through).
 	for _, p in { { 0, 250, "district centre" }, { 0, 290, "spawn" }, { -62, 235, "gym" }, { 100, 330, "vaults" } } do
@@ -1015,7 +1058,7 @@ test("terrain: gameplay spots are flat, island has hills and a coast", function(
 		{ 230, -45, "temple courtyard" },
 		{ 230, -140, "temple" },
 		{ 0, -285, "waterfall pool" },
-		{ 40, -296, "cliff ramp foot" },
+		{ 225, -296, "cliff ramp foot" },
 		{ -345, -10, "shipwreck" },
 		{ 120, 10, "ravine bridge" },
 	}
@@ -1024,10 +1067,16 @@ test("terrain: gameplay spots are flat, island has hills and a coast", function(
 		check(near(h, 10, 0.01), ("%s flat at 10 (got %.2f)"):format(p[3], h))
 	end
 	local highest, lowestInland = -math.huge, math.huge
+	local box = TerrainGen.MOUNTAIN.Box
+	local function inMountainBox(x: number, z: number): boolean
+		return x >= box.X0 and x < box.X0 + box.CellsX * 4 and z >= box.Z0 and z < box.Z0 + box.CellsZ * 4
+	end
 	for x = -400, 400, 16 do
 		for z = -400, 400, 16 do
 			local h = TerrainGen.Height(x, z)
-			highest = math.max(highest, h)
+			if not inMountainBox(x, z) then
+				highest = math.max(highest, h) -- (the mountain has its own, taller voxel box)
+			end
 			if x * x + z * z < 300 * 300 then
 				lowestInland = math.min(lowestInland, h)
 			end

@@ -184,20 +184,20 @@ end
 local function buildAshenCamp(parent: Instance, groundAt)
 	local f = Common.folder("AshenCamp", parent)
 	local c = groundAt(22, -565)
-	for i, off in { Vector3.new(-14, 0, -6), Vector3.new(-12, 0, 10), Vector3.new(14, 0, 12) } do
+	for i, off in { Vector3.new(-21, 0, -9), Vector3.new(-18, 0, 15), Vector3.new(21, 0, 16) } do
 		local p = c + off
 		tent(f, CFrame.lookAt(p, c), if i == 2 then Color3.fromRGB(150, 40, 30) else Color3.fromRGB(60, 50, 50))
 	end
-	for _, off in { Vector3.new(-18, 0, 0), Vector3.new(18, 0, -4) } do
+	for _, off in { Vector3.new(-25, 0, 0), Vector3.new(25, 0, -6) } do
 		local p = c + off
 		part({ Name = "BannerPole", Size = Vector3.new(0.5, 12, 0.5), CFrame = CFrame.new(p + Vector3.new(0, 6, 0)), Color = BASALT, Material = Enum.Material.Metal, Parent = f })
 		part({ Name = "Banner", Size = Vector3.new(0.15, 5, 3), CFrame = CFrame.new(p + Vector3.new(0, 9, 1.6)), Color = Color3.fromRGB(170, 40, 30), Material = Enum.Material.Fabric, CanCollide = false, Parent = f })
 	end
 	for i = 1, 4 do
-		Props.Crate(f, CFrame.new(c + Vector3.new(8 + (i % 2) * 2.4, 1, -12 + i * 1.3)))
+		Props.Crate(f, CFrame.new(c + Vector3.new(14 + (i % 2) * 2.4, 1, -18 + i * 1.3)))
 	end
-	Common.sign(f, c + Vector3.new(0, 11, -18), "ASHEN CAMP", "Safe exit • rest before the fire", Color3.fromRGB(255, 190, 110))
-	return { Vector2.new(c.X, c.Z), 26 }
+	Common.sign(f, c + Vector3.new(0, 11, -24), "ASHEN CAMP", "Safe exit • rest before the fire", Color3.fromRGB(255, 190, 110))
+	return { Vector2.new(c.X, c.Z), 30 }
 end
 
 local function buildTemple(parent: Instance, groundAt, rng: Random)
@@ -242,11 +242,11 @@ local function buildOutpost(parent: Instance, groundAt)
 		end
 	end
 	-- The forge trough and hanging cages in the courtyard.
-	local trough = part({ Name = "ForgeTrough", Size = Vector3.new(10, 1, 3), CFrame = CFrame.new(c + Vector3.new(-8, 1.2, 10)), Color = EMBER, Material = Enum.Material.Neon, CanCollide = false, Parent = f })
-	part({ Name = "TroughStone", Size = Vector3.new(11, 1.5, 4), CFrame = CFrame.new(c + Vector3.new(-8, 0.4, 10)), Color = BASALT, Material = Enum.Material.Slate, Parent = f })
+	local trough = part({ Name = "ForgeTrough", Size = Vector3.new(10, 1, 3), CFrame = CFrame.new(c + Vector3.new(-6, 1.2, 15.8)), Color = EMBER, Material = Enum.Material.Neon, CanCollide = false, Parent = f })
+	part({ Name = "TroughStone", Size = Vector3.new(11, 1.5, 4), CFrame = CFrame.new(c + Vector3.new(-6, 0.4, 15.8)), Color = BASALT, Material = Enum.Material.Slate, Parent = f })
 	light(trough, EMBER, 22, 1.5)
 	for i = 0, 1 do
-		local p = c + Vector3.new(10 + i * 5, 0, 8)
+		local p = c + Vector3.new(12 + i * 3, 0, 13 - i * 4)
 		part({ Name = "GibbetPost", Size = Vector3.new(0.6, 10, 0.6), CFrame = CFrame.new(p + Vector3.new(0, 5, 0)), Color = RUST, Material = Enum.Material.Metal, Parent = f })
 		part({ Name = "Cage", Size = Vector3.new(2.4, 3.4, 2.4), CFrame = CFrame.new(p + Vector3.new(1.6, 7, 0)), Color = RUST, Material = Enum.Material.CorrodedMetal, Transparency = 0.5, Parent = f })
 	end

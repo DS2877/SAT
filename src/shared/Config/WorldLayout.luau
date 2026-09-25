@@ -42,7 +42,7 @@ WorldLayout.Waystones = {
 	Circle = Vector3.new(42, 11, 126), -- dais centre (plaza top); stones face the avenue (-X)
 	Radius = 10,
 	Regions = {
-		{ Area = "Ember", Name = "ASHEN CAMP", Stone = Vector3.new(16, 10, -547) },
+		{ Area = "Ember", Name = "ASHEN CAMP", Stone = Vector3.new(10, 10, -540) },
 		{ Area = "Rime", Name = "GLACIER GORGE", Stone = Vector3.new(14, 40, -862) },
 		{ Area = "Star", Name = "LANDING ISLE", Stone = Vector3.new(-12, 60, -1076) },
 	},
@@ -51,27 +51,28 @@ WorldLayout.Waystones = {
 WorldLayout.Leaderboards = { Radius = 40, SpreadDegrees = 100 }
 WorldLayout.AscensionAltar = Vector3.new(58, 10, 160)
 
+-- Exits are big, easy-to-hit circles (radius 17 safe / 14-15 dangerous / 13 secret).
 WorldLayout.ExtractionZones = {
 	{
 		Id = "expedition_camp",
 		Name = "Expedition Camp",
 		Category = "Safe",
 		Position = Vector3.new(0, 10, 55),
-		Radius = 11,
+		Radius = 17,
 	},
 	{
 		Id = "temple_courtyard",
 		Name = "Temple Courtyard",
 		Category = "Dangerous",
 		Position = Vector3.new(230, 10, -45),
-		Radius = 10,
+		Radius = 15,
 	},
 	{
 		Id = "hidden_falls",
 		Name = "Hidden Falls Cave",
 		Category = "Secret",
 		Position = Vector3.new(0, 10, -330),
-		Radius = 9,
+		Radius = 13,
 		RayFrom = 26,
 	},
 	-- The Deep South: bank your loot without the long walk home.
@@ -80,28 +81,28 @@ WorldLayout.ExtractionZones = {
 		Name = "Ashen Camp",
 		Category = "Safe",
 		Position = Vector3.new(22, 10, -565),
-		Radius = 11,
+		Radius = 17,
 	},
 	{
 		Id = "lava_outpost",
 		Name = "Lava Outpost",
 		Category = "Dangerous",
 		Position = Vector3.new(140, 12, -740),
-		Radius = 10,
+		Radius = 14, -- fits inside the outpost walls
 	},
 	{
 		Id = "glacier_station",
 		Name = "Glacier Station",
 		Category = "Dangerous",
 		Position = Vector3.new(120, 40, -915),
-		Radius = 10,
+		Radius = 15,
 	},
 	{
 		Id = "skyport",
 		Name = "Skyport",
 		Category = "Secret",
 		Position = Vector3.new(120, 55, -1190),
-		Radius = 9,
+		Radius = 13,
 		RayFrom = 80,
 	},
 }
@@ -146,7 +147,7 @@ WorldLayout.Marsh = {
 -- LAUNCH GEYSERS: step in and get flung onto a high place (client: Controllers/Pads).
 -- Target = where you land. Colour = steam / glow.
 WorldLayout.LaunchPads = {
-	{ Name = "Cliff Geyser", Position = Vector3.new(-40, 10, -292), Target = Vector3.new(-40, 92, -332), Color = { 90, 230, 255 } },
+	{ Name = "Cliff Geyser", Position = Vector3.new(-45, 10, -266), Target = Vector3.new(-42, 92, -334), Color = { 90, 230, 255 } },
 	{ Name = "Temple Geyser", Position = Vector3.new(182, 10, -140), Target = Vector3.new(229, 51, -143), Color = { 255, 200, 80 } },
 	{ Name = "Witch Geyser", Position = Vector3.new(308, 10, 165), Target = Vector3.new(330, 39.5, 144), Color = { 200, 120, 255 } },
 	-- The Deep South (World/DeepSouth).
@@ -254,12 +255,12 @@ WorldLayout.TreasureSpawns = {
 	{ Area = "Frost", Position = S.Trapper, RayFrom = 16 }, -- inside the cabin
 	{ Area = "Frost", Position = S.Outpost + Vector3.new(10, 0, 4) }, -- by the ore carts
 	-- THE FALLS (waterfall, cliff top, hidden cave)
-	{ Area = "Falls", Position = Vector3.new(-58, 10, -282) },
+	{ Area = "Falls", Position = Vector3.new(-72, 10, -262) },
 	{ Area = "Falls", Position = Vector3.new(-12, 10, -340), RayFrom = 26 }, -- behind the falls
 	{ Area = "Falls", Position = Vector3.new(-40, 91, -345) }, -- cliff top
 	{ Area = "Falls", Position = Vector3.new(60, 10, -270) },
 	{ Area = "Falls", Position = Vector3.new(-120, 10, -270) },
-	{ Area = "Falls", Position = Vector3.new(150, 10, -290) },
+	{ Area = "Falls", Position = Vector3.new(170, 10, -266) },
 	{ Area = "Falls", Position = S.Hermit, RayFrom = 96 }, -- inside the hermit's hut
 	-- EMBERFALL
 	{ Area = "Ember", Position = Vector3.new(70, 12, -555) },
@@ -268,7 +269,7 @@ WorldLayout.TreasureSpawns = {
 	{ Area = "Ember", Position = Vector3.new(160, 12, -600) },
 	{ Area = "Ember", Position = Vector3.new(95, 12, -655) },
 	{ Area = "Ember", Position = Vector3.new(20, 12, -700) },
-	{ Area = "Ember", Position = Vector3.new(150, 12, -735) }, -- inside the Lava Outpost
+	{ Area = "Ember", Position = Vector3.new(128, 12, -752) }, -- inside the Lava Outpost
 	{ Area = "Ember", Position = Vector3.new(-150, 12, -730) }, -- the mining camp
 	{ Area = "Ember", Position = Vector3.new(-195, 12, -625) },
 	{ Area = "Ember", Position = Vector3.new(60, 12, -735) },
@@ -281,7 +282,7 @@ WorldLayout.TreasureSpawns = {
 	{ Area = "Rime", Position = Vector3.new(-150, 40, -900) },
 	{ Area = "Rime", Position = Vector3.new(-40, 40, -905) },
 	{ Area = "Rime", Position = Vector3.new(70, 40, -905) },
-	{ Area = "Rime", Position = Vector3.new(130, 40, -905) }, -- Glacier Station
+	{ Area = "Rime", Position = Vector3.new(138, 40, -900) }, -- Glacier Station
 	{ Area = "Rime", Position = Vector3.new(-120, 40, -975) },
 	{ Area = "Rime", Position = Vector3.new(40, 40, -975) },
 	{ Area = "Rime", Position = Vector3.new(-60, 40, -990) }, -- the igloo village
@@ -292,7 +293,7 @@ WorldLayout.TreasureSpawns = {
 	{ Area = "Star", Position = Vector3.new(-10, 60, -1094) },
 	{ Area = "Star", Position = Vector3.new(-78, 72, -1114) }, -- the Crystal Garden
 	{ Area = "Star", Position = Vector3.new(78, 80, -1126) }, -- Moonstone
-	{ Area = "Star", Position = Vector3.new(126, 55, -1184) }, -- the Skyport
+	{ Area = "Star", Position = Vector3.new(109, 55, -1179) }, -- the Skyport
 	{ Area = "Star", Position = Vector3.new(-52, 95, -1176) }, -- the Starwell
 	{ Area = "Star", Position = Vector3.new(-66, 95, -1172) },
 }

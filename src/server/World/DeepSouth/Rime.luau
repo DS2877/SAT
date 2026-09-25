@@ -199,23 +199,23 @@ end
 local function buildStation(parent: Instance)
 	local f = Common.folder("GlacierStation", parent)
 	local c = Vector3.new(120, TOP, -915)
-	for i, off in { Vector3.new(-9, 0, 4), Vector3.new(8, 0, -6) } do
+	for i, off in { Vector3.new(-18, 0, 7), Vector3.new(17, 0, -10) } do
 		local p = c + off
 		part({ Name = "Hut", Size = Vector3.new(10, 6, 7), CFrame = CFrame.new(p + Vector3.new(0, 3, 0)) * CFrame.Angles(0, i * 0.3, 0), Color = Color3.fromRGB(200, 70, 50), Material = Enum.Material.Metal, Parent = f })
 		part({ Name = "HutRoof", Shape = Enum.PartType.Cylinder, Size = Vector3.new(10.4, 7.4, 7.4), CFrame = CFrame.new(p + Vector3.new(0, 6, 0)) * CFrame.Angles(0, i * 0.3, 0), Color = SNOW, Material = Enum.Material.Snow, Parent = f })
 		local window = part({ Name = "HutWindow", Size = Vector3.new(2.4, 1.6, 0.2), CFrame = CFrame.new(p + Vector3.new(0, 3.5, -3.6)) * CFrame.Angles(0, i * 0.3, 0), Color = Color3.fromRGB(255, 220, 150), Material = Enum.Material.Neon, CanCollide = false, Parent = f })
 		light(window, Color3.fromRGB(255, 210, 150), 16, 1, true)
 	end
-	part({ Name = "RadioMast", Size = Vector3.new(0.6, 22, 0.6), CFrame = CFrame.new(c + Vector3.new(0, 11, 10)), Color = METAL, Material = Enum.Material.Metal, Parent = f })
-	local beacon = part({ Name = "MastBeacon", Shape = Enum.PartType.Ball, Size = Vector3.new(1.2, 1.2, 1.2), CFrame = CFrame.new(c + Vector3.new(0, 22.5, 10)), Color = Color3.fromRGB(255, 50, 50), Material = Enum.Material.Neon, Parent = f })
+	part({ Name = "RadioMast", Size = Vector3.new(0.6, 22, 0.6), CFrame = CFrame.new(c + Vector3.new(0, 11, 19)), Color = METAL, Material = Enum.Material.Metal, Parent = f })
+	local beacon = part({ Name = "MastBeacon", Shape = Enum.PartType.Ball, Size = Vector3.new(1.2, 1.2, 1.2), CFrame = CFrame.new(c + Vector3.new(0, 22.5, 19)), Color = Color3.fromRGB(255, 50, 50), Material = Enum.Material.Neon, Parent = f })
 	light(beacon, Color3.fromRGB(255, 60, 60), 24, 1.2)
-	for _, off in { Vector3.new(14, 0, 4), Vector3.new(-14, 0, -8) } do
+	for _, off in { Vector3.new(20, 0, 4), Vector3.new(-19, 0, -9) } do
 		part({ Name = "FlagPole", Size = Vector3.new(0.3, 8, 0.3), CFrame = CFrame.new(c + off + Vector3.new(0, 4, 0)), Color = METAL, Material = Enum.Material.Metal, Parent = f })
 		part({ Name = "Flag", Size = Vector3.new(0.1, 1.6, 2.6), CFrame = CFrame.new(c + off + Vector3.new(0, 7.2, 1.3)), Color = Color3.fromRGB(230, 120, 30), Material = Enum.Material.Fabric, CanCollide = false, Parent = f })
 	end
-	part({ Name = "Sled", Size = Vector3.new(2.4, 0.6, 6), CFrame = CFrame.new(c + Vector3.new(4, 0.5, 12)) * CFrame.Angles(0, 0.4, 0), Color = Color3.fromRGB(170, 60, 40), Material = Enum.Material.WoodPlanks, Parent = f })
+	part({ Name = "Sled", Size = Vector3.new(2.4, 0.6, 6), CFrame = CFrame.new(c + Vector3.new(7, 0.5, 19)) * CFrame.Angles(0, 0.4, 0), Color = Color3.fromRGB(170, 60, 40), Material = Enum.Material.WoodPlanks, Parent = f })
 	Common.sign(f, c + Vector3.new(0, 16, -14), "GLACIER STATION", "Dangerous exit • +50% cash", Color3.fromRGB(255, 190, 150))
-	return { Vector2.new(c.X, c.Z), 24 }
+	return { Vector2.new(c.X, c.Z), 28 }
 end
 
 local function buildIgloos(parent: Instance, rng: Random)

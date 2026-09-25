@@ -19,7 +19,8 @@ TerrainGen.FLAT_ZONES = {
 	{ 0, 250, 168, 45 }, -- Treasure District
 	{ 0, 55, 34, 30 }, -- Expedition Camp
 	{ 230, -110, 125, 45 }, -- Ancient Ruins + courtyard
-	{ 60, -300, 150, 40 }, -- Waterfall basin + cliff ramp
+	{ 60, -300, 150, 40 }, -- Waterfall basin
+	{ 225, -296, 18, 16 }, -- cliff ramp foot
 	{ -345, -10, 95, 35 }, -- Shipwreck Coast
 	{ 120, 10, 28, 25 }, -- Ravine bridge
 	{ 360, 300, 24, 20 }, -- Lighthouse
@@ -116,6 +117,105 @@ function TerrainGen.FlatMask(x: number, z: number): number
 	return mask
 end
 
+-- THE WATERFALL MOUNTAIN: a sculpted massif across the island's south (replacing the old
+-- rectangular cliff blocks). A grassy TERRACE at Top - a hanging valley where the river runs
+-- to the Giant Waterfall - sits in a saddle between two big, eroded PEAKS whose long rocky
+-- slopes run down into the jungle and the sea. The terrace is sheer only where the water
+-- drops and where the cliff ramp lands; everything built on it (river, lookout, hermit's hut,
+-- geyser landing, the start of the Ashen Pass) stays flat. Generated in its own, taller
+-- voxel box.
+TerrainGen.MOUNTAIN = {
+	Top = 90,
+	Box = { X0 = -320, Z0 = -576, CellsX = 160, CellsZ = 80, YMax = 164 },
+	Terrace = { West = -85, East = 108, Front = -307, Back = -392 },
+	FallsHalfWidth = 34, -- the sheer notch the waterfall pours over (and the pool below it)
+	LedgeTop = 50, -- the grassy mid-ledge that steps the cliff face on both sides of the falls
+	RampLanding = { 78, 112 }, -- x range where the cliff ramp meets the terrace
+	PassX = { 15, 85 }, -- the Ashen Pass leaves the terrace here, heading south
+	Peaks = {
+		{ X = -165, Z = -415, Height = 150, Radius = 125 }, -- the west peak
+		{ X = -85, Z = -440, Height = 112, Radius = 70 },
+		{ X = -230, Z = -330, Height = 72, Radius = 70 }, -- west shoulder
+		{ X = 180, Z = -420, Height = 138, Radius = 115 }, -- the east peak
+		{ X = 250, Z = -350, Height = 70, Radius = 60 }, -- east shoulder
+		{ X = 110, Z = -445, Height = 96, Radius = 55 },
+		-- A jagged skyline right behind the falls (clear of the Ashen Pass at x 15..85).
+		{ X = -30, Z = -428, Height = 124, Radius = 66 },
+		{ X = 135, Z = -430, Height = 122, Radius = 45 },
+		-- Spurs hugging the terrace's front corners, so it reads as a notch in the range.
+		{ X = -118, Z = -330, Height = 112, Radius = 62 },
+		{ X = 150, Z = -348, Height = 108, Radius = 46 },
+	},
+}
+
+-- Height of the mountain at (x, z) over `ground` (the land beneath it), or nil off it. Pure.
+function TerrainGen.MountainHeight(x: number, z: number, ground: number): number?
+	local M = TerrainGen.MOUNTAIN
+	if x < -330 or x > 350 or z > -270 or z < -580 then
+		return nil
+	end
+	local function n(f: number, o: number): number
+		return (math.noise(x * f, z * f, SEED + o) + 1) / 2 -- 0..1
+	end
+	local function nx(f: number, o: number): number
+		return (math.noise(x * f, 0.5, SEED + o) + 1) / 2
+	end
+	local height = ground
+	-- PEAKS: domes warped by noise, cut by gullies and ledges.
+	local warp = (n(1 / 45, 301) - 0.5) * 0.35
+	local gully = math.abs(math.noise(x / 28, z / 28, SEED + 303)) -- 0 in a gully, up to ~0.7
+	for _, peak in M.Peaks do
+		local d = math.sqrt((x - peak.X) ^ 2 + (z - peak.Z) ^ 2) / peak.Radius * (1 + warp)
+		if d < 1 then
+			local shape = (1 - d ^ 1.6) ^ 1.25
+			local v = ground + (peak.Height - ground) * shape
+			v -= (0.35 - math.min(gully, 0.35)) * 26 * d * (1 - d) * 4 -- erosion gullies down the slopes
+			v += (n(1 / 18, 305) - 0.5) * 10 * shape -- rocky ledges
+			height = math.max(height, v)
+		end
+	end
+	-- THE TERRACE: its edges, ragged except where the falls drop and the ramp lands.
+	local T = M.Terrace
+	local inFalls = math.abs(x) < M.FallsHalfWidth
+	local onLanding = x > M.RampLanding[1] and x < M.RampLanding[2]
+	-- Buttresses: the face juts in and out every ~12 studs.
+	local buttress = math.abs(math.noise(x / 13, 0.5, SEED + 321)) * 9
+	local front = if inFalls then -306 elseif onLanding then T.Front else T.Front - 2 - nx(1 / 30, 311) * 12 + buttress
+	local onPass = x > M.PassX[1] and x < M.PassX[2]
+	local back = if onPass then -383 else T.Back - nx(1 / 40, 313) * 10
+	local sheer = inFalls or onLanding
+	local frontWidth = if sheer then 4 else 34 + nx(1 / 50, 315) * 12
+	local e = math.sqrt(
+		(math.max(0, z - front) / frontWidth) ^ 2
+			+ (math.max(0, back - z) / 30) ^ 2
+			+ (math.max(0, T.West - x) / 45) ^ 2
+			+ (math.max(0, x - T.East) / 45) ^ 2
+	)
+	if e <= 0 then
+		-- On the terrace: flat (a gentle roll), cut into the peaks' feet like a valley floor.
+		return M.Top + (n(1 / 60, 317) - 0.5) * 2
+	elseif e < 1 then
+		-- Rounded lip, steep face, talus at the foot - and on the stepped front, a mid-ledge.
+		local fall = if e < 0.12 then 1 - (e / 0.12) ^ 2 * 0.06 else 0.94 * ((1 - e) / 0.88) ^ 1.7
+		local inFront = z > front and (z - front) / frontWidth >= math.max(0, back - z) / 30
+		if inFront and not sheer then
+			local ledge = (M.LedgeTop - ground) / (M.Top - ground)
+			local ef = (z - front) / frontWidth
+			fall = if ef < 0.35
+				then 1 - (1 - ledge) * smoothstep(ef / 0.35) -- upper face
+				elseif ef < 0.6 then ledge -- the ledge
+				else ledge * (1 - smoothstep((ef - 0.6) / 0.4)) -- lower face
+			fall = math.min(fall, 1 - smoothstep((e - 1) * 4 + 1)) -- still fade out at the sides
+		end
+		local ledges = (n(1 / 20, 319) - 0.5) * 14 * math.clamp(e * (1 - e) * 4, 0, 1)
+		height = math.max(height, ground + (M.Top - ground) * fall + ledges * fall)
+	end
+	-- The range falls into the sea before the Sundering (the channel stays open water).
+	local seaward = smoothstep((TerrainGen.SOUTH.ChannelStart + 5 - z) / 40)
+	height = ground + (height - ground) * (1 - seaward)
+	return if height > ground + 0.5 then height else nil
+end
+
 -- Returns (surface height, coast factor 0 = inland .. 1 = open sea)
 function TerrainGen.Height(x: number, z: number): (number, number)
 	local r = math.sqrt(x * x + z * z)
@@ -143,7 +243,11 @@ function TerrainGen.Height(x: number, z: number): (number, number)
 	end
 	local southHeight, southCoast = TerrainGen.SouthHeight(x, z)
 	if southHeight and southHeight > height then
-		return southHeight, southCoast
+		height, coast = southHeight, southCoast
+	end
+	local mountain = TerrainGen.MountainHeight(x, z, height)
+	if mountain then
+		return mountain, if mountain > 12 then 0 else coast
 	end
 	return height, coast
 end
@@ -250,6 +354,8 @@ TerrainGen.BIOME_MATERIALS = {
 	Star = { "Rock", "Rock", "Slate" }, -- (only shores: the isles are built from parts)
 }
 
+TerrainGen.MOUNTAIN_MATERIALS = { "LeafyGrass", "Rock", "Rock", "Grass", 0.35 }
+
 local function surfaceMaterial(height: number, coast: number, slope: number, x: number, z: number)
 	local zone = TerrainGen.SurfaceZone(x, z)
 	if zone then
@@ -258,7 +364,9 @@ local function surfaceMaterial(height: number, coast: number, slope: number, x: 
 	if height < 3 or (height < 8.5 and coast > 0.12) then
 		return Enum.Material.Sand
 	end
-	local mats = TerrainGen.BIOME_MATERIALS[TerrainGen.Biome(x, z, 14)]
+	local biome = TerrainGen.Biome(x, z, 14)
+	-- The Waterfall Mountain: grassy top, bare rock faces (not the jungle's mud).
+	local mats = if height > 36 and biome == "Falls" then TerrainGen.MOUNTAIN_MATERIALS else TerrainGen.BIOME_MATERIALS[biome]
 	local name = mats[1]
 	if slope > 0.95 then
 		name = mats[3]
@@ -270,7 +378,7 @@ local function surfaceMaterial(height: number, coast: number, slope: number, x: 
 	return (Enum.Material :: any)[name]
 end
 
-local function generateRegion(terrain: Terrain, x0: number, z0: number, cellsX: number, cellsZ: number)
+local function generateRegion(terrain: Terrain, x0: number, z0: number, cellsX: number, cellsZ: number, yMax: number?)
 	-- Height grid with a one-cell border for slope estimation.
 	local heights: { { number } } = {}
 	local coasts: { { number } } = {}
@@ -285,7 +393,7 @@ local function generateRegion(terrain: Terrain, x0: number, z0: number, cellsX: 
 	end
 
 	local chunk = 16
-	local ny = (Y_MAX - Y_MIN) / RES
+	local ny = ((yMax or Y_MAX) - Y_MIN) / RES
 	for ci = 0, cellsX - 1, chunk do
 		for cj = 0, cellsZ - 1, chunk do
 			local materials, occupancy = {}, {}
@@ -336,6 +444,9 @@ end
 function TerrainGen.Generate(terrain: Terrain)
 	generateRegion(terrain, -HALF, -HALF, HALF * 2 / RES, HALF * 2 / RES)
 	generateRegion(terrain, SOUTH_STRIP.X0, SOUTH_STRIP.Z0, SOUTH_STRIP.CellsX, SOUTH_STRIP.CellsZ)
+	-- The Waterfall Mountain is taller than Y_MAX: rewrite its box with a taller column.
+	local box = TerrainGen.MOUNTAIN.Box
+	generateRegion(terrain, box.X0, box.Z0, box.CellsX, box.CellsZ, box.YMax)
 end
 
 return TerrainGen

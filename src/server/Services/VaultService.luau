@@ -184,15 +184,48 @@ local function render(player: Player)
 	for f = 2, maxFloors do
 		local unlocked = f <= floorsUnlocked
 		local floorCf = plot.CFrame * CFrame.new(0, (f - 1) * cfg.FloorHeight, 0)
-		newPart(plot.Displays, {
-			Name = "Floor" .. f,
-			Size = Vector3.new(cfg.PlotSize - 2, 0.6, cfg.PlotSize - 2),
-			CFrame = floorCf * CFrame.new(0, -0.3, 0),
-			Color = if unlocked then Color3.fromRGB(62, 52, 88) else Color3.fromRGB(150, 200, 255),
-			Material = if unlocked then Enum.Material.Marble else Enum.Material.Glass,
-			Transparency = if unlocked then 0 else 0.85,
-			CanCollide = unlocked,
-		})
+		if unlocked then
+			newPart(plot.Displays, {
+				Name = "Floor" .. f,
+				Size = Vector3.new(cfg.PlotSize - 2, 0.6, cfg.PlotSize - 2),
+				CFrame = floorCf * CFrame.new(0, -0.3, 0),
+				Color = Color3.fromRGB(62, 52, 88),
+				Material = Enum.Material.Marble,
+			})
+		else
+			-- A floor still to buy: see straight through it - just a faint pane and a glowing
+			-- outline showing where it will be. (Glass renders frosted/solid on phones.)
+			newPart(plot.Displays, {
+				Name = "FutureFloor" .. f,
+				Size = Vector3.new(cfg.PlotSize - 2, 0.2, cfg.PlotSize - 2),
+				CFrame = floorCf * CFrame.new(0, -0.3, 0),
+				Color = Color3.fromRGB(150, 200, 255),
+				Material = Enum.Material.SmoothPlastic,
+				Transparency = 0.94,
+				CanCollide = false,
+				CanQuery = false,
+				CastShadow = false,
+			})
+			local edge = cfg.PlotSize - 2
+			for _, bar in {
+				{ Vector3.new(edge, 0.25, 0.25), CFrame.new(0, 0, -edge / 2) },
+				{ Vector3.new(edge, 0.25, 0.25), CFrame.new(0, 0, edge / 2) },
+				{ Vector3.new(0.25, 0.25, edge), CFrame.new(-edge / 2, 0, 0) },
+				{ Vector3.new(0.25, 0.25, edge), CFrame.new(edge / 2, 0, 0) },
+			} do
+				newPart(plot.Displays, {
+					Name = "FutureFloorEdge",
+					Size = bar[1],
+					CFrame = floorCf * CFrame.new(0, -0.3, 0) * bar[2],
+					Color = Color3.fromRGB(150, 210, 255),
+					Material = Enum.Material.Neon,
+					Transparency = 0.45,
+					CanCollide = false,
+					CanQuery = false,
+					CastShadow = false,
+				})
+			end
+		end
 		if unlocked then
 			for _, rail in {
 				{ Vector3.new(cfg.PlotSize - 2, 3, 0.4), CFrame.new(0, 1.5, -half + 1) },
