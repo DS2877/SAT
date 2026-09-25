@@ -23,6 +23,7 @@ local M = Enum.Material
 
 export type Kit = {
 	s: number,
+	handle: BasePart,
 	main: Color3,
 	accent: Color3,
 	mat: Enum.Material,
@@ -39,7 +40,7 @@ export type Kit = {
 
 function TreasureModels.Kit(model: Model, handle: BasePart, s: number, main: Color3, accent: Color3, mat: Enum.Material): Kit
 	local k = {} :: any
-	k.s, k.main, k.accent, k.mat = s, main, accent, mat
+	k.s, k.main, k.accent, k.mat, k.handle = s, main, accent, mat, handle
 
 	function k.at(x: number, y: number, z: number, rx: number?, ry: number?, rz: number?): CFrame
 		return handle.CFrame * CFrame.new(x * s, y * s, z * s) * CFrame.Angles(rad(rx or 0), rad(ry or 0), rad(rz or 0))
@@ -183,10 +184,12 @@ end
 
 -- A curved horn: a chain of shrinking ellipsoids bending outward.
 local function horn(k: Kit, x: number, y: number, z: number, side: number, length: number, dia: number, color: Color3, mat: Enum.Material)
-	for i = 0, 4 do
-		local t = i / 4
-		local d = dia * (1 - t * 0.8)
-		k.ball(d, length / 4, d, k.at(x + side * (t * 0.35 + t * t * 0.25), y + t * length * 0.8, z, 0, 0, side * -(20 + t * 35)), color, mat)
+	for i = 0, 5 do
+		local t = i / 5
+		local d = dia * (1 - t * 0.75)
+		local px = x + side * (t * 0.4 + t * t * 0.35) * length
+		local py = y + t * length * 0.85
+		k.ball(d, length * 0.4, d, k.at(px, py, z, 0, 0, side * -(15 + t * 50)), color, mat)
 	end
 end
 
@@ -876,6 +879,153 @@ Models.moonshroom = function(k)
 	end
 	-- A little moon glowing on top.
 	k.ball(0.42, 0.42, 0.42, k.at(0, 1.1, 0), C(255, 250, 200), M.Neon)
+end
+
+-- SECRET: FROSTBANE ------------------------------------------------------------------------
+-- A huge two-handed runeblade driven point-first into the ground: an ice-steel blade with
+-- glowing runes and a serrated upper edge, a skull crossguard with sweeping horned guards,
+-- a wrapped grip and a gem pommel. Blue frost-fire, crackling sparks and sinking cold mist.
+
+local function frostbaneFx(k: Kit)
+	local handle, s = k.handle, k.s
+	local ice = C(90, 210, 255)
+	local light = Instance.new("PointLight")
+	light.Name = "RuneLight"
+	light.Color = ice
+	light.Range = s * 4.5
+	light.Brightness = 3
+	light.Shadows = false
+	light.Parent = handle
+	local fire = Instance.new("Fire")
+	fire.Name = "Frostfire"
+	fire.Color = C(80, 190, 255)
+	fire.SecondaryColor = C(20, 50, 140)
+	fire.Size = s * 0.3
+	fire.Heat = 4
+	fire.Parent = handle
+	local function emitter(name: string, props)
+		local e = Instance.new("ParticleEmitter")
+		e.Name = name
+		e.LightInfluence = 0
+		for key, value in props do
+			(e :: any)[key] = value
+		end
+		e.Parent = handle
+	end
+	-- Crackling blue sparks all along the blade...
+	emitter("RuneSparks", {
+		Texture = "rbxasset://textures/particles/sparkles_main.dds",
+		Color = ColorSequence.new(ice, C(230, 250, 255)),
+		LightEmission = 1,
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, s * 0.14), NumberSequenceKeypoint.new(1, 0) }),
+		Lifetime = NumberRange.new(0.35, 0.8),
+		Rate = 45,
+		Speed = NumberRange.new(s * 0.3, s * 1.2),
+		SpreadAngle = Vector2.new(180, 180),
+		Drag = 4,
+	})
+	-- ...big bright flashes like arcs of frost lightning...
+	emitter("RuneFlash", {
+		Texture = "rbxasset://textures/particles/sparkles_main.dds",
+		Color = ColorSequence.new(C(200, 245, 255)),
+		LightEmission = 1,
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.3, s * 0.55), NumberSequenceKeypoint.new(1, 0) }),
+		Lifetime = NumberRange.new(0.12, 0.22),
+		Rate = 7,
+		Speed = NumberRange.new(0, 0),
+		Rotation = NumberRange.new(0, 90),
+	})
+	-- ...and cold mist rolling off it and sinking to the ground.
+	emitter("ColdMist", {
+		Texture = "rbxasset://textures/particles/smoke_main.dds",
+		Color = ColorSequence.new(C(190, 230, 255)),
+		LightEmission = 0.3,
+		Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.55), NumberSequenceKeypoint.new(1, 1) }),
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, s * 0.2), NumberSequenceKeypoint.new(1, s * 0.7) }),
+		Lifetime = NumberRange.new(2, 3.2),
+		Rate = 8,
+		Speed = NumberRange.new(s * 0.05, s * 0.2),
+		SpreadAngle = Vector2.new(180, 180),
+		Acceleration = Vector3.new(0, -s * 0.15, 0),
+	})
+end
+
+Models.frostbane = function(k)
+	local steel = k.main
+	local rim = C(40, 70, 120)
+	local rune = C(90, 220, 255)
+	local darkSteel = C(62, 72, 96)
+	local bone = C(150, 165, 185)
+	-- BLADE: point-down, broad side facing front/back, tapering to a diamond tip.
+	local top, bottom, segments = 0.8, -0.76, 8
+	local h = (top - bottom) / segments
+	local function width(y: number): number
+		return 0.54 - ((top - y) / (top - bottom)) * 0.36
+	end
+	for i = 0, segments - 1 do
+		local y = top - (i + 0.5) * h
+		local w = width(y)
+		k.box(w, h * 1.04, 0.07, k.at(0, y, 0), steel, M.Metal, { R = 0.4 })
+		k.box(w + 0.06, h * 1.04, 0.04, k.at(0, y, 0), rim, M.Metal)
+	end
+	k.box(0.19, 0.19, 0.07, k.at(0, bottom, 0, 0, 0, 45), steel, M.Metal, { R = 0.4 })
+	-- Serrated upper edges: saw teeth raking back toward the hilt.
+	for i = 0, 3 do
+		local y = 0.7 - i * 0.18
+		for _, side in { -1, 1 } do
+			k.wedge(0.06, 0.16, 0.12, k.at(side * (width(y) / 2 + 0.04), y, 0, 0, side * 90, 180), steel:Lerp(WHITE, 0.25), M.Metal, { R = 0.4 })
+		end
+	end
+	-- Glowing runes down the centre, on both faces, over a faint fuller line.
+	for _, face in { -1, 1 } do
+		local z = face * 0.045
+		k.box(0.04, 1.45, 0.02, k.at(0, 0.02, z), rune, M.Neon, { T = 0.45 })
+		for i = 0, 6 do
+			local y = 0.66 - i * 0.22
+			if i % 2 == 0 then
+				k.box(0.07, 0.13, 0.02, k.at(0, y, z), rune, M.Neon)
+			else
+				k.box(0.15, 0.05, 0.02, k.at(0, y, z, 0, 0, 20), rune, M.Neon)
+			end
+		end
+	end
+	-- CROSSGUARD: a grim steel skull with slanted glowing eyes, curling horns, and guards that
+	-- sweep up like frozen wings, spiked along their length.
+	local skullY = 0.9
+	k.ball(0.36, 0.34, 0.3, k.at(0, skullY, 0), bone, M.Metal, { R = 0.2 })
+	k.box(0.24, 0.12, 0.2, k.at(0, skullY - 0.2, -0.02), bone, M.Metal, { R = 0.2 })
+	for i = -1, 1 do
+		k.box(0.05, 0.08, 0.04, k.at(i * 0.07, skullY - 0.27, -0.1), WHITE, M.SmoothPlastic)
+	end
+	for _, side in { -1, 1 } do
+		-- Brow ridge in a scowl, slanted eye sockets burning blue.
+		k.box(0.17, 0.05, 0.1, k.at(side * 0.08, skullY + 0.07, -0.12, 0, 0, side * -18), darkSteel, M.Metal)
+		k.box(0.12, 0.07, 0.04, k.at(side * 0.08, skullY + 0.0, -0.14, 0, 0, side * -20), BLACK)
+		k.box(0.08, 0.035, 0.03, k.at(side * 0.08, skullY + 0.0, -0.16, 0, 0, side * -20), rune, M.Neon)
+		horn(k, side * 0.14, skullY + 0.1, 0.02, side, 0.28, 0.13, darkSteel, M.Metal)
+		-- The guard arm sweeps out and up, ending in a glowing spike.
+		local arm = { { 0.26, 0.86, 0.2, 10 }, { 0.46, 0.91, 0.17, 25 }, { 0.63, 1.02, 0.14, 45 }, { 0.75, 1.18, 0.1, 65 } }
+		for j, seg in arm do
+			k.box(0.24, seg[3], 0.12, k.at(side * seg[1], seg[2], 0, 0, 0, side * seg[4]), darkSteel, M.Metal, { R = 0.2 })
+			if j == 2 or j == 3 then
+				k.wedge(0.06, 0.14, 0.1, k.at(side * seg[1], seg[2] + seg[3] * 0.7, 0, 0, side * -90, side * seg[4]), darkSteel, M.Metal)
+			end
+		end
+		k.box(0.1, 0.1, 0.1, k.at(side * 0.8, 1.3, 0, 0, 0, 45), rune, M.Neon)
+		-- A fang curling down onto the blade.
+		k.ball(0.08, 0.26, 0.08, k.at(side * 0.18, 0.66, -0.02, 0, 0, side * 15), bone, M.Metal)
+	end
+	-- GRIP and POMMEL.
+	k.vcyl(0.4, 0.12, k.at(0, 1.26, 0), C(38, 34, 48), M.Fabric)
+	for _, y in { 1.1, 1.26, 1.42 } do
+		k.vcyl(0.035, 0.155, k.at(0, y, 0), darkSteel, M.Metal)
+	end
+	k.torus(0.1, 0.05, 8, k.at(0, 1.54, 0), darkSteel, M.Metal)
+	k.ball(0.13, 0.13, 0.13, k.at(0, 1.54, 0), rune, M.Neon)
+	for _, side in { -1, 1 } do
+		k.box(0.05, 0.05, 0.12, k.at(side * 0.14, 1.54, 0, 0, 0, 45), darkSteel, M.Metal)
+	end
+	frostbaneFx(k)
 end
 
 -- OG ----------------------------------------------------------------------------------------

@@ -82,6 +82,7 @@ Treasures.List = {
 
 	-- SECRET ($1,000,000+)
 	{ Id = "heart_of_the_island", Name = "Heart of the Island", Rarity = "Secret", Value = 2500000, Weight = 4000, SpawnArea = "Falls", Shape = "Orb", Color = { 255, 255, 255 }, Material = "Neon", DisplaySize = "Large", SpecialEffect = "Radiant", Lore = "They said it was a myth." },
+	{ Id = "frostbane", Name = "Frostbane", Rarity = "Secret", Value = 3000000, Weight = 6500, SpawnArea = "Frost", Shape = "Trident", Color = { 170, 205, 235 }, Material = "Metal", DisplaySize = "Medium", Lore = "A runeblade forged in the heart of a glacier. It hungers. It whispers. It never thaws." },
 
 	-- OG ($5,000,000+) - the rarest thing on the island
 	{ Id = "first_doubloon", Name = "The First Doubloon", Rarity = "OG", Value = 5000000, Weight = 3500, SpawnArea = "Falls", Shape = "Disc", Color = { 255, 215, 0 }, Material = "Metal", DisplaySize = "Large", SpecialEffect = "Radiant", Lore = "The coin that started every treasure hunt. There is only one." },
