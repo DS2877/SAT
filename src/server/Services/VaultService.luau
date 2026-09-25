@@ -71,7 +71,7 @@ local function slotPlacement(index: number): (number, CFrame)
 	local rows = math.ceil(cfg.PerFloor / cfg.Columns)
 	local x = (col - (cfg.Columns - 1) / 2) * cfg.ColumnSpacing
 	x += (if col < cfg.Columns / 2 then -1 else 1) * (cfg.AisleWidth or 0) / 2 -- central aisle
-	local z = (row - (rows - 1) / 2) * cfg.RowSpacing
+	local z = (row - (rows - 1) / 2) * cfg.RowSpacing + cfg.GridOffsetZ -- forward: stairs behind
 	return floorIndex, CFrame.new(x, (floorIndex - 1) * cfg.FloorHeight, z)
 end
 
@@ -116,7 +116,14 @@ local function label(parent: Instance, text: string, color: Color3, offsetY: num
 	return gui
 end
 
-local teleportPlayerToFloor -- forward declaration (lift pads)
+-- Stair flight f (floor f -> f + 1): which band at the back (z) and which way it climbs (x).
+-- Flights alternate between two bands so each one lands next to the start of the next.
+local function stairBand(f: number): number
+	return cfg.Stairs.BandsZ[(f - 1) % 2 + 1]
+end
+local function stairDirection(f: number): number
+	return if f % 2 == 1 then 1 else -1
+end
 local sellSlot -- forward declaration (pedestal sell prompts)
 
 -- owner/slot are set for filled pedestals (sell prompt); income = the owner's actual $/s.
@@ -150,7 +157,7 @@ local function buildPedestal(parent: Instance, base: CFrame, def, ghost: boolean
 			prompt.ActionText = ("Sell %s"):format(formatShort(Economy.SellPrice(def, mutation)))
 			prompt.ObjectText = if mutation then mutation .. " " .. def.Name else def.Name
 			prompt.HoldDuration = 1.2
-			-- E / X like every other prompt (F is BONK and Y is gadget 3: a held attack must never sell).
+			-- E / X like every other prompt (F is SLAP and Y is gadget 3: a held attack must never sell).
 			prompt.KeyboardKeyCode = Enum.KeyCode.E
 			prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
 			prompt.MaxActivationDistance = 6
@@ -177,41 +184,58 @@ local function render(player: Player)
 	local slots = slotsFor(data)
 	local floorsUnlocked = math.ceil(slots / cfg.PerFloor)
 	local maxFloors = math.ceil(maxEnabledSlots() / cfg.PerFloor)
-	local half = cfg.PlotSize / 2
+	local halfW, halfD = cfg.PlotWidth / 2, cfg.PlotDepth / 2
+	local half = halfD
 	local nextTier = cfg.Tiers[data.Vault.Tier + 1]
 
-	-- Upper floors: solid when unlocked, ghostly outlines when still to come.
+	-- UPPER FLOORS: solid marble with glass rails when unlocked (with a stairwell where the stairs
+	-- from below come up); floors still to buy are only a thin glowing outline, so nothing hides
+	-- the treasure names and earnings on the floors below.
+	local stairs = cfg.Stairs
 	for f = 2, maxFloors do
-		local unlocked = f <= floorsUnlocked
 		local floorCf = plot.CFrame * CFrame.new(0, (f - 1) * cfg.FloorHeight, 0)
-		if unlocked then
-			newPart(plot.Displays, {
-				Name = "Floor" .. f,
-				Size = Vector3.new(cfg.PlotSize - 2, 0.6, cfg.PlotSize - 2),
-				CFrame = floorCf * CFrame.new(0, -0.3, 0),
-				Color = Color3.fromRGB(62, 52, 88),
-				Material = Enum.Material.Marble,
-			})
+		if f <= floorsUnlocked then
+			local band = stairBand(f - 1)
+			local x0, x1 = -halfW + 1, halfW - 1
+			local z0, z1 = -halfD + 1, halfD - 1
+			local bandMin, bandMax = band - stairs.Width / 2, band + stairs.Width / 2
+			for _, slab in {
+				{ x0, x1, z0, bandMin }, -- in front of the stairwell (the gallery)
+				{ x0, x1, bandMax, z1 }, -- behind it
+				{ x0, -stairs.Run / 2, bandMin, bandMax }, -- either end of it
+				{ stairs.Run / 2, x1, bandMin, bandMax },
+			} do
+				local sx, sz = slab[2] - slab[1], slab[4] - slab[3]
+				if sx > 0.05 and sz > 0.05 then
+					newPart(plot.Displays, {
+						Name = "Floor" .. f,
+						Size = Vector3.new(sx, 0.6, sz),
+						CFrame = floorCf * CFrame.new((slab[1] + slab[2]) / 2, -0.3, (slab[3] + slab[4]) / 2),
+						Color = Color3.fromRGB(62, 52, 88),
+						Material = Enum.Material.Marble,
+					})
+				end
+			end
+			local glass = Color3.fromRGB(200, 235, 255)
+			local rails = {
+				{ Vector3.new(halfW * 2 - 2, 3, 0.4), CFrame.new(0, 1.5, -halfD + 1) },
+				{ Vector3.new(0.4, 3, halfD * 2 - 2), CFrame.new(-halfW + 1, 1.5, 0) },
+				{ Vector3.new(0.4, 3, halfD * 2 - 2), CFrame.new(halfW - 1, 1.5, 0) },
+				-- Around the stairwell (open only where the stairs arrive).
+				{ Vector3.new(stairs.Run, 3, 0.3), CFrame.new(0, 1.5, bandMin) },
+				{ Vector3.new(stairs.Run, 3, 0.3), CFrame.new(0, 1.5, bandMax) },
+				{ Vector3.new(0.3, 3, stairs.Width), CFrame.new(-stairDirection(f - 1) * stairs.Run / 2, 1.5, band) },
+			}
+			for _, rail in rails do
+				newPart(plot.Displays, { Name = "GlassRail", Size = rail[1], CFrame = floorCf * rail[2], Color = glass, Material = Enum.Material.Glass, Transparency = 0.6 })
+			end
 		else
-			-- A floor still to buy: see straight through it - just a faint pane and a glowing
-			-- outline showing where it will be. (Glass renders frosted/solid on phones.)
-			newPart(plot.Displays, {
-				Name = "FutureFloor" .. f,
-				Size = Vector3.new(cfg.PlotSize - 2, 0.2, cfg.PlotSize - 2),
-				CFrame = floorCf * CFrame.new(0, -0.3, 0),
-				Color = Color3.fromRGB(150, 200, 255),
-				Material = Enum.Material.SmoothPlastic,
-				Transparency = 0.94,
-				CanCollide = false,
-				CanQuery = false,
-				CastShadow = false,
-			})
-			local edge = cfg.PlotSize - 2
+			-- A floor still to buy: just a glowing outline where it will be.
 			for _, bar in {
-				{ Vector3.new(edge, 0.25, 0.25), CFrame.new(0, 0, -edge / 2) },
-				{ Vector3.new(edge, 0.25, 0.25), CFrame.new(0, 0, edge / 2) },
-				{ Vector3.new(0.25, 0.25, edge), CFrame.new(-edge / 2, 0, 0) },
-				{ Vector3.new(0.25, 0.25, edge), CFrame.new(edge / 2, 0, 0) },
+				{ Vector3.new(halfW * 2 - 2, 0.25, 0.25), CFrame.new(0, 0, -halfD + 1) },
+				{ Vector3.new(halfW * 2 - 2, 0.25, 0.25), CFrame.new(0, 0, halfD - 1) },
+				{ Vector3.new(0.25, 0.25, halfD * 2 - 2), CFrame.new(-halfW + 1, 0, 0) },
+				{ Vector3.new(0.25, 0.25, halfD * 2 - 2), CFrame.new(halfW - 1, 0, 0) },
 			} do
 				newPart(plot.Displays, {
 					Name = "FutureFloorEdge",
@@ -225,26 +249,58 @@ local function render(player: Player)
 					CastShadow = false,
 				})
 			end
-		end
-		if unlocked then
-			for _, rail in {
-				{ Vector3.new(cfg.PlotSize - 2, 3, 0.4), CFrame.new(0, 1.5, -half + 1) },
-				{ Vector3.new(0.4, 3, cfg.PlotSize - 2), CFrame.new(-half + 1, 1.5, 0) },
-				{ Vector3.new(0.4, 3, cfg.PlotSize - 2), CFrame.new(half - 1, 1.5, 0) },
-			} do
-				newPart(plot.Displays, { Name = "GlassRail", Size = rail[1], CFrame = floorCf * rail[2], Color = Color3.fromRGB(200, 235, 255), Material = Enum.Material.Glass, Transparency = 0.6 })
-			end
-		else
-			local marker = newPart(plot.Displays, { Name = "LockedFloor", Size = Vector3.new(1, 1, 1), CFrame = floorCf * CFrame.new(0, 2, 0), Transparency = 1, CanCollide = false, CanQuery = false })
+			local marker = newPart(plot.Displays, { Name = "LockedFloor", Size = Vector3.new(1, 1, 1), CFrame = floorCf * CFrame.new(0, 2, halfD - 3), Transparency = 1, CanCollide = false, CanQuery = false })
 			label(marker, ("🔒 FLOOR %d"):format(f), Color3.fromRGB(190, 225, 255), 0, 90, 10)
 		end
+	end
+
+	-- STAIRS: a wide switchback staircase at the back of the gallery, one flight per floor.
+	for f = 1, floorsUnlocked - 1 do
+		local band = stairBand(f)
+		local direction = stairDirection(f)
+		local steps = math.floor(cfg.FloorHeight + 0.5)
+		local rise = cfg.FloorHeight / steps
+		local run = stairs.Run / steps
+		local base = plot.CFrame * CFrame.new(0, (f - 1) * cfg.FloorHeight, band)
+		for i = 1, steps do
+			local x = direction * (-stairs.Run / 2 + (i - 0.5) * run)
+			newPart(plot.Displays, {
+				Name = "Stair",
+				Size = Vector3.new(run + 0.05, rise, stairs.Width),
+				CFrame = base * CFrame.new(x, (i - 0.5) * rise, 0),
+				Color = if i % 2 == 0 then Color3.fromRGB(235, 228, 210) else Color3.fromRGB(222, 214, 196),
+				Material = Enum.Material.Marble,
+			})
+			newPart(plot.Displays, {
+				Name = "StairNosing",
+				Size = Vector3.new(0.2, 0.12, stairs.Width),
+				CFrame = base * CFrame.new(x + direction * (run / 2 - 0.1), i * rise + 0.02, 0),
+				Color = Color3.fromRGB(255, 196, 50),
+				Material = Enum.Material.Metal,
+				CanCollide = false,
+				CanQuery = false,
+			})
+		end
+		-- A sloped glass handrail on the gallery side.
+		local length = math.sqrt(stairs.Run ^ 2 + cfg.FloorHeight ^ 2)
+		local slope = math.atan2(cfg.FloorHeight, stairs.Run) * direction
+		newPart(plot.Displays, {
+			Name = "StairRail",
+			Size = Vector3.new(length, 2.6, 0.3),
+			CFrame = base * CFrame.new(0, cfg.FloorHeight / 2 + 1.6, -stairs.Width / 2 - 0.2) * CFrame.Angles(0, 0, slope),
+			Color = Color3.fromRGB(200, 235, 255),
+			Material = Enum.Material.Glass,
+			Transparency = 0.6,
+		})
+		local sign = newPart(plot.Displays, { Name = "StairSign", Size = Vector3.new(1, 1, 1), CFrame = base * CFrame.new(-direction * (stairs.Run / 2 - 1), 3, 0), Transparency = 1, CanCollide = false, CanQuery = false })
+		label(sign, ("⬆ FLOOR %d"):format(f + 1), Color3.fromRGB(255, 225, 140), 0, 40, 5)
 	end
 
 	-- Columns hold up the unlocked upper floors (only as tall as the vault actually is).
 	if floorsUnlocked > 1 then
 		local columnHeight = (floorsUnlocked - 1) * cfg.FloorHeight
-		for _, x in { -half + 1, half - 1 } do
-			for _, z in { -half + 1, half - 1 } do
+		for _, x in { -halfW + 1, halfW - 1 } do
+			for _, z in { -halfD + 1, halfD - 1 } do
 				newPart(plot.Displays, {
 					Name = "Column",
 					Size = Vector3.new(1.6, columnHeight, 1.6),
@@ -279,37 +335,6 @@ local function render(player: Player)
 		end
 	end
 
-	-- Lift pads between unlocked floors: at the far end of the central aisle on every floor.
-	if floorsUnlocked > 1 then
-		for f = 1, floorsUnlocked do
-			local padCf = plot.CFrame * CFrame.new(0, (f - 1) * cfg.FloorHeight, half - 3)
-			local pad = newPart(plot.Displays, {
-				Name = "LiftPad" .. f,
-				Shape = Enum.PartType.Cylinder,
-				Size = Vector3.new(0.3, 4, 4),
-				CFrame = padCf * CFrame.new(0, 0.15, 0) * CFrame.Angles(0, 0, math.rad(90)),
-				Color = Color3.fromRGB(120, 220, 255),
-				Material = Enum.Material.Neon,
-				CanCollide = false,
-			})
-			for _, direction in { 1, -1 } do
-				local target = f + direction
-				if target >= 1 and target <= floorsUnlocked then
-					local lift = Instance.new("ProximityPrompt")
-					lift.ActionText = if direction > 0 then "Go Up" else "Go Down"
-					lift.ObjectText = ("Floor %d"):format(target)
-					lift.KeyboardKeyCode = if direction > 0 then Enum.KeyCode.E else Enum.KeyCode.Q
-					lift.GamepadKeyCode = if direction > 0 then Enum.KeyCode.ButtonX else Enum.KeyCode.ButtonY
-					lift.MaxActivationDistance = 8
-					lift.RequiresLineOfSight = false
-					lift.Parent = pad
-					lift.Triggered:Connect(function(visitor)
-						teleportPlayerToFloor(visitor, plot, target)
-					end)
-				end
-			end
-		end
-	end
 	-- COLLECT pad OUTSIDE the entrance (right of the gate) with a sign board facing the plaza:
 	-- inside the Vault the text got cut by the gate posts and clashed with the treasure tags.
 	local padCf = plot.CFrame * CFrame.new(11.5, 0, -half - 4.5)
@@ -369,18 +394,6 @@ local function render(player: Player)
 	plot.CollectRate = rate
 
 	plot.Sign.Text = ("%s'S VAULT"):format(player.DisplayName:upper())
-end
-
-teleportPlayerToFloor = function(player: Player, plot, floorIndex: number)
-	local character = player.Character
-	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-	if not character or not root then
-		return
-	end
-	local half = cfg.PlotSize / 2
-	local target = plot.CFrame * CFrame.new(0, (floorIndex - 1) * cfg.FloorHeight + 3.5, half - 7)
-	root.AssemblyLinearVelocity = Vector3.zero
-	character:PivotTo(CFrame.lookAt(target.Position, (plot.CFrame * CFrame.new(0, (floorIndex - 1) * cfg.FloorHeight + 3.5, 0)).Position))
 end
 
 sellSlot = function(player: Player, slot: any)

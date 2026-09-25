@@ -14,7 +14,7 @@ WorldLayout.District = {
 	WallRadius = 150,
 	WallHeight = 16,
 	GateHalfWidth = 14,
-	VaultArcRadius = 112,
+	VaultArcRadius = 119, -- plot centres (plots are deep: their fronts sit at radius 97)
 	VaultArcDegrees = 150, -- plots spread across the south side, facing the plaza
 }
 
@@ -28,6 +28,8 @@ WorldLayout.Gym = {
 }
 
 WorldLayout.Shop = Vector3.new(70, 10, 215)
+-- Bat Shop: across the avenue from the Gadget Shop, between the gym and the gate.
+WorldLayout.BatShop = Vector3.new(-46, 10, 165)
 -- Island map just inside the gate, beside the avenue, facing players on their way out.
 WorldLayout.MapBoard = {
 	Position = Vector3.new(-25, 11, 121), -- ground (plaza top) under the board

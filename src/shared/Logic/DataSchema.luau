@@ -20,6 +20,8 @@ function DataSchema.Default()
 		OwnedGadgets = {}, -- [gadgetId] = true
 		OwnedBenches = {}, -- [benchTierId] = true (free tiers need no entry)
 		EquippedGadgets = { "", "", "" },
+		OwnedBats = {}, -- [batId] = true (the Wooden Bat is free and needs no entry)
+		EquippedBat = "wooden_bat",
 		OwnedCosmetics = {},
 		Titles = {},
 		SelectedTitle = "",
@@ -110,6 +112,9 @@ function DataSchema.Migrate(data)
 	data.Daily.LastDay = math.max(0, math.floor(tonumber(data.Daily.LastDay) or 0))
 	data.Daily.Streak = math.clamp(math.floor(tonumber(data.Daily.Streak) or 0), 0, 7)
 	data.Boosts.TrainingUntil = math.max(0, tonumber(data.Boosts.TrainingUntil) or 0)
+	if data.EquippedBat == "" then
+		data.EquippedBat = "wooden_bat"
+	end
 	for i = 1, 3 do
 		if type(data.EquippedGadgets[i]) ~= "string" then
 			data.EquippedGadgets[i] = ""

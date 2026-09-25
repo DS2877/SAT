@@ -420,11 +420,11 @@ local function buildActions()
 		HUD.Attack()
 	end)
 	Kit.stroke(Color3.new(1, 1, 1), 3, 0.3).Parent = attack
-	Kit.label({ Text = "👊", Size = UDim2.new(1, 0, 0, 50), Position = UDim2.fromOffset(0, 12), TextSize = 38, Parent = attack })
-	refs.AttackLabel = Kit.label({ Text = "BONK", Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, 1, -32), TextSize = 16, Font = Theme.Font.Black, Parent = attack })
+	Kit.label({ Text = "🏏", Size = UDim2.new(1, 0, 0, 50), Position = UDim2.fromOffset(0, 12), TextSize = 38, Parent = attack })
+	refs.AttackLabel = Kit.label({ Text = "SLAP", Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, 1, -32), TextSize = 16, Font = Theme.Font.Black, Parent = attack })
 	refs.Attack = attack
 
-	-- DROP: only while carrying. Separate from BONK so mashing attack never drops your loot.
+	-- DROP: only while carrying. Separate from SLAP so mashing attack never drops your loot.
 	local drop = Kit.button({
 		Name = "Drop",
 		AnchorPoint = Vector2.new(1, 1),
@@ -848,7 +848,7 @@ local function refreshSlots()
 	end
 	refs.Reticle.Visible = aimed
 	refs.Drop.Visible = carrying ~= nil
-	refs.AttackLabel.Text = if carrying and not GameConfig.Combat.CarrierCanAttack then "RUN!" else "BONK"
+	refs.AttackLabel.Text = if carrying and not GameConfig.Combat.CarrierCanAttack then "RUN!" else "SLAP"
 	refs.Attack.BackgroundColor3 = if carrying and not GameConfig.Combat.CarrierCanAttack then Theme.Color.Disabled else Theme.Color.Danger
 end
 

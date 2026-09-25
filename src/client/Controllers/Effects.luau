@@ -136,8 +136,9 @@ end
 function handlers.Knockback(payload)
 	local root = myRoot()
 	if root and typeof(payload.Direction) == "Vector3" then
-		local power = math.clamp(tonumber(payload.Power) or 40, 0, 80)
-		root.AssemblyLinearVelocity = payload.Direction * power + Vector3.new(0, 22, 0)
+		local power = math.clamp(tonumber(payload.Power) or 40, 0, 320)
+		local lift = math.clamp(tonumber(payload.Lift) or 22, 0, 140)
+		root.AssemblyLinearVelocity = payload.Direction * power + Vector3.new(0, lift, 0)
 	end
 	Sounds.Play("Hit")
 	shakeCamera(0.6, 0.2)
@@ -145,7 +146,7 @@ end
 
 function handlers.Shaken(payload)
 	Sounds.Play("Shaken")
-	HUD.ShowStatus("SHAKEN!", "One more hit and you DROP IT", Theme.Color.Warn, payload.Window or 3)
+	HUD.ShowStatus("SLAPPED - SLOWED!", "One more slap and you DROP IT", Theme.Color.Warn, payload.Window or 3)
 	HUD.FlashDanger(0.55, payload.Window or 3)
 	shakeCamera(1, 0.35)
 end
@@ -189,9 +190,9 @@ end
 function handlers.HitConfirm(payload)
 	Sounds.Play("Hit", 0.8)
 	if payload.Result == "Knocked" then
-		HUD.ShowStatus("THEY DROPPED IT!", "Grab it when protection ends", Theme.Color.Gold, 1.8)
+		HUD.ShowStatus("SENT FLYING - THEY DROPPED IT!", "Grab it when protection ends", Theme.Color.Gold, 1.8)
 	elseif payload.Result == "Shaken" then
-		Notifications.Toast("SHAKEN! Hit them again!", "Reward")
+		Notifications.Toast("SLOWED! Slap them again!", "Reward")
 	elseif payload.Result == "Guardian" then
 		Notifications.Toast("GUARDIAN STUNNED", "Info")
 	end

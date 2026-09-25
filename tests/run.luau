@@ -552,9 +552,25 @@ test("vault gallery layout fits the plot with an aisle", function()
 	local innerX = v.ColumnSpacing / 2 + v.AisleWidth / 2 - pedestalHalf
 	local rows = math.ceil(v.PerFloor / v.Columns)
 	local outerZ = (rows - 1) / 2 * v.RowSpacing + pedestalHalf
-	check(outerX < v.PlotSize / 2 - 2, "pedestals clear the side railings")
+	check(outerX < v.PlotWidth / 2 - 2, "pedestals clear the side railings")
 	check(innerX >= 2, ("central aisle is walkable (%.1f studs each side)"):format(innerX))
-	check(outerZ < v.PlotSize / 2 - 3, "pedestals clear the front gate and the back lift")
+	local front = v.GridOffsetZ - outerZ
+	local back = v.GridOffsetZ + outerZ
+	check(front > -v.PlotDepth / 2 + 4, "pedestals clear the front gate")
+	-- Stairs: two 5+ wide bands behind the gallery, inside the back wall, climbing gently.
+	local s = v.Stairs
+	check(s.Width >= 5, "stairs are wide")
+	check(s.Run <= v.PlotWidth - 4 and s.Run / 2 < v.PlotWidth / 2 - 1.5, "a flight fits across the plot")
+	check(math.deg(math.atan2(v.FloorHeight, s.Run)) <= 32, "a flight climbs at a comfortable angle")
+	local nearest, farthest = math.huge, -math.huge
+	for _, band in s.BandsZ do
+		nearest = math.min(nearest, band - s.Width / 2)
+		farthest = math.max(farthest, band + s.Width / 2)
+	end
+	check(nearest > back + 1, ("stairs start behind the last pedestal row (%.1f > %.1f)"):format(nearest, back))
+	check(farthest < v.PlotDepth / 2 - 0.5, "stairs clear the back wall")
+	check(math.abs(s.BandsZ[1] - s.BandsZ[2]) >= s.Width, "the two stair bands don't overlap")
+	check(v.HomeStandDistance > v.PlotDepth / 2 + 2, "the home spot stands outside the deep plot")
 	local maxSlots = 0
 	for _, tier in v.Tiers do
 		maxSlots = math.max(maxSlots, tier.Slots)
@@ -814,6 +830,55 @@ test("every treasure has its own hand-built model", function()
 	for _, def in Treasures.List do
 		check(source:find("Models." .. def.Id .. " = function", 1, true) ~= nil, "custom model for " .. def.Id)
 	end
+end)
+
+test("bats: a free starter, 3 cash upgrades, 7 more behind Ascension, each slapping further", function()
+	local roblox = require("@lune/roblox") :: any
+	CFrame = roblox.CFrame
+	Color3 = roblox.Color3
+	local Bats = require("../src/shared/Config/Bats")
+	check(#Bats.List == 11, "11 bats")
+	check(Bats.List[1].Id == Bats.StarterId and Bats.List[1].Price == 0 and Bats.List[1].RequiredAscension == 0, "you start with the Wooden Bat for free")
+	for i = 2, 4 do
+		check(Bats.List[i].Price > 0 and Bats.List[i].RequiredAscension == 0, Bats.List[i].Id .. " is a Cash-only upgrade")
+	end
+	for i = 5, 11 do
+		local bat, prev = Bats.List[i], Bats.List[i - 1]
+		check(bat.RequiredAscension > 0 and bat.RequiredAscension > prev.RequiredAscension, bat.Id .. " needs a higher Ascension than the last")
+	end
+	for i = 2, #Bats.List do
+		local bat, prev = Bats.List[i], Bats.List[i - 1]
+		check(bat.Tier == i, bat.Id .. " tier in order")
+		check(bat.Price > prev.Price, bat.Id .. " costs more than the last")
+		check(bat.Knockback > prev.Knockback, bat.Id .. " slaps further than the last")
+		check(bat.Range >= prev.Range and bat.Range <= 12.5, bat.Id .. " reach grows a little")
+	end
+	-- Each Ascension-gated bat is affordable within that Ascension's run (Cash resets on Ascending).
+	for _, bat in Bats.List do
+		if bat.RequiredAscension > 0 then
+			check(bat.Price < GameConfig.GetAscensionCost(bat.RequiredAscension + 1), bat.Id .. " costs less than the next Ascension")
+		end
+	end
+	local source = require("@lune/fs").readFile("src/shared/BatModels.luau")
+	for _, bat in Bats.List do
+		check(source:find("Builders." .. bat.Id .. " = function", 1, true) ~= nil, "hand-built model for " .. bat.Id)
+	end
+	-- Buying rules.
+	local data = DataSchema.Default()
+	check(data.EquippedBat == Bats.StarterId and next(data.OwnedBats) == nil, "new players hold the Wooden Bat")
+	check(Bats.BuyProblem(data, Bats.List[1]) == "Owned", "the starter is always owned")
+	check(Bats.BuyProblem(data, Bats.List[2]) == "Cash", "broke players can't buy")
+	data.Cash = 1e13
+	check(Bats.BuyProblem(data, Bats.List[4]) == nil, "Cash buys the first upgrades")
+	check(Bats.BuyProblem(data, Bats.List[5]) == "Ascension", "tier 5 needs Ascension 1")
+	data.Ascension = 1
+	check(Bats.BuyProblem(data, Bats.List[5]) == nil, "Ascension 1 unlocks tier 5")
+	data.EquippedBat = "big_bang"
+	check(Bats.Equipped(data).Id == Bats.StarterId, "an unowned equipped bat falls back to the starter")
+	data.OwnedBats.big_bang = true
+	check(Bats.Equipped(data).Id == "big_bang", "an owned bat is held")
+	-- Carrier rule: 1st slap slows, 2nd throws further than a normal slap.
+	check(GameConfig.Stability.ShakenSpeed < 1 and GameConfig.Combat.KnockThrow > 1 and GameConfig.Combat.ShakenShove < 1, "slap 1 slows, slap 2 throws")
 end)
 
 test("rarity palette + every tier can spawn", function()

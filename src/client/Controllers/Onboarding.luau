@@ -71,7 +71,7 @@ local function showIntro(gui: ScreenGui)
 	for i, beat in {
 		{ "💪", "TRAIN", "Lift at the gym to carry heavier loot" },
 		{ "💎", "FIND", "Treasure spawns in the Wilds at night" },
-		{ "🏃", "RUN IT HOME", "Others can BONK you - 2 hits and you drop it!" },
+		{ "🏃", "RUN IT HOME", "Others can SLAP you - 2 slaps and you drop it!" },
 		{ "💰", "EARN", "Treasure in your Vault pays $ every second" },
 	} do
 		local cell = Kit.new("Frame", { LayoutOrder = i, Size = UDim2.fromOffset(134, 130), BackgroundColor3 = Theme.Color.PanelLight, ZIndex = 52, Parent = steps })

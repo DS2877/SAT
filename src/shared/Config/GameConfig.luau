@@ -151,6 +151,7 @@ GameConfig.Carry = {
 
 GameConfig.Stability = {
 	ShakenWindow = 3, -- seconds a carrier stays Shaken without another hit
+	ShakenSpeed = 0.55, -- walk speed multiplier while Shaken (the first slap slows you)
 	KnockedDuration = 1.5,
 	KnockImmunity = 1.5, -- after recovering from Knocked
 }
@@ -248,7 +249,9 @@ GameConfig.Combat = {
 	AttackCooldown = 0.7,
 	AttackArcDot = 0.25, -- target must be roughly in front (dot of look vector)
 	PvPDamage = 8,
-	KnockbackPower = 45,
+	KnockbackPower = 45, -- guardians and gadgets; bat slaps use the bat's own Knockback (Config/Bats)
+	ShakenShove = 0.45, -- a carrier's first slap: a short shove (x the bat's knockback)...
+	KnockThrow = 1.4, -- ...their second: thrown this much further than a normal slap
 	CarrierCanAttack = false, -- CARRIER = RUN, CHASER = STOP
 	SafeZoneProtectsCarriers = false, -- carriers cannot hide in the District forever
 	GuardianStunDuration = 2,
@@ -298,8 +301,9 @@ GameConfig.Vault = {
 		{ Slots = 40, Price = 25000000, Enabled = true },
 		{ Slots = 60, Price = 500000000, Enabled = true },
 	},
-	PlotSize = 30,
-	-- Gallery layout: 4 columns split by a central aisle (walk in, lift at the far end),
+	PlotWidth = 30, -- across the entrance
+	PlotDepth = 44, -- entrance to back wall: the gallery in front, the stairs behind
+	-- Gallery layout: 4 columns split by a central aisle (walk in, stairs at the back),
 	-- 4 rows, airy spacing and tall floors. 60 slots = 4 floors.
 	PerFloor = 16,
 	FloorHeight = 14,
@@ -307,10 +311,14 @@ GameConfig.Vault = {
 	ColumnSpacing = 5,
 	AisleWidth = 4, -- extra gap between the left and right halves
 	RowSpacing = 6.5,
+	GridOffsetZ = -4, -- the pedestal grid sits toward the entrance, leaving the back for stairs
+	-- Switchback stairs between floors along the back: two 5-wide bands (z from the plot centre),
+	-- each flight climbing a whole floor across Run studs.
+	Stairs = { Width = 5, Run = 24, BandsZ = { 17.5, 11.5 } },
 	DisplayMaxScale = 2.4, -- treasure size cap on pedestals
 	AutoPlaceNewTreasures = true,
 	TeleportHomeOnExtract = true, -- carrier is brought to their Vault after extracting
-	HomeStandDistance = 19, -- studs in front of the plot centre
+	HomeStandDistance = 26, -- studs in front of the plot centre
 	HomeTrophySeconds = 3, -- how long the banked treasure is held overhead (cosmetic)
 }
 

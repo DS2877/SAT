@@ -12,6 +12,15 @@
   (shop counter, your Vault terminal, the altar) and close when you walk away.
 - Music mix: playlist 25% under master; Mountain King +10% and starts 15 s in (also on loop).
 
+## BATS + SLAP COMBAT (replaces Bonk)
+- Everyone holds a bat (Config/Bats, Shared/BatModels, Services/BatService, Controllers/BatFx).
+  Not carrying: a slap flings you (the attacker's bat sets how far). Carrying: slap 1 slows you
+  (Shaken, x0.55 speed), slap 2 throws you further and you drop the treasure.
+- 11 bats: free Wooden Bat, 3 Cash upgrades, 7 more gated by Ascension 1-7. Bat Shop in the
+  District (menu with 3D previews, every bat on the display wall). Bats survive Ascension.
+- Vaults are deeper (30 x 44) with wide switchback stairs between floors (no more lift pads);
+  unbuilt floors are only a glowing outline so labels below stay readable.
+
 ## DEEP SOUTH EXPANSION (docs/EXPANSION_PLAN.md) - built, awaiting a live playtest
 - Three Ascension-gated regions south of the Waterfall Mountain: Emberfall (Asc 1, danger 5),
   Rimeheart (Asc 2, danger 6), Starfall Isles (Asc 3, danger 7). World code in

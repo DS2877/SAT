@@ -30,6 +30,7 @@ local FeedbackService = require(Services.FeedbackService)
 local RegionGates = require(Services.RegionGates)
 local HazardService = require(Services.HazardService)
 local WaystoneService = require(Services.WaystoneService)
+local BatService = require(Services.BatService)
 
 Net.Init()
 Players.RespawnTime = GameConfig.Player.RespawnTime
@@ -54,6 +55,7 @@ FeedbackService.Init()
 RegionGates.Init()
 HazardService.Init()
 WaystoneService.Init()
+BatService.Init()
 
 -- Funnel step 1: every first-time player (lets the dashboard show where newcomers drop off).
 PlayerData.Loaded:Connect(function(player)
@@ -62,6 +64,9 @@ PlayerData.Loaded:Connect(function(player)
 	end
 end)
 
+world.BatShopPrompt.Triggered:Connect(function(player)
+	Net.Fire("OpenMenu", player, { Menu = "Bats", Anchor = (world.BatShopPrompt.Parent :: BasePart).Position })
+end)
 world.ShopPrompt.Triggered:Connect(function(player)
 	Net.Fire("OpenMenu", player, { Menu = "Shop", Anchor = (world.ShopPrompt.Parent :: BasePart).Position })
 end)

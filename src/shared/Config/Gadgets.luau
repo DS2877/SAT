@@ -109,7 +109,7 @@ Gadgets.List = {
 		CanUseWhileCarrying = false,
 		NeedsAim = true,
 		Implemented = true,
-		Description = "A ranged BONK. Counts as a hit — shake a runner from afar.",
+		Description = "A ranged SLAP. Counts as a hit — slow a runner from afar.",
 	},
 	{
 		Id = "decoy_duck",

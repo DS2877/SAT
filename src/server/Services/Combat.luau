@@ -1,5 +1,7 @@
--- Attacks (PvP bonk), Guardian hits and carrier stability (STABLE -> SHAKEN -> KNOCKED).
+-- Attacks (PvP bat SLAPS), Guardian hits and carrier stability (STABLE -> SHAKEN -> KNOCKED).
 -- Hit detection is server-side from server positions; the client only says "I swung".
+--   * Not carrying: a slap sends you flying (the attacker's bat decides how far).
+--   * Carrying: the first slap SLOWS you (Shaken), the second THROWS you and you DROP it.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,6 +18,7 @@ local PlayerData = require(script.Parent.PlayerData)
 local TreasureService = require(script.Parent.TreasureService)
 local Analytics = require(script.Parent.Analytics)
 local Decoys = require(script.Parent.Decoys)
+local BatService = require(script.Parent.BatService)
 
 local Combat = {}
 
@@ -91,7 +94,12 @@ function Combat.CanPlayerHit(attacker: Player, victim: Player): boolean
 	return not (Zones.InSafeZone(attackerRoot.Position) and not carrierExposed)
 end
 
+local function setShakenSlow(victim: Player, slowed: boolean)
+	Movement.SetSpeed(victim, "Shaken", if slowed then stabilityCfg.ShakenSpeed else nil)
+end
+
 local function knock(victim: Player, st: Stability.State, attacker: Player?)
+	setShakenSlow(victim, false)
 	publish(victim, st)
 	Movement.SetLock(victim, "Knocked", true)
 	TreasureService.Drop(victim, "Knocked", attacker)
@@ -111,7 +119,8 @@ local function knock(victim: Player, st: Stability.State, attacker: Player?)
 end
 
 -- Applies a hit to a player.
--- source = { Attacker: Player?, Guardian: string?, Damage: number, From: Vector3, Knockback: number? }
+-- source = { Attacker: Player?, Guardian: string?, Damage: number, From: Vector3,
+--            Knockback: number? (x the default power), Power: number? (studs/s, a bat's) }
 function Combat.ApplyHit(victim: Player, source)
 	local root, humanoid = rootOf(victim)
 	if not root or not humanoid or hasSpawnProtection(victim) then
@@ -124,7 +133,7 @@ function Combat.ApplyHit(victim: Player, source)
 	local away = root.Position - source.From
 	away = Vector3.new(away.X, 0, away.Z)
 	away = if away.Magnitude > 0.01 then away.Unit else Vector3.new(0, 0, 1)
-	Net.Fire("Feedback", victim, { Type = "Knockback", Direction = away, Power = cfg.KnockbackPower * (source.Knockback or 1) })
+	local power = source.Power or cfg.KnockbackPower * (source.Knockback or 1)
 
 	local result = "Hit"
 	if TreasureService.GetCarrying(victim) then
@@ -132,18 +141,25 @@ function Combat.ApplyHit(victim: Player, source)
 		local now = os.clock()
 		result = Stability.Hit(st, now, stabilityCfg)
 		if result == "Shaken" then
+			-- First slap on a carrier: a short shove and a heavy stagger (slowed).
+			power *= cfg.ShakenShove
+			setShakenSlow(victim, true)
 			publish(victim, st)
 			Net.Fire("Feedback", victim, { Type = "Shaken", Window = stabilityCfg.ShakenWindow })
 			local shakenAt = st.ShakenAt
 			task.delay(stabilityCfg.ShakenWindow + 0.05, function()
 				if states[victim] == st and st.ShakenAt == shakenAt and Stability.Update(st, os.clock(), stabilityCfg) then
 					publish(victim, st)
+					setShakenSlow(victim, false)
 				end
 			end)
 		elseif result == "Knocked" then
+			-- Second slap: thrown - and the treasure stays behind.
+			power *= cfg.KnockThrow
 			knock(victim, st, source.Attacker)
 		end
 	end
+	Net.Fire("Feedback", victim, { Type = "Knockback", Direction = away, Power = power, Lift = 20 + power * (if result == "Knocked" then 0.35 else 0.18) })
 	if result ~= "Ignored" then
 		Combat.PlayerHit:Fire(victim, result, source)
 	end
@@ -163,10 +179,12 @@ local function onAttack(attacker: Player)
 		return
 	end
 	lastAttack[attacker] = now
+	local bat = BatService.Get(attacker)
 
 	-- Everyone sees the swing (animation + sound are client-side).
-	Net.FireAll("Feedback", { Type = "Swing", UserId = attacker.UserId })
+	Net.FireAll("Feedback", { Type = "Swing", UserId = attacker.UserId, BatId = bat.Id })
 
+	local range = bat.Range
 	local look = root.CFrame.LookVector
 	local best: Player? = nil
 	local bestDistance = math.huge
@@ -176,7 +194,7 @@ local function onAttack(attacker: Player)
 			if otherRoot then
 				local offset = otherRoot.Position - root.Position
 				local distance = offset.Magnitude
-				if distance <= cfg.AttackRange and distance < bestDistance then
+				if distance <= range and distance < bestDistance then
 					local flat = Vector3.new(offset.X, 0, offset.Z)
 					local facing = if flat.Magnitude > 0.1 then look:Dot(flat.Unit) else 1
 					if facing >= cfg.AttackArcDot then
@@ -190,13 +208,17 @@ local function onAttack(attacker: Player)
 
 	if best then
 		if Combat.CanPlayerHit(attacker, best) then
-			local result = Combat.ApplyHit(best, { Attacker = attacker, Damage = cfg.PvPDamage, From = root.Position })
+			local result = Combat.ApplyHit(best, { Attacker = attacker, Damage = cfg.PvPDamage, From = root.Position, Power = bat.Knockback })
 			Net.Fire("Feedback", attacker, { Type = "HitConfirm", Result = result })
+			local bestRoot = rootOf(best)
+			if bestRoot then
+				Net.FireAll("Feedback", { Type = "SlapImpact", Position = bestRoot.Position, BatId = bat.Id, Result = result })
+			end
 			return
 		end
 	end
 
-	if Decoys.PopNear(root.Position + look * 3, cfg.AttackRange, attacker) then
+	if Decoys.PopNear(root.Position + look * 3, range, attacker) then
 		return
 	end
 	if Combat.TryHitGuardian then
@@ -205,6 +227,7 @@ local function onAttack(attacker: Player)
 end
 
 function Combat.ResetPlayer(player: Player)
+	setShakenSlow(player, false)
 	local st = stateFor(player)
 	Stability.Reset(st)
 	publish(player, st)

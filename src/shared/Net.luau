@@ -29,6 +29,8 @@ Net.ClientToServer = {
 	"UseGadget",
 	"BuyGadget",
 	"EquipGadget",
+	"BuyBat", -- (batId) at the Bat Shop
+	"EquipBat", -- (batId) an owned bat into your hand
 	"SellTreasure",
 	"UpgradeVault",
 	"Ascend",

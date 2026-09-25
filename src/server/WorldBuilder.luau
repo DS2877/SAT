@@ -24,6 +24,8 @@ local Adventure = require(script.Parent.World.Adventure)
 local Settlements = require(script.Parent.World.Settlements)
 local MapBoard = require(script.Parent.World.MapBoard)
 local DeepSouth = require(script.Parent.World.DeepSouth)
+local Bats = require(ReplicatedStorage.Shared.Config.Bats)
+local BatModels = require(ReplicatedStorage.Shared.BatModels)
 local Waystones = require(script.Parent.World.Waystones)
 
 local WorldBuilder = {}
@@ -626,6 +628,58 @@ local function buildGym(district: Folder)
 	return machines
 end
 
+-- Bat Shop: a batting-cage hut across the avenue. Every bat hangs on the back wall with its
+-- name, so you can see what you're working toward; the counter opens the shop menu.
+local function priceTag(n: number): string
+	for _, unit in { { 1e12, "T" }, { 1e9, "B" }, { 1e6, "M" }, { 1e3, "K" } } do
+		if n >= unit[1] then
+			return ("$%g%s"):format(math.floor(n / unit[1] * 10) / 10, unit[2])
+		end
+	end
+	return "$" .. tostring(n)
+end
+
+local function buildBatShop(district: Folder)
+	local pos = WorldLayout.BatShop
+	local shop = folder("BatShop", district)
+	local plazaY = WorldLayout.District.Center.Y + 1
+	local base = CFrame.lookAt(Vector3.new(pos.X, plazaY, pos.Z), Vector3.new(0, plazaY, pos.Z)) -- faces the avenue
+	local width, depth, height = 30, 12, 12
+	part({ Name = "BatShopFloor", Size = Vector3.new(width + 2, 0.4, depth + 6), CFrame = base * CFrame.new(0, 0.2, 1), Color = Color3.fromRGB(90, 150, 80), Material = Enum.Material.Grass, Parent = shop })
+	-- Back wall (the display) and side walls, open at the front.
+	part({ Name = "BatWall", Size = Vector3.new(width, height, 1), CFrame = base * CFrame.new(0, height / 2, depth / 2), Color = Color3.fromRGB(70, 45, 32), Material = Enum.Material.WoodPlanks, Parent = shop })
+	for _, x in { -1, 1 } do
+		part({ Name = "BatSideWall", Size = Vector3.new(1, height, depth), CFrame = base * CFrame.new(x * width / 2, height / 2, 0), Color = Color3.fromRGB(70, 45, 32), Material = Enum.Material.WoodPlanks, Parent = shop })
+	end
+	part({ Name = "BatRoof", Size = Vector3.new(width + 3, 0.8, depth + 5), CFrame = base * CFrame.new(0, height + 0.4, -0.5) * CFrame.Angles(math.rad(-6), 0, 0), Color = Color3.fromRGB(30, 30, 36), Material = Enum.Material.Slate, Parent = shop })
+	for i = 0, 13 do
+		part({ Name = "BatAwning", Size = Vector3.new(width / 14 + 0.1, 0.3, 4), CFrame = base * CFrame.new(-width / 2 + (i + 0.5) * width / 14, height - 1, -depth / 2 - 1.8) * CFrame.Angles(math.rad(-20), 0, 0), Color = if i % 2 == 0 then C.Red else C.Cream, Parent = shop })
+	end
+	-- Every bat on the wall, cheapest on the left.
+	local count = #Bats.List
+	for i, bat in Bats.List do
+		local x = -width / 2 + 1.8 + (i - 1) * (width - 3.6) / (count - 1)
+		local grip = base * CFrame.new(x, 2.4, depth / 2 - 0.9) * CFrame.Angles(0, 0, math.rad(if i % 2 == 0 then 8 else -8))
+		local model = BatModels.Build(bat.Id, grip)
+		model.PrimaryPart.Anchored = true
+		model.Name = "Display_" .. bat.Id
+		model.Parent = shop
+		local tag = part({ Name = "BatTag", Size = Vector3.new(0.4, 0.4, 0.4), CFrame = base * CFrame.new(x, 9.2, depth / 2 - 0.9), Transparency = 1, CanCollide = false, CanQuery = false, Parent = shop })
+		local unlock = if bat.RequiredAscension > 0 then ("✨ ASC %d"):format(bat.RequiredAscension) elseif bat.Price == 0 then "FREE" else priceTag(bat.Price)
+		billboardSign(tag, bat.Name:upper(), unlock, Bats.Color(bat), 45, 0, 3.2)
+	end
+	-- The counter up front, and a giant bat on the roof.
+	local counter = part({ Name = "BatCounter", Size = Vector3.new(12, 3.6, 2.4), CFrame = base * CFrame.new(0, 1.8, -depth / 2 + 1), Color = Color3.fromRGB(150, 100, 60), Material = Enum.Material.Wood, Parent = shop })
+	part({ Name = "BatCounterTop", Size = Vector3.new(12.6, 0.3, 3), CFrame = base * CFrame.new(0, 3.75, -depth / 2 + 1), Color = C.Gold, Material = Enum.Material.Metal, Parent = shop })
+	local giant = BatModels.Build("golden_slugger", base * CFrame.new(-7, height + 1.5, -1) * CFrame.Angles(0, 0, math.rad(-70)))
+	giant:ScaleTo(3)
+	giant.PrimaryPart.Anchored = true
+	giant.Name = "BatShopSign"
+	giant.Parent = shop
+	billboardSign(counter, "🏏 BAT SHOP", "Slap people further • upgrade your bat HERE", Color3.fromRGB(255, 130, 80), 160, 11, 14)
+	return prompt(counter, "Browse Bats", "Bat Shop", 0)
+end
+
 local function buildShop(district: Folder)
 	local pos = WorldLayout.Shop
 	local shop = folder("GadgetShop", district)
@@ -664,7 +718,8 @@ local function buildVaultPlots(district: Folder)
 	local vcfg = GameConfig.Vault
 	local plots = {}
 	local vaults = folder("Vaults", district)
-	local half = vcfg.PlotSize / 2
+	local halfW, halfD = vcfg.PlotWidth / 2, vcfg.PlotDepth / 2
+	local half = halfD -- entrance and back wall
 	local count = GameConfig.MaxPlayers
 	for i = 1, count do
 		local t = if count == 1 then 0.5 else (i - 1) / (count - 1)
@@ -673,23 +728,23 @@ local function buildVaultPlots(district: Folder)
 		local cf = CFrame.lookAt(pos, Vector3.new(d.Center.X, pos.Y, d.Center.Z))
 		local plotFolder = folder("Vault" .. i, vaults)
 		-- Floor with a gold border
-		part({ Name = "Border", Size = Vector3.new(vcfg.PlotSize + 1, 0.5, vcfg.PlotSize + 1), CFrame = cf * CFrame.new(0, 0.25, 0), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
-		part({ Name = "Floor", Size = Vector3.new(vcfg.PlotSize - 1, 0.6, vcfg.PlotSize - 1), CFrame = cf * CFrame.new(0, 0.3, 0), Color = Color3.fromRGB(62, 52, 88), Material = Enum.Material.Marble, Parent = plotFolder })
+		part({ Name = "Border", Size = Vector3.new(vcfg.PlotWidth + 1, 0.5, vcfg.PlotDepth + 1), CFrame = cf * CFrame.new(0, 0.25, 0), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
+		part({ Name = "Floor", Size = Vector3.new(vcfg.PlotWidth - 1, 0.6, vcfg.PlotDepth - 1), CFrame = cf * CFrame.new(0, 0.3, 0), Color = Color3.fromRGB(62, 52, 88), Material = Enum.Material.Marble, Parent = plotFolder })
 		-- Red runner down the whole central aisle (entrance to the lift at the back).
-		part({ Name = "Carpet", Size = Vector3.new(3.6, 0.08, vcfg.PlotSize - 2), CFrame = cf * CFrame.new(0, 0.64, 0), Color = Color3.fromRGB(180, 30, 50), Material = Enum.Material.Fabric, CanCollide = false, Parent = plotFolder })
+		part({ Name = "Carpet", Size = Vector3.new(3.6, 0.08, vcfg.PlotDepth - 2), CFrame = cf * CFrame.new(0, 0.64, 0), Color = Color3.fromRGB(180, 30, 50), Material = Enum.Material.Fabric, CanCollide = false, Parent = plotFolder })
 		-- Back wall with emblem
-		part({ Name = "BackWall", Size = Vector3.new(vcfg.PlotSize, 10, 1), CFrame = cf * CFrame.new(0, 5, half), Color = C.Cream, Material = Enum.Material.Marble, Parent = plotFolder })
-		part({ Name = "WallTrim", Size = Vector3.new(vcfg.PlotSize + 0.4, 0.6, 1.4), CFrame = cf * CFrame.new(0, 10.2, half), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
+		part({ Name = "BackWall", Size = Vector3.new(vcfg.PlotWidth, 10, 1), CFrame = cf * CFrame.new(0, 5, half), Color = C.Cream, Material = Enum.Material.Marble, Parent = plotFolder })
+		part({ Name = "WallTrim", Size = Vector3.new(vcfg.PlotWidth + 0.4, 0.6, 1.4), CFrame = cf * CFrame.new(0, 10.2, half), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
 		part({ Name = "Emblem", Size = Vector3.new(3.2, 3.2, 0.4), CFrame = cf * CFrame.new(0, 6.5, half - 0.6) * CFrame.Angles(0, 0, math.rad(45)), Color = C.Gold, Material = Enum.Material.Neon, CanCollide = false, Parent = plotFolder })
 		-- Low balustrades on the sides keep the gallery visible from the plaza
-		for _, x in { -half, half } do
-			part({ Name = "Balustrade", Size = Vector3.new(1, 2.4, vcfg.PlotSize), CFrame = cf * CFrame.new(x, 1.8, 0), Color = C.Cream, Material = Enum.Material.Marble, Parent = plotFolder })
-			part({ Name = "Rail", Size = Vector3.new(1.4, 0.4, vcfg.PlotSize), CFrame = cf * CFrame.new(x, 3.2, 0), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
+		for _, x in { -halfW, halfW } do
+			part({ Name = "Balustrade", Size = Vector3.new(1, 2.4, vcfg.PlotDepth), CFrame = cf * CFrame.new(x, 1.8, 0), Color = C.Cream, Material = Enum.Material.Marble, Parent = plotFolder })
+			part({ Name = "Rail", Size = Vector3.new(1.4, 0.4, vcfg.PlotDepth), CFrame = cf * CFrame.new(x, 3.2, 0), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
 		end
 		-- Front railing: the arch is the one obvious way in.
-		for _, x in { -(half + 6) / 2 - 0.5, (half + 6) / 2 + 0.5 } do
-			part({ Name = "FrontRail", Size = Vector3.new(half - 6, 2.4, 1), CFrame = cf * CFrame.new(x, 1.8, -half), Color = C.Cream, Material = Enum.Material.Marble, Parent = plotFolder })
-			part({ Name = "FrontRailTop", Size = Vector3.new(half - 6, 0.4, 1.4), CFrame = cf * CFrame.new(x, 3.2, -half), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
+		for _, x in { -(halfW + 6) / 2 - 0.5, (halfW + 6) / 2 + 0.5 } do
+			part({ Name = "FrontRail", Size = Vector3.new(halfW - 6, 2.4, 1), CFrame = cf * CFrame.new(x, 1.8, -half), Color = C.Cream, Material = Enum.Material.Marble, Parent = plotFolder })
+			part({ Name = "FrontRailTop", Size = Vector3.new(halfW - 6, 0.4, 1.4), CFrame = cf * CFrame.new(x, 3.2, -half), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
 		end
 		-- Glowing entrance gateway with the owner's name painted on the plaque
 		for _, x in { -6, 6 } do
@@ -1742,6 +1797,7 @@ function WorldBuilder.Build()
 	local district = buildDistrict()
 	local machines = buildGym(district)
 	local shopPrompt = buildShop(district)
+	local batShopPrompt = buildBatShop(district)
 	local altarPrompt = buildAscensionAltar(district)
 	local plots = buildVaultPlots(district)
 	local leaderboards = buildLeaderboards(district)
@@ -1796,6 +1852,7 @@ function WorldBuilder.Build()
 		GuardianSpawns = guardians,
 		Benches = machines,
 		ShopPrompt = shopPrompt,
+		BatShopPrompt = batShopPrompt,
 		AltarPrompt = altarPrompt,
 		VaultPlots = plots,
 		Leaderboards = leaderboards,
