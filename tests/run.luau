@@ -602,11 +602,18 @@ test("music config is well-formed", function()
 		check(track.Id == "" or track.Id:match("^rbxassetid://%d+$") ~= nil, "asset id format " .. tostring(track.Id))
 	end
 	check(type(Music.CarryTheme) == "table" and type(Music.CarryTheme.Id) == "string", "carry theme slot exists")
-	for _, slot in { "CarryTheme", "SuccessSting", "FailSting" } do
+	for _, slot in { "CarryTheme", "SuccessSting", "FailSting", "FinalMinute", "Night", "Training" } do
 		local track = (Music :: any)[slot]
 		check(type(track) == "table" and track.Id:match("^rbxassetid://%d+$") ~= nil, slot .. " has a real asset id")
 	end
 	check(#Music.Playlist >= 5, "playlist has enough variety")
+	-- Every session opens with Für Elise: the configured first track must be in the playlist.
+	local found = false
+	for _, track in Music.Playlist do
+		found = found or track.Name == Music.FirstTrack
+	end
+	check(found, "the first track (" .. tostring(Music.FirstTrack) .. ") is in the playlist")
+	check(Music.FinalMinuteSeconds >= 30 and Music.FinalMinuteSeconds < GameConfig.DayNight.CycleSeconds - GameConfig.DayNight.NightSeconds, "final-minute cue fits in the day")
 	-- Mix: background at half volume, the carry theme 50% above full volume.
 	check(Music.PlaylistVolume == 0.5, "playlist at 50%")
 	check(Music.CarryTheme.Volume == 1.5, "carry theme at 150%")

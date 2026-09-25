@@ -21,6 +21,7 @@ local TreasureRoll = require(Shared.Logic.TreasureRoll)
 local TreasureVisual = require(Shared.TreasureVisual)
 local Net = require(Shared.Net)
 local Signal = require(Shared.Util.Signal)
+local WorldLayout = require(Shared.Config.WorldLayout)
 
 local Movement = require(script.Parent.Movement)
 local PlayerData = require(script.Parent.PlayerData)
@@ -510,7 +511,19 @@ function TreasureService.Drop(player: Player, reason: string, knockedBy: Player?
 	setPlayerCarryAttributes(player, nil)
 	applyCarrierMovement(player, nil)
 
-	Net.Fire("Feedback", player, { Type = "Dropped", Uid = record.Uid, Reason = reason })
+	-- Near miss: lost it just short of an exit? Tell them how close they came ("one more try").
+	local nearMiss = nil
+	if reason ~= "Manual" and reason ~= "Extracted" then
+		local closest = math.huge
+		for _, zone in WorldLayout.ExtractionZones do
+			local flat = Vector3.new(fromPosition.X - zone.Position.X, 0, fromPosition.Z - zone.Position.Z)
+			closest = math.min(closest, flat.Magnitude - zone.Radius)
+		end
+		if closest > 0 and closest <= 45 then
+			nearMiss = math.floor(closest + 0.5)
+		end
+	end
+	Net.Fire("Feedback", player, { Type = "Dropped", Uid = record.Uid, Reason = reason, NearMiss = nearMiss })
 	TreasureService.Dropped:Fire(player, record, reason, knockedBy)
 
 	local droppedAt = now

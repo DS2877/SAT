@@ -7,6 +7,9 @@
 | Carry theme | In the Hall of the Mountain King | Edvard Grieg | APM Music (Roblox licensed library, APMOfficial) | 1843564372 |
 | Success sting | Extraction Fanfare | original | synthesised by `tools/music/stings.py` | 116829871483507 |
 | Fail sting | Lost It | original | synthesised by `tools/music/stings.py` | 97318551187594 |
+| Final-minute cue | Toccata and Fugue in D minor (Trailer Full Mix) | J. S. Bach | APM Music | 9043771726 |
+| Night cue | Night on Bald Mountain (30 Sec) | Modest Mussorgsky | APM Music | 9042354001 |
+| Training | Trap Phonk Power Training Beat | (DistroKid catalog artist) | DistroKid → Roblox Creator Store | 126438335141122 |
 | Playlist | Morning Mood | Edvard Grieg | APM Music | 1846088038 |
 | Playlist | Anitra's Dance | Edvard Grieg | APM Music | 1843564354 |
 | Playlist | Dance of the Sugar Plum Fairy | Pyotr Tchaikovsky | APM Music | 1848047667 |
@@ -27,3 +30,14 @@ Our own public-domain uploads of the playlist (Musopen, Wikimedia Commons; see `
 were **rejected by Roblox moderation** - that is why the game had no music. The music workflow now
 prints every uploaded asset's moderation status. Our upload of the Mountain King
 (97301792132141, Musopen Symphony Orchestra, public domain) was approved and is kept as a fallback.
+
+## Licensing notes (checked 2026-09-25)
+
+- APM Music and the DistroKid catalog in the Roblox Creator Store are licensed by Roblox for use
+  in any Roblox experience, royalty-free (Roblox Support: "Using Licensed Music on Roblox";
+  DevForum: "Amplify Your Experiences with New Music").
+- That licence covers the **Roblox platform**. Gameplay clips posted to YouTube / TikTok with
+  these tracks can get content-ID claims - for trailers and Shorts, mute the in-game music or use
+  our own synthesised stings / public-domain uploads.
+- Training alternatives (all licensed the same way): APM "Luxe Life" 73069288137237 (boom bap),
+  "Boom Bap Funkshake" 94154386895952, "Hallo Effect (gym type beat)" 121346459467899.

@@ -1,14 +1,19 @@
--- Cinematic background music (config: Shared/Config/Music).
---   * The playlist rolls in the background (shuffled, looping), crossfading between tracks.
---   * Pick up a treasure -> the playlist pauses (fading out) and the carry theme starts from the
---     top; drop / extract / lose it -> the carry theme fades out and the playlist fades back in
---     exactly where it paused.
---   * When the carry ends, a short sting says how it went: SuccessSting when you extracted it,
---     FailSting when you dropped it, got knocked, had it stolen or lost it at nightfall.
---   * Muting (HUD 🔊 button) is saved per player (data.Settings.Music).
+-- Cinematic background music (config: Shared/Config/Music). One rule decides what you hear:
+-- the highest layer that is active plays, everything under it fades out and pauses (and picks
+-- up exactly where it left off when it's on top again).
+--
+--   1. CARRY THEME   - while you carry a treasure (never interrupted by anything below)
+--   2. PHASE CUE     - the final minute before night (Music.FinalMinute) and the night itself
+--                      (Music.Night): recognition music - you learn to feel night coming
+--   3. TRAINING      - while you lift at the bench (Music.Training)
+--   4. PLAYLIST      - shuffled, looping, crossfading. Every session opens with
+--                      Music.FirstTrack (Für Elise); the rest is shuffled after it.
+--
+-- When a carry ends, a short sting says how it went: SuccessSting when you extracted it,
+-- FailSting when you dropped it, got knocked, had it stolen or lost it at nightfall.
+-- Muting (HUD 🔊 button) is saved per player (data.Settings.Music).
 -- Tracks with empty ids are ignored. A track that fails to load (moderation-rejected, deleted,
--- no permission) is skipped instead of silencing the playlist forever, and a warning names it
--- in the developer console (F9).
+-- no permission) is skipped instead of silencing the game, and a warning names it (F9).
 
 local ContentProvider = game:GetService("ContentProvider")
 local Players = game:GetService("Players")
@@ -19,6 +24,8 @@ local TweenService = game:GetService("TweenService")
 local Shared = ReplicatedStorage.Shared
 local Music = require(Shared.Config.Music)
 local Treasures = require(Shared.Config.Treasures)
+local GameConfig = require(Shared.Config.GameConfig)
+local DayNight = require(Shared.Logic.DayNight)
 local Net = require(Shared.Net)
 
 local ClientState = require(script.Parent.Parent.ClientState)
@@ -32,9 +39,12 @@ local failed: { [Sound]: boolean } = {}
 local LOAD_TIMEOUT = 12 -- seconds a track may take to start before it is skipped
 local order: { number } = {}
 local position = 0
-local current: Sound? = nil
+local firstLap = true -- the session's first lap opens with Music.FirstTrack
+local current: Sound? = nil -- the playlist track
 local carrySound: Sound? = nil
-local carrying = false
+local phaseSound: Sound? = nil -- final minute / night cue
+local trainingSound: Sound? = nil
+local phase = "Day" -- "Day" | "FinalMinute" | "Night"
 local muted = false
 local holding = false -- carrying anything (even with no carry theme configured)
 local lastExtracted = -math.huge -- os.clock() of the last "Extracted" feedback
@@ -53,7 +63,7 @@ local function makeSound(track, looped: boolean, volume: number?): Sound
 	sound.Volume = 0
 	sound.SoundGroup = group
 	sound:SetAttribute("TargetVolume", volume or track.Volume or 1)
-	if track.StartAt then
+	if track.StartAt and track.StartAt > 0 then
 		-- Skip the intro, also on every loop.
 		sound.PlaybackRegionsEnabled = true
 		sound.PlaybackRegion = NumberRange.new(track.StartAt, 100000)
@@ -79,6 +89,55 @@ local function fade(sound: Sound, volume: number, andThen: (() -> ())?)
 	tween:Play()
 end
 
+-- The layer that should be heard right now (nil = the playlist).
+local function topLayer(): Sound?
+	return carrySound or phaseSound or trainingSound
+end
+
+-- Bring `sound` up (resuming where it paused) or take it down (pausing once silent).
+local function bringUp(sound: Sound)
+	if not sound.IsPlaying then
+		if sound.TimePosition > 0 then
+			sound:Resume()
+		else
+			sound:Play()
+		end
+	end
+	fade(sound, targetOf(sound))
+end
+
+local function takeDown(sound: Sound)
+	if sound.IsPlaying then
+		fade(sound, 0, function()
+			if topLayer() ~= sound and not (sound == current and topLayer() == nil) then
+				sound:Pause()
+			end
+		end)
+	end
+end
+
+local playNext
+
+-- Applies the priority rule to every layer.
+local function mix()
+	local top = topLayer()
+	for _, sound in { carrySound, phaseSound, trainingSound } do
+		if sound and sound ~= top then
+			takeDown(sound)
+		end
+	end
+	if top then
+		bringUp(top)
+		if current then
+			takeDown(current)
+		end
+	elseif current then
+		bringUp(current)
+	else
+		playNext()
+	end
+end
+
 local function shuffle()
 	order = {}
 	for i = 1, #playlist do
@@ -90,10 +149,19 @@ local function shuffle()
 			order[i], order[j] = order[j], order[i]
 		end
 	end
+	-- The very first lap of a session starts with Für Elise.
+	if firstLap and Music.FirstTrack then
+		firstLap = false
+		for i, index in order do
+			if playlist[index].Name == "Music_" .. Music.FirstTrack then
+				table.remove(order, i)
+				table.insert(order, 1, index)
+				break
+			end
+		end
+	end
 	position = 0
 end
-
-local playNext
 
 local function markFailed(sound: Sound, why: string)
 	if not failed[sound] then
@@ -103,7 +171,7 @@ local function markFailed(sound: Sound, why: string)
 end
 
 playNext = function()
-	if #playlist == 0 or carrying then
+	if #playlist == 0 or topLayer() then
 		return
 	end
 	-- Find the next track that hasn't failed (at most one full lap).
@@ -128,7 +196,7 @@ playNext = function()
 	local chosen = sound :: Sound
 	-- Watchdog: a track that never starts (failed asset) is skipped.
 	task.delay(LOAD_TIMEOUT, function()
-		if current == chosen and not carrying and (not chosen.IsLoaded or chosen.TimeLength <= 0) then
+		if current == chosen and not topLayer() and (not chosen.IsLoaded or chosen.TimeLength <= 0) then
 			markFailed(chosen, "did not load in time")
 			playNext()
 		end
@@ -143,6 +211,17 @@ playNext = function()
 	fade(chosen, targetOf(chosen))
 end
 
+-- A layer's sound stops for good: fade it out and destroy it.
+local function retire(sound: Sound?)
+	if sound then
+		fade(sound, 0, function()
+			sound:Destroy()
+		end)
+	end
+end
+
+-- CARRY -------------------------------------------------------------------------------------
+
 local function startCarry()
 	local id = player:GetAttribute("CarryingId")
 	local def = if type(id) == "string" then Treasures.Get(id) else nil
@@ -151,45 +230,18 @@ local function startCarry()
 		track = Music.CarryTheme
 	end
 	if not valid(track) then
-		return -- no carry theme configured: keep the playlist going
+		return -- no carry theme configured: keep the music going
 	end
-	carrying = true
-	if current and current.IsPlaying then
-		local paused = current
-		fade(paused, 0, function()
-			if carrying then
-				paused:Pause() -- keeps TimePosition for the resume
-			end
-		end)
-	end
-	if carrySound then
-		carrySound:Destroy()
-	end
-	local sound = makeSound(track, true)
-	carrySound = sound
-	sound:Play()
-	fade(sound, targetOf(sound))
+	retire(carrySound)
+	carrySound = makeSound(track, true)
+	mix()
 end
 
 local function stopCarry()
-	if not carrying then
-		return
-	end
-	carrying = false
-	local sound = carrySound
-	carrySound = nil
-	if sound then
-		fade(sound, 0, function()
-			sound:Destroy()
-		end)
-	end
-	if current then
-		if not current.IsPlaying then
-			current:Resume()
-		end
-		fade(current, targetOf(current))
-	else
-		playNext()
+	if carrySound then
+		retire(carrySound)
+		carrySound = nil
+		mix()
 	end
 end
 
@@ -219,6 +271,57 @@ local function carryEnded()
 	end)
 end
 
+-- DAY / FINAL MINUTE / NIGHT ----------------------------------------------------------------
+
+local function phaseAt(serverTime: number): string
+	local state = DayNight.State(serverTime)
+	if state.IsNight then
+		return "Night"
+	elseif state.SecondsLeft <= (Music.FinalMinuteSeconds or 60) then
+		return "FinalMinute"
+	end
+	return "Day"
+end
+
+local function setPhase(newPhase: string)
+	if newPhase == phase then
+		return
+	end
+	local wasCue = phaseSound ~= nil
+	phase = newPhase
+	retire(phaseSound)
+	phaseSound = nil
+	local track = if newPhase == "Night" then Music.Night elseif newPhase == "FinalMinute" then Music.FinalMinute else nil
+	if valid(track) then
+		local sound = makeSound(track, true)
+		-- Enter the cue where the phase actually is (joining mid-phase starts mid-track).
+		local state = DayNight.State(workspace:GetServerTimeNow())
+		local length = if newPhase == "Night" then GameConfig.DayNight.NightSeconds else (Music.FinalMinuteSeconds or 60)
+		sound.TimePosition = math.max(0, length - state.SecondsLeft) + (track.StartAt or 0)
+		phaseSound = sound
+	elseif newPhase == "Day" and wasCue and current then
+		-- Dawn after the night: a fresh playlist track rather than resuming the old one.
+		current:Stop()
+		current = nil
+	end
+	mix()
+end
+
+-- TRAINING ----------------------------------------------------------------------------------
+
+local function setTraining(active: boolean)
+	if active and not trainingSound and valid(Music.Training) then
+		trainingSound = makeSound(Music.Training, true)
+		mix()
+	elseif not active and trainingSound then
+		retire(trainingSound)
+		trainingSound = nil
+		mix()
+	end
+end
+
+-- MUTE --------------------------------------------------------------------------------------
+
 local function applyMute()
 	group.Volume = if muted then 0 else Music.Volume
 	player:SetAttribute("MusicMuted", muted)
@@ -243,7 +346,11 @@ function MusicController.Init()
 	for _, track in Music.Playlist do
 		if valid(track) then
 			local sound = makeSound(track, false, Music.PlaylistVolume * (track.Volume or 1))
-			sound.Ended:Connect(playNext)
+			sound.Ended:Connect(function()
+				if current == sound then
+					playNext()
+				end
+			end)
 			table.insert(playlist, sound)
 		end
 	end
@@ -259,7 +366,7 @@ function MusicController.Init()
 				for _, sound in playlist do
 					if sound.SoundId == contentId then
 						markFailed(sound, "asset failed to load")
-						if current == sound and not carrying then
+						if current == sound and not topLayer() then
 							playNext()
 						end
 					end
@@ -297,8 +404,19 @@ function MusicController.Init()
 			lastExtracted = os.clock()
 		end
 	end)
+	Net.Get("TrainingState").OnClientEvent:Connect(function(payload)
+		if type(payload) == "table" then
+			setTraining(payload.Active == true)
+		end
+	end)
 
 	playNext()
+	task.spawn(function()
+		while true do
+			setPhase(phaseAt(workspace:GetServerTimeNow()))
+			task.wait(0.5)
+		end
+	end)
 end
 
 return MusicController

@@ -130,6 +130,11 @@ function handlers.Dropped(payload)
 	Sounds.Play("Drop")
 	if payload.Reason == "Manual" then
 		HUD.ShowStatus("TREASURE DROPPED", nil, Theme.Color.Warn, 1.5)
+	elseif type(payload.NearMiss) == "number" then
+		-- The "I almost had it" moment - it's still lying there, go get it back.
+		task.delay(1.2, function()
+			HUD.ShowStatus(("SO CLOSE! %d STUDS FROM THE EXIT"):format(payload.NearMiss), "It's still there - grab it back!", Theme.Color.Gold, 2.6)
+		end)
 	end
 end
 

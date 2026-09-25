@@ -174,6 +174,77 @@ local function buildPedestal(parent: Instance, base: CFrame, def, ghost: boolean
 	end
 end
 
+-- TROPHY PEDESTAL outside the gate (left; the collect pad is on the right): your BEST treasure
+-- (highest $/s in the Vault, mutation included) at more than full size, with every rarity and
+-- mutation effect, under a spotlight - a flex for everyone walking the plaza.
+local TROPHY_SCALE = 1.5
+
+local function bestSlot(data): (any, string?, number)
+	local best, bestMutation, bestIncome = nil, nil, -1
+	for _, value in data.Vault.Displays do
+		local id, mutation = Economy.DecodeSlot(value)
+		local def = id and Treasures.Get(id)
+		if def then
+			local income = Economy.Income(def, mutation)
+			if income > bestIncome then
+				best, bestMutation, bestIncome = def, mutation, income
+			end
+		end
+	end
+	return best, bestMutation, bestIncome
+end
+
+local function buildTrophy(plot, player: Player, data, incomeMultiplier: number)
+	local half = cfg.PlotDepth / 2
+	local base = plot.CFrame * CFrame.new(-11.5, 0, -half - 5)
+	local def, mutation, income = bestSlot(data)
+	local gold = Color3.fromRGB(255, 196, 50)
+	local marble = Color3.fromRGB(240, 234, 220)
+	-- A stepped plinth with a gold rim.
+	newPart(plot.Displays, { Name = "TrophyStep", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.8, 7, 7), CFrame = base * CFrame.new(0, 0.4, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(60, 50, 80), Material = Enum.Material.Marble })
+	newPart(plot.Displays, { Name = "TrophyColumn", Shape = Enum.PartType.Cylinder, Size = Vector3.new(3.4, 4, 4), CFrame = base * CFrame.new(0, 2.5, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = marble, Material = Enum.Material.Marble })
+	newPart(plot.Displays, { Name = "TrophyTop", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 5.4, 5.4), CFrame = base * CFrame.new(0, 4.45, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = gold, Material = Enum.Material.Metal, Reflectance = 0.2 })
+	if not def then
+		local sign = newPart(plot.Displays, { Name = "TrophyEmpty", Size = Vector3.new(1, 1, 1), CFrame = base * CFrame.new(0, 6.5, 0), Transparency = 1, CanCollide = false, CanQuery = false })
+		label(sign, "🏆 YOUR BEST TREASURE GOES HERE", Color3.fromRGB(255, 225, 140), 0, 40, 8)
+		return
+	end
+	local info = Rarities.Info[def.Rarity]
+	local model = TreasureVisual.Build(def, base * CFrame.new(0, 4.7, 0), nil, mutation, { Display = true })
+	model.Name = "Trophy"
+	model:ScaleTo(TROPHY_SCALE)
+	-- Stand it on the plinth, whatever its size.
+	local _, size = model:GetBoundingBox()
+	model:PivotTo(base * CFrame.new(0, 4.7 + size.Y / 2 + 0.3, 0))
+	model.Parent = plot.Displays
+	-- A soft spotlight column in the treasure's rarity colour.
+	local beam = newPart(plot.Displays, {
+		Name = "TrophyLight",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(18, 6, 6),
+		CFrame = base * CFrame.new(0, 13.7, 0) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = info.Color,
+		Material = Enum.Material.Neon,
+		Transparency = 0.9,
+		CanCollide = false,
+		CanQuery = false,
+		CastShadow = false,
+	})
+	local spot = Instance.new("SpotLight")
+	spot.Face = Enum.NormalId.Left -- the cylinder's -X points down
+	spot.Color = info.Color
+	spot.Brightness = 3
+	spot.Range = 20
+	spot.Angle = 50
+	spot.Parent = beam
+	-- A small nameplate on the plinth: whose, what, how much.
+	local plate = newPart(plot.Displays, { Name = "TrophyPlate", Size = Vector3.new(1, 1, 1), CFrame = base * CFrame.new(0, 1.6, -2.3), Transparency = 1, CanCollide = false, CanQuery = false })
+	local mutationText = if mutation and mutation ~= "" then mutation:upper() .. " " else ""
+	label(plate, ("%s • %s%s"):format(player.DisplayName, mutationText, def.Name:upper()), info.Color, 0, 70, 7)
+	local rate = newPart(plot.Displays, { Name = "TrophyRate", Size = Vector3.new(1, 1, 1), CFrame = base * CFrame.new(0, 0.7, -2.3), Transparency = 1, CanCollide = false, CanQuery = false })
+	label(rate, ("%s %s • %s/s"):format(info.Glyph or "", def.Rarity:upper(), formatShort(math.floor(income * incomeMultiplier + 0.5))), Color3.fromRGB(120, 235, 120), 0, 45, 5)
+end
+
 local function render(player: Player)
 	local plot = plotOf[player]
 	local data = PlayerData.Get(player)
@@ -334,6 +405,8 @@ local function render(player: Player)
 			end
 		end
 	end
+
+	buildTrophy(plot, player, data, incomeMultiplier)
 
 	-- COLLECT pad OUTSIDE the entrance (right of the gate) with a sign board facing the plaza:
 	-- inside the Vault the text got cut by the gate posts and clashed with the treasure tags.

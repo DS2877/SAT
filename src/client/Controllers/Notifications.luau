@@ -10,6 +10,7 @@ local Shared = ReplicatedStorage.Shared
 local Rarities = require(Shared.Config.Rarities)
 local Treasures = require(Shared.Config.Treasures)
 local Net = require(Shared.Net)
+local DayNight = require(Shared.Logic.DayNight)
 
 local UI = script.Parent.Parent.UI
 local Theme = require(UI.Theme)
@@ -176,6 +177,12 @@ function Notifications.Reward(payload)
 	end
 	if payload.StrengthGain and payload.StrengthGain > 0 then
 		Kit.label({ Text = ("💪 +%s STRENGTH"):format(Kit.bigNumber(payload.StrengthGain)), LayoutOrder = 5, Size = UDim2.new(1, 0, 0, 18), Font = Theme.Font.Black, TextSize = Theme.TextSize.Small, TextColor3 = Theme.Color.Strength, Parent = frame })
+	end
+	-- "One more run": how much daylight is left to go again.
+	local day = DayNight.State(workspace:GetServerTimeNow())
+	if not day.IsNight and day.SecondsLeft > 45 then
+		local left = math.floor(day.SecondsLeft)
+		Kit.label({ Text = ("⏱ %d:%02d of daylight left • one more run?"):format(left // 60, left % 60), LayoutOrder = 8, Size = UDim2.new(1, 0, 0, 14), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Color3.fromRGB(190, 210, 255), Parent = frame })
 	end
 	Kit.pulse(frame)
 	Sounds.Play(if big then "BigReward" else "ExtractSuccess")
