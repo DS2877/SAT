@@ -134,14 +134,13 @@ end
 function MenuController.Init(gui: ScreenGui)
 	overlay = Kit.new("Frame", {
 		Name = "MenuOverlay",
-		BackgroundColor3 = Color3.new(0, 0, 0),
-		BackgroundTransparency = 0.4,
+		BackgroundTransparency = 1, -- no dimmed box behind menus (it only covered the scaled HUD area)
 		Size = UDim2.fromScale(1, 1),
 		Visible = false,
 		ZIndex = 10,
 		Parent = gui,
 	})
-	-- Tapping the dimmed background closes the menu.
+	-- Tapping outside the window closes the menu.
 	local backdrop = Kit.new("TextButton", {
 		Text = "",
 		BackgroundTransparency = 1,

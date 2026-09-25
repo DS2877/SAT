@@ -17,8 +17,22 @@ function Map.Build(root: Frame)
 	})
 	local scale = Kit.new("UIScale", { Parent = holder })
 	local view = MapView.Build(holder)
+	-- AbsoluteSize already includes every UIScale above us (the HUD's global phone scale, the
+	-- menu's pop-in); divide it back out or the map gets scaled twice and ends up tiny.
+	local function inheritedScale(): number
+		local product = 1
+		local node: Instance? = root
+		while node do
+			local s = node:FindFirstChildWhichIsA("UIScale")
+			if s then
+				product *= s.Scale
+			end
+			node = node.Parent
+		end
+		return product
+	end
 	local function fit()
-		local size = root.AbsoluteSize
+		local size = root.AbsoluteSize / inheritedScale()
 		if size.X > 0 and size.Y > 0 then
 			scale.Scale = math.min(size.X / MapView.WIDTH, size.Y / MapView.HEIGHT)
 		end
