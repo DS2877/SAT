@@ -58,6 +58,9 @@ def show(url):
         for p in data.get("posts", [])[:25]:
             print(f"  * topic {p.get('topic_id')}: {p.get('blurb', '')[:200]}")
         return
+    if "post_stream" not in data:  # any other JSON API: print it as-is
+        print(json.dumps(data, indent=1)[:LIMIT])
+        return
     posts = data.get("post_stream", {}).get("posts", [])
     print(f"TITLE: {data.get('title')}")
     out = []
