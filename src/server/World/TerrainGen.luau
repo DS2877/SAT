@@ -56,6 +56,15 @@ TerrainGen.FLAT_ZONES = {
 	{ -60, -990, 26, 14 }, -- igloo village
 	{ 80, -985, 14, 10 }, -- the frozen mammoth
 	{ -88, -915, 20, 12 }, -- the Heart of the Rime
+	-- Level ground under every Rimeheart loot spot (no treasure half-sunk into a dune or ridge).
+	{ -100, -832, 6, 10 },
+	{ 60, -830, 6, 10 },
+	{ 160, -860, 6, 10 },
+	{ -40, -905, 6, 10 },
+	{ 70, -905, 6, 10 },
+	{ 40, -975, 6, 10 },
+	{ 150, -985, 6, 10 },
+	{ -25, -1015, 6, 10 },
 	{ -145, -985, 30, 12 }, -- the frozen lake
 	{ -3, -900, 17, 10 }, -- ice arch over the trail
 	{ 0, -1003, 17, 10 }, -- ice arch over the trail

@@ -163,10 +163,66 @@ local function placeMarker(record: Record, ground: Vector3)
 	record.Marker = marker
 end
 
+-- Safety net: a treasure must never end up inside the ground or under water (terrain that
+-- changed after a spot was measured, a spot measured through a gap, a drop on a slope...).
+-- If the terrain cell just above `base` is solid or water, lift it onto the surface. Air
+-- pockets (caves, crypts, inside buildings) are left alone.
+local surfaceParams = RaycastParams.new()
+surfaceParams.FilterType = Enum.RaycastFilterType.Exclude
+surfaceParams.IgnoreWater = false
+local function refreshSurfaceFilter()
+	local exclude: { Instance } = { folder, markerFolder }
+	for _, p in Players:GetPlayers() do
+		if p.Character then
+			table.insert(exclude, p.Character)
+		end
+	end
+	surfaceParams.FilterDescendantsInstances = exclude
+end
+
+local function unburied(base: Vector3): Vector3
+	local probe = base + Vector3.new(0, 1.5, 0)
+	local ok, materials, occupancies = pcall(function()
+		local region = Region3.new(probe - Vector3.new(0.1, 0.1, 0.1), probe + Vector3.new(0.1, 0.1, 0.1)):ExpandToGrid(4)
+		return workspace.Terrain:ReadVoxels(region, 4)
+	end)
+	if not ok or not materials then
+		return base
+	end
+	local material = materials[1][1][1]
+	if material == Enum.Material.Air or occupancies[1][1][1] < 0.6 then
+		return base
+	end
+	refreshSurfaceFilter()
+	local hit = workspace:Raycast(base + Vector3.new(0, 60, 0), Vector3.new(0, -60, 0), surfaceParams)
+	if hit and hit.Position.Y > base.Y + 0.5 then
+		return hit.Position
+	end
+	return base
+end
+
+-- On a slope (a dune, a ridge, a hillside) a big treasure would sink into the uphill side:
+-- lift it to the highest ground under its footprint (a few studs at most, so a nearby wall or
+-- roof never counts).
+local function settled(base: Vector3, radius: number): Vector3
+	local highest = base.Y
+	refreshSurfaceFilter()
+	for i = 0, 3 do
+		local a = i * math.pi / 2
+		local from = base + Vector3.new(math.cos(a) * radius, 4, math.sin(a) * radius)
+		local hit = workspace:Raycast(from, Vector3.new(0, -8, 0), surfaceParams)
+		if hit and hit.Position.Y > highest then
+			highest = hit.Position.Y
+		end
+	end
+	return if highest > base.Y + 0.2 then Vector3.new(base.X, highest, base.Z) else base
+end
+
 local function spawnAt(point, def, ground: Vector3?, mutation: string?)
 	nextUid += 1
 	local s = TreasureVisual.Scale(def)
-	local base = if point then point.Position else ground :: Vector3
+	-- (Secret spots are exact on purpose: inside a crypt, a ship's hold, a cave.)
+	local base = if point and point.Exact then point.Position else settled(unburied(if point then point.Position else ground :: Vector3), s * 0.8)
 	local cframe = CFrame.new(base + Vector3.new(0, s * 0.9 + 0.3, 0))
 		* CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
 	local model = TreasureVisual.Build(def, cframe, nil, mutation)
@@ -526,7 +582,11 @@ function TreasureService.Drop(player: Player, reason: string, knockedBy: Player?
 			table.insert(exclude, p.Character)
 		end
 	end
-	local ground = groundBelow(fromPosition - Vector3.new(0, handle.Size.Y * 0.5 + 2.5, 0), exclude)
+	-- From a spot we were given (the near side of a sealed border): look down from above it.
+	local ground = if at
+		then groundBelow(at + Vector3.new(0, 4, 0), exclude)
+		else groundBelow(fromPosition - Vector3.new(0, handle.Size.Y * 0.5 + 2.5, 0), exclude)
+	ground = settled(unburied(ground), TreasureVisual.Scale(record.Def) * 0.8)
 	handle.Anchored = true
 	handle.CFrame = CFrame.new(ground + Vector3.new(0, TreasureVisual.Scale(record.Def) * 0.9 + 0.3, 0))
 		* CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
@@ -659,6 +719,7 @@ function TreasureService.Init(points)
 			Occupied = nil,
 			NextSpawnAt = 0,
 			Heart = nil :: string?,
+			Exact = point.Secret ~= nil,
 		})
 	end
 	-- Each region's heart points: its ordinary spawn points (no starter/secret clamps) nearest

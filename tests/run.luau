@@ -1506,6 +1506,26 @@ test("sealed regions send you back to the start of the way in", function()
 	check(string.find(source, "TreasureService.Drop(player, \"Sealed\", nil, at)", 1, true) ~= nil, "carried treasure drops on the near side")
 end)
 
+test("Rimeheart loot spots sit on level ground", function()
+	local roblox = require("@lune/roblox") :: any
+	Vector3 = roblox.Vector3
+	local W = require("../src/shared/Config/WorldLayout")
+	local T = require("../src/server/World/TerrainGen")
+	for _, t in W.TreasureSpawns do
+		if t.Area == "Rime" then
+			local centre = T.SouthHeight(t.Position.X, t.Position.Z)
+			local worst = 0
+			for _, o in { { 4, 0 }, { -4, 0 }, { 0, 4 }, { 0, -4 } } do
+				worst = math.max(worst, math.abs((T.SouthHeight(t.Position.X + o[1], t.Position.Z + o[2]) or centre) - centre))
+			end
+			check(worst < 2.5, ("Rime spot (%d, %d) is level (%.1f)"):format(t.Position.X, t.Position.Z, worst))
+			check(centre < t.Position.Y + 20, "the spot's ray starts above the ground")
+		end
+	end
+	local source = require("@lune/fs").readFile("src/server/Services/TreasureService.luau")
+	check(string.find(source, "settled(unburied(", 1, true) ~= nil, "every treasure is lifted out of the ground")
+end)
+
 print(("%d passed, %d failed"):format(passed, failed))
 if failed > 0 then
 	error("tests failed")
