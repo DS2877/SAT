@@ -754,7 +754,7 @@ test("guardians are big, scary and still fair", function()
 		check(def.ChaseSpeed < GameConfig.Player.BaseWalkSpeed, id .. " can be outrun without a load")
 		local reach = def.AttackRange + def.Size[3] * def.Scale / 2
 		check(reach >= 5 and reach <= 10, ("%s reach %.1f is sane"):format(id, reach))
-		check(def.Damage < GameConfig.Player.MaxHealth / 3, id .. " never three-shots a player")
+		check(def.Damage == nil, id .. " deals no damage (guardians throw, they don't hurt)")
 		check(def.LeashRange > def.DetectRange, id .. " leash beyond detection")
 	end
 	check(Guardians.Golem ~= nil and Guardians.Golem.Scale > Guardians.Wolf.Scale, "the Golem towers over the rest")
@@ -1293,6 +1293,20 @@ test("info board content is well-formed", function()
 		check(event.StartsAt == nil or event.StartsAt > 1.7e9, event.Id .. " StartsAt is a real UTC unix time")
 	end
 	check(News.RemindBefore > 0 and News.LiveAnnouncementHours > 0, "reminder and announcement windows")
+end)
+
+test("guardians throw you back, low and long, and never hurt", function()
+	local roblox = require("@lune/roblox") :: any
+	Vector3 = roblox.Vector3
+	local Guardians = require("../src/shared/Config/Guardians")
+	local c = GameConfig.Combat
+	for id, def in Guardians do
+		local enraged = (def.Knockback or 1) * 1.3 -- Cursed Hour rage
+		local speed = c.GuardianThrowBase + math.max(0, enraged - 1) * c.GuardianThrowPerKnockback
+		check(speed >= 85 and speed <= 170, ("%s throws hard but sanely (%.0f studs/s)"):format(id, speed))
+	end
+	local apex = c.GuardianThrowLift ^ 2 / (2 * 196.2)
+	check(apex >= 2 and apex <= 6, ("a short hop, not a launch (apex %.1f studs)"):format(apex))
 end)
 
 print(("%d passed, %d failed"):format(passed, failed))

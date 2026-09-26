@@ -256,6 +256,11 @@ GameConfig.Combat = {
 	KnockbackPower = 45, -- guardians and gadgets; bat slaps use the bat's own Knockback (Config/Bats)
 	ShakenShove = 0.45, -- a carrier's first slap: a short shove (x the bat's knockback)...
 	KnockThrow = 1.4, -- ...their second: thrown this much further than a normal slap
+	-- GUARDIANS (PvE) never hurt or kill: one hit THROWS you back, low and long. Carrying?
+	-- The treasure drops right where you were hit, then you fly (and you're Knocked).
+	GuardianThrowBase = 90, -- horizontal throw speed (studs/s) for every guardian...
+	GuardianThrowPerKnockback = 30, -- ...plus this per point of its Knockback above 1 (big ones throw further)
+	GuardianThrowLift = 38, -- upward speed (studs/s): a short hop (~4 studs), not a launch
 	CarrierCanAttack = false, -- CARRIER = RUN, CHASER = STOP
 	SafeZoneProtectsCarriers = false, -- carriers cannot hide in the District forever
 	GuardianStunDuration = 2,

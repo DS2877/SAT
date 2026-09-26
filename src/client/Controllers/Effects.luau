@@ -126,7 +126,17 @@ function handlers.Knockback(payload)
 		root.AssemblyLinearVelocity = payload.Direction * power + Vector3.new(0, lift, 0)
 	end
 	Sounds.Play("Hit")
-	shakeCamera(0.6, 0.2)
+	shakeCamera(if payload.Thrown then 1.2 else 0.6, if payload.Thrown then 0.35 else 0.2)
+	if payload.Thrown and not payload.Dropped then
+		-- A guardian threw you: no damage, just distance. (Carriers get the KNOCKED banner and
+		-- tumble instead - Knocked.)
+		HUD.ShowStatus("💥 THROWN!", "Guardians don't hurt - they throw you out", Theme.Color.Warn, 1.6)
+		-- Airborne at once, so the ground doesn't eat the throw before you leave it.
+		local humanoid = myHumanoid()
+		if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Physics then
+			humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+		end
+	end
 end
 
 function handlers.Shaken(payload)

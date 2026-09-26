@@ -351,3 +351,10 @@ See docs/ROADMAP.md: 1 stabilise → 2 addictive core loop → 3 first 10 minute
 - **Unread posts:** returning players get one toast about a post they haven't read. Opening the board marks it read.
 - **Joints:** the swing drives both avatar joint types, the classic Motor6D (via C0) and the new upgraded AnimationConstraint (via its parent attachment). The bat itself also tips back and chops through level in the hand, so the swing shows on every avatar. The slap is sent to the server before any visuals run.
 - **Sheathe:** its own round BAT button on the arc above SLAP (HIDE ↔ DRAW, or **H** on PC) straps the bat across your back (setting `SheatheBat`). SLAP draws it again and swings in the same press. The bat also rides on your back while you carry treasure.
+
+## Guardians throw, they don't hurt
+- PvE guardians never deal damage or kill.
+- **One hit throws you back, low and long:** 90 studs/s horizontal, plus 30 per point of the guardian's Knockback above 1 (Cursed Hour rage adds to it). The upward speed is 38 studs/s, a hop of about 4 studs.
+- **Carrying?** The treasure drops right where you were hit (with the Knocked tumble and reclaim protection), then you fly.
+- **Not carrying?** You just fly back, with a "💥 THROWN!" line.
+- After any throw the guardian backs off for its `RetreatAfterKnock`. The unused guardian `Damage` values were removed.

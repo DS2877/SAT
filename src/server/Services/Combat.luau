@@ -127,6 +127,29 @@ function Combat.ApplyHit(victim: Player, source)
 		return "Ignored"
 	end
 
+	-- Guardians: no damage, ever. One hit throws you back; a carrier drops the loot on the spot.
+	if source.Guardian then
+		local away = root.Position - source.From
+		away = Vector3.new(away.X, 0, away.Z)
+		away = if away.Magnitude > 0.01 then away.Unit else Vector3.new(0, 0, 1)
+		local result = "Thrown"
+		if TreasureService.GetCarrying(victim) then
+			local st = stateFor(victim)
+			local now = os.clock()
+			Stability.Update(st, now, stabilityCfg)
+			if Stability.IsImmune(st, now) then
+				return "Ignored"
+			end
+			Stability.ForceKnock(st, now, stabilityCfg)
+			knock(victim, st, nil) -- drops the treasure where you stand, before the throw
+			result = "Knocked"
+		end
+		local power = cfg.GuardianThrowBase + math.max(0, (source.Knockback or 1) - 1) * cfg.GuardianThrowPerKnockback
+		Net.Fire("Feedback", victim, { Type = "Knockback", Direction = away, Power = power, Lift = cfg.GuardianThrowLift, Thrown = true, Dropped = result == "Knocked" })
+		Combat.PlayerHit:Fire(victim, result, source)
+		return result
+	end
+
 	if source.Damage and source.Damage > 0 then
 		humanoid:TakeDamage(source.Damage)
 	end

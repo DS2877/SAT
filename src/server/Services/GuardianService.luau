@@ -460,10 +460,11 @@ local function step(g: Guardian, now: number)
 		local reach = g.Def.AttackRange + g.Root.Size.Z / 2
 		if (targetRoot.Position - g.Root.Position).Magnitude <= reach and now - g.LastAttack >= g.Def.AttackCooldown then
 			g.LastAttack = now
-			local result = Combat.ApplyHit(target, { Guardian = g.Type, Damage = g.Def.Damage * rage(g), From = g.Root.Position, Knockback = g.Def.Knockback })
+			-- Guardians throw, they don't hurt (Combat.ApplyHit); rage makes them throw harder.
+			local result = Combat.ApplyHit(target, { Guardian = g.Type, From = g.Root.Position, Knockback = (g.Def.Knockback or 1) * rage(g) })
 			Net.FireAll("Feedback", { Type = "GuardianAttack", Position = g.Root.Position })
-			if result == "Knocked" then
-				-- Back off so the victim gets a fair chance to reclaim.
+			if result ~= "Ignored" then
+				-- Back off after a throw: the victim gets a fair chance to get up / reclaim.
 				setState(g, "Return", nil)
 				g.StateUntil = now + g.Def.RetreatAfterKnock
 			end
