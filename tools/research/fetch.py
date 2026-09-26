@@ -30,11 +30,22 @@ def text(fragment):
     return re.sub(r"\n{3,}", "\n\n", html.unescape(fragment)).strip()
 
 
+def youtube(body):
+    """Title + full description of a YouTube video page (kits often list asset ids there)."""
+    title = re.search(r'"title":"(.*?)","lengthSeconds"', body)
+    desc = re.search(r'"shortDescription":"(.*?)","isCrawlable"', body)
+    print("TITLE:", json.loads(f'"{title.group(1)}"') if title else "?")
+    print(json.loads(f'"{desc.group(1)}"') if desc else "(no description found)")
+
+
 def show(url):
     print(f"\n######## {url}")
     status, body = get(url)
     if status != 200:
         print(f"HTTP {status}: {body[:300]}")
+        return
+    if "youtube.com/watch" in url:
+        youtube(body)
         return
     try:
         data = json.loads(body)
