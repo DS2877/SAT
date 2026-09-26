@@ -174,30 +174,40 @@ local function buildPedestal(parent: Instance, base: CFrame, def, ghost: boolean
 	end
 end
 
--- TROPHY PEDESTAL outside the gate (left; the collect pad is on the right): your BEST treasure
--- (highest $/s in the Vault, mutation included) at more than full size, with every rarity and
--- mutation effect, under a spotlight - a flex for everyone walking the plaza.
+-- TROPHY PEDESTAL outside the gate (left; the collect pad is on the right): a treasure YOU
+-- choose (Vault menu), at more than full size, with every rarity and mutation effect, under a
+-- spotlight - a flex for everyone walking the plaza. It's an extra pedestal: the treasure
+-- moves OUT of the vault (Displays.Trophy, Logic/Economy) and keeps earning exactly as before.
 local TROPHY_SCALE = 1.5
 
-local function bestSlot(data): (any, string?, number)
-	local best, bestMutation, bestIncome = nil, nil, -1
-	for _, value in data.Vault.Displays do
+-- The numbered slot holding the highest-earning treasure (for the one-time move to the
+-- pedestal when the feature arrives).
+local function bestSlotIndex(data): number?
+	local bestIndex, bestIncome = nil, -1
+	for key, value in data.Vault.Displays do
+		local index = tonumber(key)
 		local id, mutation = Economy.DecodeSlot(value)
 		local def = id and Treasures.Get(id)
-		if def then
+		if index and def then
 			local income = Economy.Income(def, mutation)
 			if income > bestIncome then
-				best, bestMutation, bestIncome = def, mutation, income
+				bestIndex, bestIncome = index, income
 			end
 		end
 	end
-	return best, bestMutation, bestIncome
+	return bestIndex
+end
+
+local function trophyOf(data): (any, string?, number)
+	local id, mutation = Economy.DecodeSlot(data.Vault.Displays[Economy.TrophyKey])
+	local def = id and Treasures.Get(id)
+	return def, mutation, if def then Economy.Income(def, mutation) else 0
 end
 
 local function buildTrophy(plot, player: Player, data, incomeMultiplier: number)
 	local half = cfg.PlotDepth / 2
 	local base = plot.CFrame * CFrame.new(-11.5, 0, -half - 5)
-	local def, mutation, income = bestSlot(data)
+	local def, mutation, income = trophyOf(data)
 	local gold = Color3.fromRGB(255, 196, 50)
 	local marble = Color3.fromRGB(240, 234, 220)
 	-- A stepped plinth with a gold rim.
@@ -206,7 +216,7 @@ local function buildTrophy(plot, player: Player, data, incomeMultiplier: number)
 	newPart(plot.Displays, { Name = "TrophyTop", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 5.4, 5.4), CFrame = base * CFrame.new(0, 4.45, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = gold, Material = Enum.Material.Metal, Reflectance = 0.2 })
 	if not def then
 		local sign = newPart(plot.Displays, { Name = "TrophyEmpty", Size = Vector3.new(1, 1, 1), CFrame = base * CFrame.new(0, 6.5, 0), Transparency = 1, CanCollide = false, CanQuery = false })
-		label(sign, "🏆 YOUR BEST TREASURE GOES HERE", Color3.fromRGB(255, 225, 140), 0, 40, 8)
+		label(sign, "🏆 PICK A TROPHY AT YOUR VAULT TERMINAL", Color3.fromRGB(255, 225, 140), 0, 40, 8)
 		return
 	end
 	local info = Rarities.Info[def.Rarity]
@@ -321,7 +331,15 @@ local function render(player: Player)
 				})
 			end
 			local marker = newPart(plot.Displays, { Name = "LockedFloor", Size = Vector3.new(1, 1, 1), CFrame = floorCf * CFrame.new(0, 2, halfD - 3), Transparency = 1, CanCollide = false, CanQuery = false })
-			label(marker, ("🔒 FLOOR %d"):format(f), Color3.fromRGB(190, 225, 255), 0, 90, 10)
+			-- Say exactly what opens it (and its stairs): the first tier big enough.
+			local needs = nil
+			for _, tier in cfg.Tiers do
+				if tier.Enabled and math.ceil(tier.Slots / cfg.PerFloor) >= f then
+					needs = tier.Slots
+					break
+				end
+			end
+			label(marker, if needs then ("🔒 FLOOR %d • UPGRADE TO %d PEDESTALS"):format(f, needs) else ("🔒 FLOOR %d"):format(f), Color3.fromRGB(190, 225, 255), 0, 90, 10)
 		end
 	end
 
@@ -489,6 +507,26 @@ sellSlot = function(player: Player, slot: any)
 	Net.Fire("Feedback", player, { Type = "Sold", TreasureId = def.Id, Mutation = mutation, Amount = price })
 	Analytics.Economy(player, "Source", price, data.Cash, "Gameplay", "sell_" .. def.Id)
 	render(player)
+end
+
+-- Vault menu: put pedestal `slot` on the trophy pedestal (swapping with what's there), or
+-- slot 0 = take the trophy back inside. Income is unchanged either way.
+local function onSetTrophy(player: Player, slot: any)
+	local data = PlayerData.Get(player)
+	if not data or type(slot) ~= "number" or slot ~= math.floor(slot) or slot < 0 or slot > slotsFor(data) then
+		return
+	end
+	local moved = false
+	PlayerData.Update(player, function(d)
+		moved = Economy.MoveTrophy(d.Vault.Displays, slot, slotsFor(d))
+	end)
+	if moved then
+		PlayerData.Milestone(player, "TrophyPedestal")
+		Net.Fire("Notify", player, { Kind = "Toast", Text = if slot == 0 then "Trophy moved back into your vault" else "🏆 On your pedestal outside - still earning", Tone = "Reward" })
+		render(player)
+	elseif slot == 0 then
+		Net.Fire("Notify", player, { Kind = "Toast", Text = "Your vault is full - sell or upgrade to bring it inside", Tone = "Warn" })
+	end
 end
 
 local function onUpgrade(player: Player)
@@ -702,8 +740,25 @@ local function payOffline(player: Player)
 	end
 end
 
+-- The pedestal used to mirror your best treasure; now it's a real extra pedestal. The first
+-- time, move the best one out there (it keeps earning; it frees its slot inside).
+local function migrateTrophy(player: Player)
+	local data = PlayerData.Get(player)
+	if not data or data.Milestones.TrophyPedestal then
+		return
+	end
+	local best = bestSlotIndex(data)
+	if data.Vault.Displays[Economy.TrophyKey] == nil and best and Economy.UsedSlots(data.Vault.Displays) >= 3 then
+		PlayerData.Update(player, function(d)
+			Economy.MoveTrophy(d.Vault.Displays, best, slotsFor(d))
+		end)
+	end
+	PlayerData.Milestone(player, "TrophyPedestal")
+end
+
 local function assign(player: Player)
 	task.spawn(payOffline, player)
+	migrateTrophy(player)
 	for _, plot in plots do
 		if not plot.Owner then
 			plot.Owner = player
@@ -759,6 +814,7 @@ function VaultService.Init(builtPlots)
 	Players.PlayerRemoving:Connect(release)
 	Extraction.Completed:Connect(onExtracted)
 	Net.On("SellTreasure", sellSlot, 4)
+	Net.On("SetTrophy", onSetTrophy, 4)
 	Net.On("UpgradeVault", onUpgrade, 2)
 
 	task.spawn(function()

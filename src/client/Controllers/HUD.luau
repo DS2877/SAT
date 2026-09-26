@@ -738,10 +738,7 @@ local function refreshObjective()
 	-- Full Vault and the next tier is affordable: growing it is the best move right now.
 	local tier = GameConfig.Vault.Tiers[data.Vault.Tier] or GameConfig.Vault.Tiers[1]
 	local nextTier = GameConfig.Vault.Tiers[data.Vault.Tier + 1]
-	local used = 0
-	for _ in data.Vault.Displays do
-		used += 1
-	end
+	local used = Economy.UsedSlots(data.Vault.Displays)
 	if used >= tier.Slots and nextTier and nextTier.Enabled and data.Cash >= nextTier.Price then
 		setObjective("VAULT FULL", "UPGRADE YOUR VAULT", Theme.Color.Gold, ("%d → %d pedestals • %s"):format(tier.Slots, nextTier.Slots, Kit.shortCash(nextTier.Price)), "▶ OPEN THE VAULT MENU", nil)
 		navTarget = vaultNav()

@@ -1337,6 +1337,35 @@ test("sound library: every sound played exists, all licensed ids, mixed under th
 	scan("src/client")
 end)
 
+test("trophy pedestal: an extra pedestal that never changes income", function()
+	local T = Economy.TrophyKey
+	local lookup = Treasures.Get
+	local a, b, c = Treasures.List[1].Id, Treasures.List[2].Id, Treasures.List[3].Id
+	local displays = { ["1"] = a, ["2"] = b, ["3"] = c }
+	local before = Economy.VaultIncome(displays, lookup, 1, false)
+	check(Economy.UsedSlots(displays) == 3, "3 pedestals in use")
+	check(Economy.MoveTrophy(displays, 2, 5), "put slot 2 outside")
+	check(displays[T] == b and displays["2"] == nil, "it moved OUT (not copied)")
+	check(Economy.UsedSlots(displays) == 2, "and freed its slot inside")
+	check(Economy.VaultIncome(displays, lookup, 1, false) == before, "income unchanged")
+	check(Economy.MoveTrophy(displays, 1, 5), "pick another one")
+	check(displays[T] == a and displays["1"] == b, "the two swap places")
+	check(Economy.VaultIncome(displays, lookup, 1, false) == before, "still the same income")
+	check(not Economy.MoveTrophy(displays, 4, 5), "an empty slot can't go outside")
+	check(not Economy.MoveTrophy(displays, 9, 5), "nor a slot beyond the vault")
+	check(Economy.MoveTrophy(displays, 0, 5) and displays[T] == nil and displays["2"] == a, "bring it inside: first free slot")
+	check(not Economy.MoveTrophy(displays, 0, 5), "nothing outside to bring in")
+	local full = { ["1"] = a, [T] = b }
+	check(not Economy.MoveTrophy(full, 0, 1) and full[T] == b, "a full vault keeps the trophy outside")
+	-- Ascension heirlooms consider the trophy like any pedestal.
+	local kept = AscensionReset.Heirlooms({ ["1"] = a, [T] = c }, 2, function(v)
+		local id = Economy.DecodeSlot(v)
+		local def = id and lookup(id)
+		return if def then Economy.Income(def) else 0
+	end)
+	check(#kept == 2, "the trophy counts for heirlooms")
+end)
+
 print(("%d passed, %d failed"):format(passed, failed))
 if failed > 0 then
 	error("tests failed")

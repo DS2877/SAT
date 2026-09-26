@@ -372,3 +372,12 @@ See docs/ROADMAP.md: 1 stabilise → 2 addictive core loop → 3 first 10 minute
   - Positional sounds roll off naturally.
   - Warning toasts are silent; only danger ones blip.
 - A test checks that every `Sounds.Play("X")` in the client exists in the library.
+
+## Trophy pedestal = an extra pedestal you choose
+- The treasure on the pedestal outside the vault is stored as `Displays.Trophy` (`Economy.TrophyKey`). It moves OUT of the vault, freeing its slot inside, and keeps earning exactly as before, because `VaultIncome` sums every entry, offline earnings included. Ascension heirlooms consider it like any pedestal.
+- **Vault menu:**
+  - a gold TROPHY card comes first, with **BRING INSIDE**
+  - every treasure has a 🏆 button that puts it outside, swapping with whatever is there now
+  - selling works from inside the vault only
+- **One-time move:** returning players with 3 or more treasures get their best one moved out to the pedestal once (milestone `TrophyPedestal`).
+- **Stairs:** floors hold 16 pedestals, so floor 2 and its stairs appear at the 20-pedestal upgrade. Locked floors now say "🔒 FLOOR 2 • UPGRADE TO 20 PEDESTALS".

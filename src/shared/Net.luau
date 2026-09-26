@@ -32,6 +32,7 @@ Net.ClientToServer = {
 	"BuyBat", -- (batId) at the Bat Shop
 	"EquipBat", -- (batId) an owned bat into your hand
 	"SellTreasure",
+	"SetTrophy", -- (slot) put pedestal `slot` on the trophy pedestal outside; 0 = take it back in
 	"UpgradeVault",
 	"Ascend",
 	"StopTraining",

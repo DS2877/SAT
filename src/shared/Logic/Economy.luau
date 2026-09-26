@@ -80,6 +80,52 @@ function Economy.DecodeSlot(value: string?): (string?, string?)
 	return value, nil
 end
 
+-- THE TROPHY PEDESTAL outside the vault is one more display, under this key (next to the
+-- numbered pedestal slots "1".."N"). It earns like any pedestal (VaultIncome sums every
+-- entry), so showing a treasure off never costs income - and it frees a slot inside.
+Economy.TrophyKey = "Trophy"
+
+-- Numbered pedestals in use (the trophy pedestal doesn't take a vault slot).
+function Economy.UsedSlots(displays): number
+	local used = 0
+	for key in displays do
+		if key ~= Economy.TrophyKey then
+			used += 1
+		end
+	end
+	return used
+end
+
+-- Put the treasure from pedestal `slot` on the trophy pedestal: the two swap, so whatever
+-- stood outside goes back into that slot (or it simply empties). Returns false if the slot is
+-- empty. `slot` = 0: take the trophy down into the first free slot of `capacity` (false if
+-- the vault is full or there is no trophy).
+function Economy.MoveTrophy(displays, slot: number, capacity: number): boolean
+	local key = Economy.TrophyKey
+	if slot == 0 then
+		local trophy = displays[key]
+		if not trophy then
+			return false
+		end
+		for index = 1, capacity do
+			if displays[tostring(index)] == nil then
+				displays[tostring(index)] = trophy
+				displays[key] = nil
+				return true
+			end
+		end
+		return false
+	end
+	local slotKey = tostring(slot)
+	local entry = displays[slotKey]
+	if slot < 1 or slot > capacity or entry == nil then
+		return false
+	end
+	displays[slotKey] = displays[key]
+	displays[key] = entry
+	return true
+end
+
 -- Total $/s of a Vault. `lookup(id)` returns a treasure definition (Treasures.Get).
 function Economy.VaultIncome(displays, lookup, ascensionMultiplier: number, isNight: boolean): number
 	local total = 0

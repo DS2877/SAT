@@ -1,6 +1,7 @@
 -- Vault menu: what each pedestal earns, total income, SELL (tap twice to confirm) and UPGRADE.
 -- Treasures land on free pedestals automatically when extracted; selling frees one up for a
--- better earner.
+-- better earner. 🏆 puts a treasure on the TROPHY PEDESTAL outside your vault - an extra
+-- pedestal: it moves out (freeing its slot) and keeps earning exactly the same.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -76,6 +77,37 @@ function Vault.Build(root: Frame, controller)
 
 	local refresh
 
+	-- The trophy pedestal outside: first card. Tap to bring it back in (or pick one below).
+	local function trophyCard(value: string?, incomeMultiplier: number)
+		local id, mutation = Economy.DecodeSlot(value)
+		local def = id and Treasures.Get(id)
+		local frame = Kit.panel({ LayoutOrder = 0, BackgroundColor3 = Color3.fromRGB(70, 52, 20), Parent = grid }, { Kit.padding(6) })
+		Kit.stroke(Theme.Color.Gold, 2.5, 0.05).Parent = frame
+		Kit.label({ Text = "🏆 TROPHY • OUTSIDE", Size = UDim2.new(1, 0, 0, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.Gold, Parent = frame })
+		if not def then
+			Kit.label({ Text = "Tap 🏆 on any treasure to show it off here (it keeps earning)", Position = UDim2.fromOffset(0, 20), Size = UDim2.new(1, 0, 0, 60), Font = Theme.Font.Bold, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.TextDim, TextWrapped = true, Parent = frame })
+			return
+		end
+		local info = Rarities.Info[def.Rarity]
+		Kit.label({ Text = def.Name, Position = UDim2.fromOffset(0, 18), Size = UDim2.new(1, 0, 0, 20), Font = Theme.Font.Display, TextSize = 16, TextScaled = true, Parent = frame })
+		local rarityLabel = Kit.label({ Text = (if mutation then mutation .. " " else "") .. def.Rarity, Position = UDim2.fromOffset(0, 38), Size = UDim2.new(1, 0, 0, 14), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = info.Color, Parent = frame })
+		TreasureLabel.StyleRarity(rarityLabel, def.Rarity)
+		local income = math.floor(Economy.Income(def, mutation) * incomeMultiplier + 0.5)
+		Kit.label({ Text = ("%s/s"):format(Kit.shortCash(income)), Position = UDim2.fromOffset(0, 52), Size = UDim2.new(1, 0, 0, 18), Font = Theme.Font.Display, TextSize = 17, TextColor3 = Theme.Color.Cash, Parent = frame })
+		Kit.button({
+			AnchorPoint = Vector2.new(0.5, 1),
+			Position = UDim2.fromScale(0.5, 1),
+			Size = UDim2.new(1, 0, 0, 34),
+			Text = "BRING INSIDE",
+			TextSize = Theme.TextSize.Small,
+			BackgroundColor3 = Theme.Color.ButtonAlt,
+			TextColor3 = Theme.Color.Text,
+			Parent = frame,
+		}, function()
+			Net.Get("SetTrophy"):FireServer(0)
+		end)
+	end
+
 	local function card(slot: number, value: string?, incomeMultiplier: number)
 		local id, mutation = Economy.DecodeSlot(value)
 		local def = id and Treasures.Get(id)
@@ -109,6 +141,20 @@ function Vault.Build(root: Frame, controller)
 		TreasureLabel.StyleRarity(rarityLabel, def.Rarity)
 		local income = math.floor(Economy.Income(def, mutation) * incomeMultiplier + 0.5)
 		Kit.label({ Text = ("%s/s"):format(Kit.shortCash(income)), Position = UDim2.fromOffset(0, 50), Size = UDim2.new(1, 0, 0, 18), Font = Theme.Font.Display, TextSize = 17, TextColor3 = Theme.Color.Cash, Parent = frame })
+		-- 🏆: show it off on the pedestal outside (swaps with whatever is there now).
+		Kit.button({
+			AnchorPoint = Vector2.new(1, 0),
+			Position = UDim2.fromScale(1, 0),
+			Size = UDim2.fromOffset(34, 34),
+			Text = "🏆",
+			TextSize = 18,
+			BackgroundColor3 = Color3.fromRGB(70, 52, 20),
+			Radius = Theme.Radius.Round,
+			ZIndex = 3,
+			Parent = frame,
+		}, function()
+			Net.Get("SetTrophy"):FireServer(slot)
+		end)
 		local price = Economy.SellPrice(def, mutation)
 		local confirming = confirmSlot == slot
 		Kit.button({
@@ -143,10 +189,7 @@ function Vault.Build(root: Frame, controller)
 		latest = data
 		local tier = GameConfig.Vault.Tiers[data.Vault.Tier] or GameConfig.Vault.Tiers[1]
 		local nextTier = GameConfig.Vault.Tiers[data.Vault.Tier + 1]
-		local used = 0
-		for _ in data.Vault.Displays do
-			used += 1
-		end
+		local used = Economy.UsedSlots(data.Vault.Displays)
 		local isNight = DayNight.IsNight(workspace:GetServerTimeNow())
 		local boost = game:GetService("Players").LocalPlayer:GetAttribute("IncomeBoost")
 		local incomeMultiplier = Economy.IncomeMultiplier(data, Treasures.List, GameConfig.GetAscensionMultiplier(data.Ascension), if type(boost) == "number" then boost else 1)
@@ -165,6 +208,7 @@ function Vault.Build(root: Frame, controller)
 				child:Destroy()
 			end
 		end
+		trophyCard(data.Vault.Displays[Economy.TrophyKey], incomeMultiplier)
 		for slot = 1, tier.Slots do
 			card(slot, data.Vault.Displays[tostring(slot)], incomeMultiplier)
 		end
