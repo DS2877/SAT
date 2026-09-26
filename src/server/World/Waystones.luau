@@ -135,7 +135,8 @@ function Waystones.Build(parent: Instance, groundAt)
 		local a = math.rad(180 + (i - (count + 1) / 2) * 38)
 		local at = centre + Vector3.new(math.cos(a) * info.Radius, 0, math.sin(a) * info.Radius)
 		local arrival = groundAt(region.Stone.X, region.Stone.Z, region.Stone.Y + 60)
-		local landing = arrival + Vector3.new(0, 0, 5) -- step off the stone, toward home
+		-- Step off the stone toward home - on the ground THERE (the slope can rise in 5 studs).
+		local landing = groundAt(region.Stone.X, region.Stone.Z + 5, region.Stone.Y + 60)
 		stone(f, at + Vector3.new(0, 0.6, 0), at + (at - centre), color, region.Area, landing, regionInfo.Title, ("%s • ASCENSION %d"):format(region.Name, balance.RequiredAscension), balance.RequiredAscension)
 		-- Return stone at the arrival point, facing north (home).
 		stone(f, arrival, arrival + Vector3.new(0, 0, 10), Color3.fromRGB(220, 200, 255), "District", home, "WAYSTONE", "Back to the District • hands empty", 0)

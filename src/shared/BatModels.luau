@@ -271,7 +271,7 @@ function BatModels.Build(id: string, cframe: CFrame): Model
 	trail.Attachment1 = b
 	trail.Color = ColorSequence.new(Bats.TrailColor(bat))
 	trail.Transparency = NumberSequence.new(0.2, 1)
-	trail.Lifetime = 0.2
+	trail.Lifetime = 0.25
 	trail.LightEmission = if bat.Tier >= 5 then 1 else 0.3
 	trail.FaceCamera = true
 	trail.Enabled = false

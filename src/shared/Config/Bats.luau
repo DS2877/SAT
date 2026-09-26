@@ -35,10 +35,10 @@ Bats.Grip = CFrame.new(0, 0.4, 0) * CFrame.Angles(math.rad(90 - Bats.GripElevati
 -- Steal-a-* style bat does - not Roblox's overhead "Slash" chop. The right arm (and the waist,
 -- on R15 rigs) turn around the body's vertical axis: degrees, + = toward the left / across.
 Bats.Swing = {
-	WindUp = { Arm = -45, Waist = -18, Time = 0.08 }, -- cock it back to the right
-	Strike = { Arm = 85, Waist = 28, Time = 0.1 }, -- whip across to the left
-	Hold = 0.06, -- a beat at the end of the follow-through
-	Recover = 0.2, -- back to the ready pose
+	WindUp = { Arm = -70, Waist = -30, Time = 0.07 }, -- cock it far back to the right
+	Strike = { Arm = 125, Waist = 40, Time = 0.09 }, -- one wide sweep across to the left
+	Hold = 0.02, -- barely a beat: the follow-through flows straight into the recovery
+	Recover = 0.16, -- back to the ready pose
 }
 
 Bats.List = {

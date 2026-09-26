@@ -57,25 +57,27 @@ local function swing(player: Player)
 	local cfg = Bats.Swing
 	local baseArm = shoulder.C0
 	local baseWaist = waist and waist.C0
-	local function pose(step, time: number, style: Enum.EasingStyle)
-		local info = TweenInfo.new(time, style, Enum.EasingDirection.Out)
+	local function pose(step, time: number, style: Enum.EasingStyle, direction: Enum.EasingDirection?)
+		local info = TweenInfo.new(time, style, direction or Enum.EasingDirection.Out)
 		TweenService:Create(shoulder, info, { C0 = if step then turned(baseArm, step.Arm) else baseArm }):Play()
 		if waist and baseWaist then
 			TweenService:Create(waist, info, { C0 = if step then turned(baseWaist, step.Waist) else baseWaist }):Play()
 		end
 	end
 	local trail = trailOf(character)
-	pose(cfg.WindUp, cfg.WindUp.Time, Enum.EasingStyle.Quad)
+	-- Smooth: ease out of the ready pose into the wind-up, then one continuous sweep that
+	-- accelerates through the middle and eases into the follow-through (Sine InOut).
+	pose(cfg.WindUp, cfg.WindUp.Time, Enum.EasingStyle.Sine)
 	task.delay(cfg.WindUp.Time, function()
 		if trail then
 			trail.Enabled = true
 		end
-		pose(cfg.Strike, cfg.Strike.Time, Enum.EasingStyle.Quart)
+		pose(cfg.Strike, cfg.Strike.Time, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
 		task.delay(cfg.Strike.Time + cfg.Hold, function()
 			if trail then
 				trail.Enabled = false
 			end
-			pose(nil, cfg.Recover, Enum.EasingStyle.Sine)
+			pose(nil, cfg.Recover, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
 			task.delay(cfg.Recover, function()
 				-- Snap exactly home (a respawn or a new bat mid-swing can't leave it twisted).
 				if shoulder.Parent then

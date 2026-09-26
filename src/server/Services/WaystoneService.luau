@@ -51,6 +51,27 @@ function WaystoneService.Refusal(player: Player, area: string): (string?, string
 	return nil
 end
 
+-- Where the root part goes so the feet land ON the ground at `destination` (re-measured
+-- now, so terrain or props can never swallow you), whatever the avatar's size.
+local function landingFor(destination: Vector3, character: Model, root: BasePart): Vector3
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	local exclude: { Instance } = {}
+	for _, other in Players:GetPlayers() do
+		if other.Character then
+			table.insert(exclude, other.Character)
+		end
+	end
+	params.FilterDescendantsInstances = exclude
+	params.IgnoreWater = true
+	-- From a little above (not 60 up: a sign or canopy overhead must not become the "ground").
+	local hit = workspace:Raycast(destination + Vector3.new(0, 12, 0), Vector3.new(0, -40, 0), params)
+	local ground = if hit then hit.Position else destination
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local hip = if humanoid then humanoid.HipHeight else 2
+	return ground + Vector3.new(0, hip + root.Size.Y / 2 + 1, 0)
+end
+
 local function travel(player: Player, stone: BasePart)
 	local now = os.clock()
 	if now - (lastTravel[player] or 0) < COOLDOWN then
@@ -76,7 +97,7 @@ local function travel(player: Player, stone: BasePart)
 		return
 	end
 	lastTravel[player] = now
-	character:PivotTo(CFrame.new(destination + Vector3.new(0, 3, 0)) * root.CFrame.Rotation)
+	character:PivotTo(CFrame.new(landingFor(destination, character, root)) * root.CFrame.Rotation)
 	root.AssemblyLinearVelocity = Vector3.zero
 	Net.Fire("Feedback", player, { Type = "Warp", Area = area })
 	local where = if area == "District" then "TREASURE DISTRICT" else Regions.Info[area].Title
