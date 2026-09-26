@@ -115,7 +115,7 @@ function Onboarding.Init(gui: ScreenGui)
 	player:GetAttributeChangedSignal("CarryingId"):Connect(function()
 		local id = player:GetAttribute("CarryingId")
 		if type(id) == "string" and id ~= "" then
-			tip("pickup", "🏃 GET IT HOME", "Follow the arrow to an EXTRACTION beam • 2 hits from anyone = you drop it", "Reward")
+			tip("pickup", "🏃 GET IT HOME", "Carry it home through the gate • exit beams pay more • 2 hits = you drop it", "Reward")
 		end
 	end)
 	player:GetAttributeChangedSignal("Stability"):Connect(function()

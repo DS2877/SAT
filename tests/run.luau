@@ -491,7 +491,14 @@ test("risky extractions can bless a treasure; streaks grow the fee", function()
 			return values[i] or 0
 		end
 	end
-	check(Economy.RollExtractionMutation("Safe", nil, fixed({ 0, 0 })) == nil, "safe zone never blesses")
+	check(Economy.RollExtractionMutation("Home", nil, fixed({ 0, 0 })) == nil, "banking at home never blesses")
+	check(Economy.RollExtractionMutation("Safe", nil, fixed({ 0, 0 })) == "Silver", "even the safe exit beam can bless")
+	local cats = GameConfig.Extraction.Categories
+	for _, name in { "Safe", "Dangerous", "Secret" } do
+		check(cats[name].Bonus > cats.Home.Bonus and cats[name].MutationChance > cats.Home.MutationChance, name .. " exits beat banking at home")
+	end
+	local source = require("@lune/fs").readFile("src/server/Services/Extraction.luau")
+	check(string.find(source, "Zones.InSafeZone(root.Position)", 1, true) ~= nil, "carrying treasure through the gate banks it")
 	check(Economy.RollExtractionMutation("Dangerous", nil, fixed({ 0, 0 })) == "Silver", "dangerous can bless (most common first)")
 	check(Economy.RollExtractionMutation("Secret", nil, fixed({ 0.3, 0.95 })) == "Diamond", "secret can give Diamond")
 	check(Economy.RollExtractionMutation("Dangerous", nil, fixed({ 0.5, 0 })) == nil, "roll above the zone chance = nothing")

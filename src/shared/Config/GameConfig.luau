@@ -244,12 +244,15 @@ GameConfig.Extraction = {
 	Duration = 10,
 	TickRate = 0.1,
 	HitInterrupts = true, -- any qualifying hit cancels progress; a Knock also drops the treasure
-	-- Riskier zones pay a bigger finder's fee AND can bless an unmutated treasure with a
-	-- mutation on the spot (permanently more $/s) - the reason to take the dangerous route.
+	-- HOME is the everyday way to bank: walk your treasure back through the District gate and
+	-- it's banked the moment you're inside (no timer), at a plain finder's fee. The extraction
+	-- zones out in the world are the optional bonus: 10 s to hold, but a bigger fee and a chance
+	-- to bless an unmutated treasure with a mutation (permanently more $/s) - riskier = better.
 	Categories = {
-		Safe = { Bonus = 1.0, Label = "SAFE", MutationChance = 0 },
-		Dangerous = { Bonus = 1.5, Label = "DANGEROUS", MutationChance = 0.15 },
-		Secret = { Bonus = 2.0, Label = "SECRET", MutationChance = 0.35 },
+		Home = { Bonus = 0.5, Label = "HOME", MutationChance = 0 },
+		Safe = { Bonus = 1.0, Label = "SAFE", MutationChance = 0.08 },
+		Dangerous = { Bonus = 1.5, Label = "DANGEROUS", MutationChance = 0.2 },
+		Secret = { Bonus = 2.0, Label = "SECRET", MutationChance = 0.4 },
 	},
 	-- Which mutation a risky extraction grants (relative weights).
 	MutationWeights = { Silver = 60, Gold = 30, Diamond = 10 },

@@ -1,5 +1,7 @@
--- Extraction: a carrier standing in an extraction zone for Duration seconds banks the treasure.
--- Starts automatically on entering the zone (mobile friendly). Hits interrupt, knocks drop.
+-- Banking. The everyday way: carry it home - the moment a carrier is inside the Treasure
+-- District (through the gate) it's banked, at the HOME finder's fee. The bonus way: stand in an
+-- extraction zone out in the world for Duration seconds (starts automatically, mobile friendly;
+-- hits interrupt, knocks drop) for a bigger fee and a chance of a mutation.
 -- Success: treasure -> EXTRACTED -> finder's fee -> Collection -> a free Vault pedestal, where
 -- it earns $/s. With a full Vault the treasure is sold on the spot (Economy.SellPrice).
 -- Risky zones can bless an unmutated treasure with a mutation; every extraction in the same
@@ -29,6 +31,8 @@ local Extraction = {}
 Extraction.Completed = Signal.new() -- (player, def, mutation, placedSlot: number?, soldFor: number)
 
 local cfg = GameConfig.Extraction
+-- Banking at home is a "zone" too, so both ways share one reward path.
+local HOME = { Id = "home", Name = "Treasure District", Category = "Home" }
 
 type Session = { Zone: any, Uid: number, StartedAt: number, ServerStartedAt: number }
 local sessions: { [Player]: Session } = {}
@@ -204,6 +208,9 @@ local function tick()
 			elseif now - session.StartedAt >= cfg.Duration then
 				complete(player, session)
 			end
+		elseif record and root and Zones.InSafeZone(root.Position) and not Combat.IsKnocked(player) then
+			-- Made it home: banked on the spot.
+			complete(player, { Zone = HOME, Uid = record.Uid, StartedAt = now, ServerStartedAt = workspace:GetServerTimeNow() })
 		elseif record and root and now >= (restartBlockedUntil[player] or 0) and not Combat.IsKnocked(player) then
 			local zone = Zones.ExtractionZoneAt(root.Position)
 			if zone then

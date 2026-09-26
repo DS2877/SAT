@@ -230,8 +230,8 @@ function Ambience.Init()
 				if lastLeft > warnAt and state.SecondsLeft <= warnAt then
 					local carrying = player:GetAttribute("CarryingId")
 					local text = if type(carrying) == "string" and carrying ~= ""
-						then "EXTRACT NOW or lose your treasure!"
-						else "Unextracted loot will be lost"
+						then "GET IT HOME or lose your treasure!"
+						else "Unbanked loot will be lost"
 					Notifications.Banner(("🌙 NIGHTFALL IN %ds"):format(warnAt), text, "Warn", 2.5)
 					Sounds.Play("GuardianAlert", 0.5)
 				end

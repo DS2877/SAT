@@ -504,8 +504,10 @@ end
 
 -- STATE -> UI --------------------------------------------------------------------
 
+-- The nearest place to bank: home (the District gate) or an extraction zone.
+local HOME_GATE = { Name = "Home • the District gate", Position = WorldLayout.District.Gate, Category = "Home" }
 local function nearestExtraction(position: Vector3)
-	local best, bestDistance = nil, math.huge
+	local best, bestDistance = HOME_GATE, (HOME_GATE.Position - position).Magnitude
 	for _, zone in WorldLayout.ExtractionZones do
 		if zone.Category ~= "Secret" or secretKnown then
 			local d = (zone.Position - position).Magnitude
@@ -697,7 +699,7 @@ local function computeObjective()
 			local left = math.ceil(night.SecondsLeft)
 			setObjective("STEP 2 • WAIT FOR DAWN", "THE WILDS ARE CLOSED", Theme.Color.Info, ("New treasure is spawning • Gate opens in %d:%02d"):format(left // 60, left % 60), nil)
 		elseif ClientState.Milestone("FirstTreasure") then
-			setObjective("STEP 3 • PICK IT UP", "GRAB A TREASURE", Theme.Color.Gold, "Carry it to an EXTRACTION beam to bank it", nil)
+			setObjective("STEP 3 • PICK IT UP", "GRAB A TREASURE", Theme.Color.Gold, "Carry it HOME through the gate to bank it", nil)
 		else
 			setObjective("STEP 2 • EXPLORE", "FIND A TREASURE", Theme.Color.Gold, "Head through the gate into THE WILDS", nil)
 		end

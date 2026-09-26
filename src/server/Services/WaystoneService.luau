@@ -3,7 +3,7 @@
 --   * District -> region: needs the region's Ascension AND to have reached it on foot once
 --     (Exploration's "Region_<Area>" milestone attunes the stone).
 --   * Region -> District: a free ride home.
---   * Never while carrying treasure (bank it at an exit - that's the game) and never at night
+--   * Never while carrying treasure (bank it at home or an exit - that's the game) and never at night
 --     (the Wilds are sealed; DayCycle sends everyone home anyway).
 
 local CollectionService = game:GetService("CollectionService")
@@ -32,7 +32,7 @@ end
 -- Why `player` can't use a stone to `area` right now, or nil if they can.
 function WaystoneService.Refusal(player: Player, area: string): (string?, string?)
 	if TreasureService.GetCarrying(player) then
-		return "✋ HANDS FULL", "Waystones won't carry treasure - bank it at an exit ⌂"
+		return "✋ HANDS FULL", "Waystones won't carry treasure - bank it at home or an exit ⌂"
 	end
 	if workspace:GetAttribute("WildsClosed") then
 		return "🌙 THE STONES SLEEP", "The waystones wake at dawn"
