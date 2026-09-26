@@ -323,8 +323,9 @@ WorldLayout.GuardianSpawns = {
 	-- Shipwreck Coast: a goblin raiding party
 	{ Type = "Goblin", Position = Vector3.new(-300, 10, -20), PatrolRadius = 40 },
 	{ Type = "Goblin", Position = Vector3.new(-290, 10, 50), PatrolRadius = 30 },
-	-- Ancient Ruins: a goblin at the courtyard, the Stone Golem guarding the temple's back
-	{ Type = "Goblin", Position = Vector3.new(230, 10, -60), PatrolRadius = 35 },
+	-- Ancient Ruins: a goblin off the temple's east corner (NOT on the courtyard exit), the
+	-- Stone Golem guarding the temple's back
+	{ Type = "Goblin", Position = Vector3.new(285, 10, -75), PatrolRadius = 25 },
 	{ Type = "Golem", Position = Vector3.new(230, 10, -200), PatrolRadius = 28 },
 	-- Frostpeak: ice golems guard the lake
 	{ Type = "IceGolem", Position = Vector3.new(-290, 10, 285), PatrolRadius = 30 },
@@ -338,7 +339,7 @@ WorldLayout.GuardianSpawns = {
 	-- EMBERFALL
 	{ Type = "MagmaGolem", Position = Vector3.new(100, 12, -615), PatrolRadius = 26 },
 	{ Type = "MagmaGolem", Position = Vector3.new(-40, 12, -760), PatrolRadius = 26 },
-	{ Type = "Salamander", Position = Vector3.new(125, 12, -710), PatrolRadius = 30 },
+	{ Type = "Salamander", Position = Vector3.new(125, 12, -710), PatrolRadius = 17 }, -- stays out of the Lava Outpost exit
 	{ Type = "Salamander", Position = Vector3.new(-170, 12, -700), PatrolRadius = 30 },
 	{ Type = "Salamander", Position = Vector3.new(80, 12, -560), PatrolRadius = 28 },
 	-- RIMEHEART

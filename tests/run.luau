@@ -1394,6 +1394,27 @@ test("community bonus is wired up", function()
 	check(Monetization.Free.GroupIncomeMultiplier > 1, "members earn more")
 end)
 
+test("guardians actually move (setSpeed sets WalkSpeed, never calls itself)", function()
+	local fs = require("@lune/fs")
+	local source = fs.readFile("src/server/Services/GuardianService.luau")
+	local body = string.match(source, "local function setSpeed%(.-\nend")
+	check(body ~= nil, "setSpeed exists")
+	check(body ~= nil and string.find(body, "g.Humanoid.WalkSpeed =", 1, true) ~= nil, "setSpeed sets the WalkSpeed")
+	check(body ~= nil and select(2, string.gsub(body, "setSpeed%(", "")) == 1, "setSpeed doesn't recurse")
+end)
+
+test("no guardian spawns or patrols onto an extraction zone", function()
+	local roblox = require("@lune/roblox") :: any
+	Vector3 = roblox.Vector3
+	local W = require("../src/shared/Config/WorldLayout")
+	for _, g in W.GuardianSpawns do
+		for _, z in W.ExtractionZones do
+			local flat = Vector3.new(g.Position.X - z.Position.X, 0, g.Position.Z - z.Position.Z).Magnitude
+			check(flat - (g.PatrolRadius or 30) > z.Radius, ("%s at (%d, %d) patrols clear of %s"):format(g.Type, g.Position.X, g.Position.Z, z.Id))
+		end
+	end
+end)
+
 print(("%d passed, %d failed"):format(passed, failed))
 if failed > 0 then
 	error("tests failed")

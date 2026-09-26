@@ -404,7 +404,7 @@ end
 -- through here.
 local function setSpeed(g: Guardian, speed: number)
 	local slowed = os.clock() < (g.SlowUntil or 0)
-	setSpeed(g, speed * (if slowed then GameConfig.Combat.GuardianSlow else 1))
+	g.Humanoid.WalkSpeed = speed * (if slowed then GameConfig.Combat.GuardianSlow else 1)
 end
 
 local function setState(g: Guardian, state: string, target: Player?)
