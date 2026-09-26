@@ -329,7 +329,7 @@ See docs/ROADMAP.md: 1 stabilise → 2 addictive core loop → 3 first 10 minute
 - The full event strategy, the 12 answers and the backlog are in `docs/LIVE_OPS_PLAN.md`.
 
 ## Bat hold, reach and sound (standard Roblox melee feel)
-- The bat is a real Roblox **Tool**. Roblox handles the hand grip and the arm-out hold pose, and each swing plays the stock "Slash" animation through a `toolanim` StringValue. It's the same mechanism every Roblox melee game uses.
+- The bat is a real Roblox **Tool**: Roblox handles the hand grip and the arm-out hold pose. The swing is our own fast horizontal swat (`Bats.Swing`, `Controllers/BatFx`): the arm and waist wind up right and whip across left. Every client animates it for every player, and your own swing starts on the button press.
 - `Bats.Grip` is the Tool.Grip: held just above the knob, standing up and tipped 20° forward (70° above level) (`Bats.GripElevation`).
 - The Backpack hotbar is turned off. While you carry treasure the bat moves to your Backpack, then comes back to your hand.
 - Reach is short melee: 7 studs for the Wooden Bat, up to 9.5 for The Big Bang.

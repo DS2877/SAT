@@ -18,28 +18,84 @@ local Sounds = require(UI.Sounds)
 
 local BatFx = {}
 
-local swinging: { [Trail]: boolean } = {}
+local localPlayer = Players.LocalPlayer
+local swinging: { [Model]: boolean } = {}
 
-local function trailOf(player: Player): Trail?
-	local character = player.Character
-	local tool = character and character:FindFirstChild("Bat")
+local function trailOf(character: Model): Trail?
+	local tool = character:FindFirstChild("Bat")
 	local handle = tool and tool:IsA("Tool") and tool:FindFirstChild("Handle")
 	local trail = handle and handle:FindFirstChild("SwingTrail")
 	return if trail and trail:IsA("Trail") then trail else nil
 end
 
--- The swoosh behind the bat while the Slash animation plays.
+-- Right shoulder + waist joints (R15), or the right shoulder alone (R6).
+local function jointsOf(character: Model): (Motor6D?, Motor6D?)
+	local arm = character:FindFirstChild("RightUpperArm")
+	local shoulder = (arm and arm:FindFirstChild("RightShoulder")) or (character:FindFirstChild("Torso") and (character :: any).Torso:FindFirstChild("Right Shoulder"))
+	local upper = character:FindFirstChild("UpperTorso")
+	local waist = upper and upper:FindFirstChild("Waist")
+	return (if shoulder and shoulder:IsA("Motor6D") then shoulder else nil), (if waist and waist:IsA("Motor6D") then waist else nil)
+end
+
+-- `base` turned `degrees` around the parent part's vertical axis, through the joint.
+local function turned(base: CFrame, degrees: number): CFrame
+	return CFrame.new(base.Position) * CFrame.Angles(0, math.rad(degrees), 0) * base.Rotation
+end
+
+-- The SWAT (Config/Bats.Swing): wind up right, whip across left, recover. Animated on every
+-- client for every player (joint offsets on top of the held-tool pose), so it shows at once.
 local function swing(player: Player)
-	local trail = trailOf(player)
-	if not trail or swinging[trail] then
+	local character = player.Character
+	if not character or swinging[character] or not character:FindFirstChild("Bat") then
 		return
 	end
-	swinging[trail] = true
-	trail.Enabled = true
-	task.delay(0.35, function()
-		trail.Enabled = false
-		swinging[trail] = nil
+	local shoulder, waist = jointsOf(character)
+	if not shoulder then
+		return
+	end
+	swinging[character] = true
+	local cfg = Bats.Swing
+	local baseArm = shoulder.C0
+	local baseWaist = waist and waist.C0
+	local function pose(step, time: number, style: Enum.EasingStyle)
+		local info = TweenInfo.new(time, style, Enum.EasingDirection.Out)
+		TweenService:Create(shoulder, info, { C0 = if step then turned(baseArm, step.Arm) else baseArm }):Play()
+		if waist and baseWaist then
+			TweenService:Create(waist, info, { C0 = if step then turned(baseWaist, step.Waist) else baseWaist }):Play()
+		end
+	end
+	local trail = trailOf(character)
+	pose(cfg.WindUp, cfg.WindUp.Time, Enum.EasingStyle.Quad)
+	task.delay(cfg.WindUp.Time, function()
+		if trail then
+			trail.Enabled = true
+		end
+		pose(cfg.Strike, cfg.Strike.Time, Enum.EasingStyle.Quart)
+		task.delay(cfg.Strike.Time + cfg.Hold, function()
+			if trail then
+				trail.Enabled = false
+			end
+			pose(nil, cfg.Recover, Enum.EasingStyle.Sine)
+			task.delay(cfg.Recover, function()
+				-- Snap exactly home (a respawn or a new bat mid-swing can't leave it twisted).
+				if shoulder.Parent then
+					shoulder.C0 = baseArm
+				end
+				if waist and baseWaist and waist.Parent then
+					waist.C0 = baseWaist
+				end
+				swinging[character] = nil
+			end)
+		end)
 	end)
+end
+
+-- Your own swing starts the moment you press SLAP (HUD), not after the server round trip.
+function BatFx.SwingLocal()
+	if localPlayer.Character and not swinging[localPlayer.Character] and localPlayer.Character:FindFirstChild("Bat") then
+		Sounds.Play("Swing")
+		swing(localPlayer)
+	end
 end
 
 -- A burst where a slap lands: bigger and brighter the better the bat.
@@ -109,7 +165,7 @@ function BatFx.Init()
 		end
 		if payload.Type == "Swing" then
 			local other = Players:GetPlayerByUserId(payload.UserId)
-			if other then
+			if other and other ~= localPlayer then
 				swing(other)
 			end
 		elseif payload.Type == "SlapImpact" and typeof(payload.Position) == "Vector3" then

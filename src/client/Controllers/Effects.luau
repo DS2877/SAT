@@ -65,26 +65,6 @@ end
 -- Shared with other controllers (TrainingUI jackpots).
 Effects.Shake = shakeCamera
 
-local function swingEffect(root: BasePart)
-	local arc = Instance.new("Part")
-	arc.Anchored = true
-	arc.CanCollide = false
-	arc.CanQuery = false
-	arc.CanTouch = false
-	arc.CastShadow = false
-	arc.Material = Enum.Material.Neon
-	arc.Color = Color3.new(1, 1, 1)
-	arc.Transparency = 0.35
-	arc.Shape = Enum.PartType.Cylinder
-	arc.Size = Vector3.new(0.3, 5, 5)
-	arc.CFrame = root.CFrame * CFrame.new(0, 0, -3.2) * CFrame.Angles(0, math.rad(90), 0)
-	arc.Parent = workspace
-	Kit.tween(arc, TweenInfo.new(0.18), { Size = Vector3.new(0.1, 8, 8), Transparency = 1 })
-	task.delay(0.2, function()
-		arc:Destroy()
-	end)
-end
-
 local function beam(from: Vector3, to: Vector3, color: Color3)
 	local distance = (to - from).Magnitude
 	local p = Instance.new("Part")
@@ -183,10 +163,8 @@ function handlers.Swing(payload)
 	local character = other and other.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if root then
-		swingEffect(root)
-		if other == player then
-			Sounds.Play("Swing")
-		else
+		-- Your own whoosh plays on the button press (BatFx.SwingLocal).
+		if other ~= player then
 			Sounds.PlayAt("Swing", root.Position)
 		end
 	end

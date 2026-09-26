@@ -902,6 +902,12 @@ test("bats: a free starter, 3 cash upgrades, 7 more behind Ascension, each slapp
 	local axis = handle:VectorToWorldSpace(roblox.Vector3.new(0, 1, 0))
 	check(axis.Y > 0.85 and -axis.Z > 0.2 and -axis.Z < 0.5 and math.abs(axis.X) < 1e-6, ("the bat stands up, tipped a little forward (fwd %.2f up %.2f)"):format(-axis.Z, axis.Y))
 	check(handle:PointToWorldSpace(roblox.Vector3.new(0, 0.4, 0)).Magnitude < 1e-6, "the hand holds the handle just above the knob")
+	-- The swat: cock back right, whip across left, all quick (a slap, not a slow chop).
+	local sw = Bats.Swing
+	check(sw.WindUp.Arm < 0 and sw.Strike.Arm > 45 and sw.Strike.Arm <= 110, "winds up right, strikes across to the left")
+	check(sw.Strike.Waist > 0 and sw.WindUp.Waist < 0, "the body twists into the swing")
+	check(sw.WindUp.Time + sw.Strike.Time + sw.Hold + sw.Recover < GameConfig.Combat.AttackCooldown, "the swing finishes before the next one can start")
+	check(sw.Strike.Time <= 0.15, "the strike itself is fast")
 	-- Each Ascension-gated bat is affordable within that Ascension's run (Cash resets on Ascending).
 	for _, bat in Bats.List do
 		if bat.RequiredAscension > 0 then

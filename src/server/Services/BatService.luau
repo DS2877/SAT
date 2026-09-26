@@ -1,13 +1,12 @@
 -- Bats (Config/Bats, Shared/BatModels): the slap weapon in everyone's hand.
 --   * Gives every character the equipped bat as a real Roblox TOOL, held in hand: Roblox does
 --     the grip (Config/Bats Grip) and the arm-out hold pose, like every Roblox melee game.
---     Swings play the stock "Slash" tool animation (PlaySwing). No hotbar: the Backpack UI is
+--     The swing itself is our own swat (Controllers/BatFx). No hotbar: the Backpack UI is
 --     off (Controllers/BatFx), and while you carry treasure the bat goes to your back pocket
 --     (Backpack) - both hands are on the loot - and comes back when you're done.
 --   * Buying (Cash, plus an Ascension level from tier 5) and equipping, from the Bat Shop.
 --   * Combat asks Get(player) for the equipped bat's Knockback and Range.
 
-local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -88,20 +87,6 @@ local function attach(player: Player)
 	tool.Parent = player:FindFirstChildOfClass("Backpack") or player:WaitForChild("Backpack", 5)
 	player:SetAttribute("BatId", bat.Id)
 	place(player)
-end
-
--- The stock "Slash" tool animation: each player's Animate script plays it when a "toolanim"
--- StringValue appears in their equipped tool (Roblox's standard mechanism).
-function BatService.PlaySwing(player: Player)
-	local character = player.Character
-	local tool = character and character:FindFirstChild("Bat")
-	if tool and tool:IsA("Tool") then
-		local anim = Instance.new("StringValue")
-		anim.Name = "toolanim"
-		anim.Value = "Slash"
-		anim.Parent = tool
-		Debris:AddItem(anim, 1)
-	end
 end
 
 local function onBuy(player: Player, id: any)

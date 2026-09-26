@@ -25,6 +25,7 @@ local Sounds = require(UI.Sounds)
 local MusicController = require(script.Parent.MusicController)
 local ClientState = require(script.Parent.Parent.ClientState)
 local Notifications = require(script.Parent.Notifications)
+local BatFx = require(script.Parent.BatFx)
 
 local HUD = {}
 
@@ -962,6 +963,7 @@ function HUD.Attack()
 		return
 	end
 	lastSwing = os.clock()
+	BatFx.SwingLocal()
 	Net.Get("Attack"):FireServer()
 end
 

@@ -31,6 +31,16 @@ Bats.StarterId = "wooden_bat"
 Bats.GripElevation = 70
 Bats.Grip = CFrame.new(0, 0.4, 0) * CFrame.Angles(math.rad(90 - Bats.GripElevation), 0, 0)
 
+-- THE SWING (Controllers/BatFx): a fast horizontal SWAT across the body, the swing every
+-- Steal-a-* style bat does - not Roblox's overhead "Slash" chop. The right arm (and the waist,
+-- on R15 rigs) turn around the body's vertical axis: degrees, + = toward the left / across.
+Bats.Swing = {
+	WindUp = { Arm = -45, Waist = -18, Time = 0.08 }, -- cock it back to the right
+	Strike = { Arm = 85, Waist = 28, Time = 0.1 }, -- whip across to the left
+	Hold = 0.06, -- a beat at the end of the follow-through
+	Recover = 0.2, -- back to the ready pose
+}
+
 Bats.List = {
 	{ Id = "wooden_bat", Name = "Wooden Bat", Tier = 1, Price = 0, RequiredAscension = 0, Knockback = 45, Range = 7, Color = { 170, 120, 70 }, Trail = { 255, 255, 255 }, Tagline = "Trusty. Splintery. Yours." },
 	{ Id = "spiked_club", Name = "Spiked Club", Tier = 2, Price = 25000, RequiredAscension = 0, Knockback = 55, Range = 7.25, Color = { 120, 80, 50 }, Trail = { 220, 220, 230 }, Tagline = "Nails. Lots of nails." },
