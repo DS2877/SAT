@@ -1586,6 +1586,28 @@ test("a full vault swaps out its cheapest treasure for a better one", function()
 	check(upgradeAt ~= nil and placeAt ~= nil and upgradeAt < placeAt, "a full vault auto-upgrades (if affordable) before anything is sold")
 end)
 
+test("the trophy pedestal shows your best treasure automatically", function()
+	local byId = {}
+	for _, def in Treasures.List do
+		byId[def.Id] = def
+	end
+	local function get(id)
+		return byId[id]
+	end
+	local sorted = table.clone(Treasures.List)
+	table.sort(sorted, function(a, b)
+		return a.Value < b.Value
+	end)
+	local cheap, rich = sorted[1], sorted[#sorted]
+	local displays = { ["1"] = cheap.Id, ["2"] = rich.Id }
+	check(Economy.AutoTrophy(displays, 5, get) == true and displays.Trophy == rich.Id and displays["2"] == nil, "the best goes outside")
+	check(Economy.AutoTrophy(displays, 5, get) == false, "already the best: nothing moves")
+	displays = { ["1"] = rich.Id, Trophy = cheap.Id }
+	check(Economy.AutoTrophy(displays, 5, get) == true and displays.Trophy == rich.Id and displays["1"] == cheap.Id, "a better one swaps places with the trophy")
+	local schema = require("../src/shared/Logic/DataSchema")
+	check(schema.Default().Settings.AutoTrophy == true, "auto is on by default")
+end)
+
 print(("%d passed, %d failed"):format(passed, failed))
 if failed > 0 then
 	error("tests failed")

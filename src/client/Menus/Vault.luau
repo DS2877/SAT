@@ -78,14 +78,28 @@ function Vault.Build(root: Frame, controller)
 	local refresh
 
 	-- The trophy pedestal outside: first card. Tap to bring it back in (or pick one below).
-	local function trophyCard(value: string?, incomeMultiplier: number)
+	local function trophyCard(value: string?, incomeMultiplier: number, auto: boolean)
 		local id, mutation = Economy.DecodeSlot(value)
 		local def = id and Treasures.Get(id)
 		local frame = Kit.panel({ LayoutOrder = 0, BackgroundColor3 = Color3.fromRGB(70, 52, 20), Parent = grid }, { Kit.padding(6) })
 		Kit.stroke(Theme.Color.Gold, 2.5, 0.05).Parent = frame
-		Kit.label({ Text = "🏆 TROPHY • OUTSIDE", Size = UDim2.new(1, 0, 0, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.Gold, Parent = frame })
+		Kit.label({ Text = if auto then "🏆 TROPHY • ⭐ AUTO: BEST" else "🏆 TROPHY • OUTSIDE", Size = UDim2.new(1, 0, 0, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.Gold, Parent = frame })
 		if not def then
 			Kit.label({ Text = "Tap 🏆 on any treasure to show it off here (it keeps earning)", Position = UDim2.fromOffset(0, 20), Size = UDim2.new(1, 0, 0, 60), Font = Theme.Font.Bold, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.TextDim, TextWrapped = true, Parent = frame })
+			if not auto then
+				Kit.button({
+					AnchorPoint = Vector2.new(0.5, 1),
+					Position = UDim2.fromScale(0.5, 1),
+					Size = UDim2.new(1, 0, 0, 34),
+					Text = "⭐ AUTO: SHOW MY BEST",
+					TextSize = Theme.TextSize.Small,
+					BackgroundColor3 = Theme.Color.Gold,
+					TextColor3 = Color3.fromRGB(40, 28, 6),
+					Parent = frame,
+				}, function()
+					Net.Get("SetTrophy"):FireServer(-1)
+				end)
+			end
 			return
 		end
 		local info = Rarities.Info[def.Rarity]
@@ -94,18 +108,36 @@ function Vault.Build(root: Frame, controller)
 		TreasureLabel.StyleRarity(rarityLabel, def.Rarity)
 		local income = math.floor(Economy.Income(def, mutation) * incomeMultiplier + 0.5)
 		Kit.label({ Text = ("%s/s"):format(Kit.shortCash(income)), Position = UDim2.fromOffset(0, 52), Size = UDim2.new(1, 0, 0, 18), Font = Theme.Font.Display, TextSize = 17, TextColor3 = Theme.Color.Cash, Parent = frame })
-		Kit.button({
-			AnchorPoint = Vector2.new(0.5, 1),
-			Position = UDim2.fromScale(0.5, 1),
-			Size = UDim2.new(1, 0, 0, 34),
-			Text = "BRING INSIDE",
-			TextSize = Theme.TextSize.Small,
-			BackgroundColor3 = Theme.Color.ButtonAlt,
-			TextColor3 = Theme.Color.Text,
-			Parent = frame,
-		}, function()
-			Net.Get("SetTrophy"):FireServer(0)
-		end)
+		-- Picking a trophy yourself (🏆 on a card, or BRING INSIDE) turns AUTO off; this turns it on.
+		if auto then
+			Kit.button({
+				AnchorPoint = Vector2.new(0.5, 1),
+				Position = UDim2.fromScale(0.5, 1),
+				Size = UDim2.new(1, 0, 0, 34),
+				Text = "BRING INSIDE",
+				TextSize = Theme.TextSize.Small,
+				BackgroundColor3 = Theme.Color.ButtonAlt,
+				TextColor3 = Theme.Color.Text,
+				Parent = frame,
+			}, function()
+				Net.Get("SetTrophy"):FireServer(0)
+			end)
+		else
+			for i, entry in { { "⭐ AUTO", -1, Theme.Color.Gold }, { "INSIDE", 0, Theme.Color.ButtonAlt } } do
+				Kit.button({
+					AnchorPoint = Vector2.new(if i == 1 then 0 else 1, 1),
+					Position = UDim2.fromScale(if i == 1 then 0 else 1, 1),
+					Size = UDim2.new(0.5, -2, 0, 34),
+					Text = entry[1],
+					TextSize = Theme.TextSize.Small,
+					BackgroundColor3 = entry[3],
+					TextColor3 = if i == 1 then Color3.fromRGB(40, 28, 6) else Theme.Color.Text,
+					Parent = frame,
+				}, function()
+					Net.Get("SetTrophy"):FireServer(entry[2])
+				end)
+			end
+		end
 	end
 
 	local function card(slot: number, value: string?, incomeMultiplier: number)
@@ -208,7 +240,7 @@ function Vault.Build(root: Frame, controller)
 				child:Destroy()
 			end
 		end
-		trophyCard(data.Vault.Displays[Economy.TrophyKey], incomeMultiplier)
+		trophyCard(data.Vault.Displays[Economy.TrophyKey], incomeMultiplier, data.Settings.AutoTrophy ~= false)
 		for slot = 1, tier.Slots do
 			card(slot, data.Vault.Displays[tostring(slot)], incomeMultiplier)
 		end

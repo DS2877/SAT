@@ -43,6 +43,7 @@ function DataSchema.Default()
 			Music = true,
 			AutoCollect = true, -- only matters with the Auto Collect pass (can be switched off)
 			SheatheBat = false, -- bat on your back instead of in hand (SLAP draws it again)
+			AutoTrophy = true, -- the trophy pedestal outside always shows your best treasure
 		},
 		TutorialStep = 0,
 		EventSignups = {}, -- [eventId] = os.time() signed up at the Info Board (Config/News)

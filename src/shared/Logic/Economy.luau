@@ -123,6 +123,27 @@ function Economy.PlaceBanked(displays, capacity: number, def, mutation: string?,
 	return nil, nil
 end
 
+-- AUTO TROPHY: if a treasure inside earns more than the one on the trophy pedestal (or that's
+-- empty), swap them so the best one is always on show outside. Returns true if it changed.
+function Economy.AutoTrophy(displays, capacity: number, getDef): boolean
+	local function incomeOf(value): number
+		local id, mutation = Economy.DecodeSlot(value)
+		local def = id and getDef(id)
+		return if def then Economy.Income(def, mutation) else -1
+	end
+	local bestSlot, bestIncome = nil, incomeOf(displays[Economy.TrophyKey])
+	for index = 1, capacity do
+		local income = incomeOf(displays[tostring(index)])
+		if income > bestIncome then
+			bestSlot, bestIncome = index, income
+		end
+	end
+	if not bestSlot then
+		return false
+	end
+	return Economy.MoveTrophy(displays, bestSlot, capacity)
+end
+
 -- Put the treasure from pedestal `slot` on the trophy pedestal: the two swap, so whatever
 -- stood outside goes back into that slot (or it simply empties). Returns false if the slot is
 -- empty. `slot` = 0: take the trophy down into the first free slot of `capacity` (false if

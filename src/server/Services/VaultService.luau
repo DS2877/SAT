@@ -187,22 +187,6 @@ local TROPHY_MAX_SIZE = 7 -- studs, longest side
 
 -- The numbered slot holding the highest-earning treasure (for the one-time move to the
 -- pedestal when the feature arrives).
-local function bestSlotIndex(data): number?
-	local bestIndex, bestIncome = nil, -1
-	for key, value in data.Vault.Displays do
-		local index = tonumber(key)
-		local id, mutation = Economy.DecodeSlot(value)
-		local def = id and Treasures.Get(id)
-		if index and def then
-			local income = Economy.Income(def, mutation)
-			if income > bestIncome then
-				bestIndex, bestIncome = index, income
-			end
-		end
-	end
-	return bestIndex
-end
-
 local function trophyOf(data): (any, string?, number)
 	local id, mutation = Economy.DecodeSlot(data.Vault.Displays[Economy.TrophyKey])
 	local def = id and Treasures.Get(id)
@@ -580,16 +564,43 @@ sellSlot = function(player: Player, slot: any)
 	render(player)
 end
 
+-- AUTO TROPHY (on unless the player picked one themselves): the best treasure you own is
+-- always the one on the pedestal outside. Returns true if it moved something.
+local function autoTrophy(player: Player): boolean
+	local data = PlayerData.Get(player)
+	if not data or data.Settings.AutoTrophy == false then
+		return false
+	end
+	local moved = false
+	PlayerData.Update(player, function(d)
+		moved = Economy.AutoTrophy(d.Vault.Displays, slotsFor(d), Treasures.Get)
+	end)
+	return moved
+end
+
 -- Vault menu: put pedestal `slot` on the trophy pedestal (swapping with what's there), or
--- slot 0 = take the trophy back inside. Income is unchanged either way.
+-- slot 0 = take the trophy back inside. Income is unchanged either way. Picking yourself
+-- turns AUTO off; slot -1 turns it back on (and shows your best right away).
 local function onSetTrophy(player: Player, slot: any)
 	local data = PlayerData.Get(player)
-	if not data or type(slot) ~= "number" or slot ~= math.floor(slot) or slot < 0 or slot > slotsFor(data) then
+	if not data or type(slot) ~= "number" or slot ~= math.floor(slot) or slot < -1 or slot > slotsFor(data) then
+		return
+	end
+	if slot == -1 then
+		PlayerData.Update(player, function(d)
+			d.Settings.AutoTrophy = true
+		end)
+		autoTrophy(player)
+		Net.Fire("Notify", player, { Kind = "Toast", Text = "🏆 Auto: your best treasure is always on show", Tone = "Reward" })
+		render(player)
 		return
 	end
 	local moved = false
 	PlayerData.Update(player, function(d)
 		moved = Economy.MoveTrophy(d.Vault.Displays, slot, slotsFor(d))
+		if moved then
+			d.Settings.AutoTrophy = false
+		end
 	end)
 	if moved then
 		PlayerData.Milestone(player, "TrophyPedestal")
@@ -715,6 +726,7 @@ local function flyHome(player: Player, def, mutation: string?)
 end
 
 local function onExtracted(player: Player, def, mutation: string?, placedSlot: number?, soldFor: number, category: string?, extra)
+	autoTrophy(player)
 	render(player)
 	local upgraded = extra and extra.AutoUpgraded
 	local replaced = extra and extra.Replaced
@@ -866,19 +878,9 @@ local function payOffline(player: Player)
 	end
 end
 
--- The pedestal used to mirror your best treasure; now it's a real extra pedestal. The first
--- time, move the best one out there (it keeps earning; it frees its slot inside).
+-- On joining: the trophy pedestal shows your best treasure (unless you picked one yourself).
 local function migrateTrophy(player: Player)
-	local data = PlayerData.Get(player)
-	if not data or data.Milestones.TrophyPedestal then
-		return
-	end
-	local best = bestSlotIndex(data)
-	if data.Vault.Displays[Economy.TrophyKey] == nil and best and Economy.UsedSlots(data.Vault.Displays) >= 3 then
-		PlayerData.Update(player, function(d)
-			Economy.MoveTrophy(d.Vault.Displays, best, slotsFor(d))
-		end)
-	end
+	autoTrophy(player)
 	PlayerData.Milestone(player, "TrophyPedestal")
 end
 
