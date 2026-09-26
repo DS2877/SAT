@@ -401,3 +401,8 @@ See docs/ROADMAP.md: 1 stabilise → 2 addictive core loop → 3 first 10 minute
 - **Performance:** the new shop lanterns no longer cast shadows (point-light shadows are expensive on phones).
 - **Content:** launch posts added to the Info Board and the roadmap refreshed.
 - **Note:** `tools/balance/sim.py` uses its own simplified loot table. It does not reflect the Sep 26 rarity rebalance.
+
+## Community (group 414389809)
+- `Monetization.Free.GroupId` is set, so members get +10% Vault income.
+- Membership is checked on join and exposed as the player attribute `InCommunity`.
+- **Info Board NEWS tab:** a "JOIN THE CREW • +10% INCOME" card opens Roblox's join prompt (`GroupService:PromptJoinAsync`), then the server re-checks (`RecheckGroup`, rate-limited). The bonus and a welcome banner apply at once. Members see "✔ COMMUNITY BONUS ACTIVE" instead.

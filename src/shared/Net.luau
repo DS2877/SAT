@@ -43,6 +43,7 @@ Net.ClientToServer = {
 	"EventSignup", -- (eventId, wantIn) at the Info Board
 	"NewsSeen", -- (postId) the newest post the player has read on the Info Board
 	"RedeemCode", -- (text) a code typed on the Info Board (Config/Codes)
+	"RecheckGroup", -- after the community join prompt: re-check membership (+10% income)
 }
 
 local FOLDER_NAME = "Remotes"

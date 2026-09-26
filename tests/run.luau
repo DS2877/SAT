@@ -1389,6 +1389,11 @@ test("codes: the testing codes exist, are admin-only, and the reset keeps receip
 	check(type(fresh.RedeemedCodes) == "table", "one-time codes are remembered in the save")
 end)
 
+test("community bonus is wired up", function()
+	check(Monetization.Free.GroupId == 414389809, "the Steal the Treasure community id")
+	check(Monetization.Free.GroupIncomeMultiplier > 1, "members earn more")
+end)
+
 print(("%d passed, %d failed"):format(passed, failed))
 if failed > 0 then
 	error("tests failed")

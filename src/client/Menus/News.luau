@@ -3,10 +3,13 @@
 -- and CODES (type a code for a reward - Config/Codes, Services/CodeService).
 -- Content: Config/News. Sign-ups + live announcements: Services/NewsService.
 
+local GroupService = game:GetService("GroupService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
 local News = require(Shared.Config.News)
+local Monetization = require(Shared.Config.Monetization)
 local NewsBoard = require(Shared.Logic.NewsBoard)
 local Net = require(Shared.Net)
 
@@ -99,6 +102,28 @@ function NewsMenu.Build(root: Frame)
 
 	-- NEWS ----------------------------------------------------------------------------------
 	local newsPage = pages.NEWS
+	-- The community: +10% income for members, joined right here (Roblox's own prompt).
+	local groupId = Monetization.Free.GroupId
+	local communityCard = card(newsPage, -1, Color3.fromRGB(26, 60, 90), Theme.Color.Info)
+	communityCard.Visible = groupId ~= 0
+	local communityTitle = block(communityCard, { Text = "", Font = Theme.Font.Display, TextSize = 22 })
+	local communityText = block(communityCard, { Text = "", Font = Theme.Font.Body, TextSize = Theme.TextSize.Body, TextColor3 = Theme.Color.TextDim })
+	local joinButton = Kit.button({ Size = UDim2.new(1, 0, 0, 46), Text = "👥 JOIN THE COMMUNITY", TextSize = 18, BackgroundColor3 = Theme.Color.Info, TextColor3 = Color3.new(1, 1, 1), Parent = communityCard }, function()
+		task.spawn(function()
+			pcall(function()
+				GroupService:PromptJoinAsync(groupId)
+			end)
+			Net.Get("RecheckGroup"):FireServer()
+		end)
+	end)
+	local function refreshCommunity()
+		local member = Players.LocalPlayer:GetAttribute("InCommunity") == true
+		communityTitle.Text = if member then "✔ COMMUNITY BONUS ACTIVE" else "👥 JOIN THE CREW • +10% INCOME"
+		communityText.Text = if member then "+10% Vault income, always. Thanks for being part of it!" else "Members of the Steal the Treasure community earn +10% Vault income - and hear about Heist Hours first."
+		joinButton.Visible = not member
+	end
+	refreshCommunity()
+	Players.LocalPlayer:GetAttributeChangedSignal("InCommunity"):Connect(refreshCommunity)
 	local liveCard = card(newsPage, 0, Color3.fromRGB(150, 30, 40), Theme.Color.Danger)
 	block(liveCard, { Text = "📢 LIVE ANNOUNCEMENT", Font = Theme.Font.Black, TextSize = Theme.TextSize.Small, TextColor3 = Theme.Color.Gold })
 	local liveText = block(liveCard, { Text = "", Font = Theme.Font.Display, TextSize = 22 })

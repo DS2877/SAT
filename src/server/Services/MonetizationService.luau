@@ -75,6 +75,24 @@ local function grantPass(player: Player, key: string)
 	player:SetAttribute("Pass_" .. key, true)
 end
 
+-- Community membership (+10% income). Also re-checked right after the in-game join prompt
+-- (RecheckGroup), so joining pays off at once - no rejoin needed.
+local function checkGroup(player: Player)
+	local groupId = Monetization.Free.GroupId
+	if groupId == 0 then
+		return
+	end
+	local ok, member = pcall(function()
+		return player:IsInGroupAsync(groupId)
+	end)
+	if ok then
+		inGroup[player] = member == true
+	end
+	player:SetAttribute("InCommunity", inGroup[player] == true)
+end
+
+local lastGroupCheck: { [Player]: number } = {}
+
 local function checkOwnership(player: Player)
 	owned[player] = owned[player] or {}
 	for key, pass in Monetization.Passes do
@@ -87,13 +105,7 @@ local function checkOwnership(player: Player)
 			end
 		end
 	end
-	local groupId = Monetization.Free.GroupId
-	if groupId ~= 0 then
-		local ok, member = pcall(function()
-			return player:IsInGroupAsync(groupId)
-		end)
-		inGroup[player] = ok and member == true
-	end
+	checkGroup(player)
 	refreshBoost(player)
 	player:SetAttribute("MonetizationReady", true)
 end
@@ -240,7 +252,21 @@ local function processReceipt(receipt)
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end
 
+local function onRecheckGroup(player: Player)
+	if os.clock() - (lastGroupCheck[player] or 0) < 5 then
+		return
+	end
+	lastGroupCheck[player] = os.clock()
+	local was = inGroup[player] == true
+	checkGroup(player)
+	refreshBoost(player)
+	if not was and inGroup[player] then
+		Net.Fire("Notify", player, { Kind = "Banner", Title = "👥 WELCOME TO THE CREW!", Text = "+10% income for as long as you're in the community", Tone = "Reward" })
+	end
+end
+
 function MonetizationService.Init()
+	Net.On("RecheckGroup", onRecheckGroup, 1)
 	-- Perk hooks.
 	VaultService.OfflineTerms = function(player: Player)
 		if owns(player, "OfflineVault") then
@@ -296,6 +322,7 @@ function MonetizationService.Init()
 	Players.PlayerRemoving:Connect(function(player)
 		owned[player] = nil
 		inGroup[player] = nil
+		lastGroupCheck[player] = nil
 		for _, other in Players:GetPlayers() do
 			if other ~= player then
 				task.defer(refreshBoost, other)

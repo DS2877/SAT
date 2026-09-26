@@ -106,7 +106,7 @@ Monetization.Free = {
 	PremiumIncomeMultiplier = 1.1, -- Roblox Premium members (also drives Premium Payouts)
 	FriendIncomeBonus = 0.1, -- +10% Vault income per friend in the server...
 	FriendIncomeMax = 0.3, -- ...up to +30%
-	GroupId = 0, -- community group; members get GroupIncomeMultiplier (0 = off)
+	GroupId = 414389809, -- the Steal the Treasure community; members get GroupIncomeMultiplier (0 = off)
 	GroupIncomeMultiplier = 1.1,
 	-- Daily streak: log in on consecutive days (UTC). Reward = Minutes of your income, with a
 	-- floor; day 7 is the jackpot, then the streak loops. Missing a day restarts at day 1.
