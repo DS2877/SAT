@@ -63,6 +63,9 @@ local function makeSound(track, looped: boolean, volume: number?): Sound
 	sound.Volume = 0
 	sound.SoundGroup = group
 	sound:SetAttribute("TargetVolume", volume or track.Volume or 1)
+	if track.FadeSeconds then
+		sound:SetAttribute("FadeSeconds", track.FadeSeconds)
+	end
 	if track.StartAt and track.StartAt > 0 then
 		-- Skip the intro, also on every loop.
 		sound.PlaybackRegionsEnabled = true
@@ -77,8 +80,15 @@ local function targetOf(sound: Sound): number
 	return tonumber(sound:GetAttribute("TargetVolume")) or 1
 end
 
+-- How long a change to the mix takes: the layer on top can ask for a slower fade (the night
+-- melts in and out instead of cutting).
+local function fadeTime(): number
+	local top = carrySound or phaseSound or trainingSound
+	return (top and tonumber(top:GetAttribute("FadeSeconds"))) or Music.CrossfadeSeconds
+end
+
 local function fade(sound: Sound, volume: number, andThen: (() -> ())?)
-	local tween = TweenService:Create(sound, TweenInfo.new(Music.CrossfadeSeconds), { Volume = volume })
+	local tween = TweenService:Create(sound, TweenInfo.new(fadeTime()), { Volume = volume })
 	if andThen then
 		tween.Completed:Once(function(state)
 			if state == Enum.PlaybackState.Completed then
