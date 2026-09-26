@@ -445,6 +445,37 @@ local function moveTo(g: Guardian, goal: Vector3)
 	g.Humanoid:MoveTo(goal)
 end
 
+-- Is `position` inside solid terrain (a dune, a ridge, the glacier)?
+local function buried(position: Vector3): boolean
+	local ok, materials, occupancies = pcall(function()
+		local region = Region3.new(position - Vector3.new(0.1, 0.1, 0.1), position + Vector3.new(0.1, 0.1, 0.1)):ExpandToGrid(4)
+		return workspace.Terrain:ReadVoxels(region, 4)
+	end)
+	if not ok or not materials then
+		return false
+	end
+	local material = materials[1][1][1]
+	return material ~= Enum.Material.Air and material ~= Enum.Material.Water and occupancies[1][1][1] >= 0.6
+end
+
+-- A home spot that ended up under the surface: move it up onto the ground above.
+local surfaceParams = RaycastParams.new()
+surfaceParams.FilterType = Enum.RaycastFilterType.Exclude
+surfaceParams.IgnoreWater = true
+local function surfaced(home: Vector3): Vector3
+	if not buried(home + Vector3.new(0, 1.5, 0)) then
+		return home
+	end
+	local exclude: { Instance } = {}
+	local guardianFolder = workspace:FindFirstChild("Guardians")
+	if guardianFolder then
+		table.insert(exclude, guardianFolder)
+	end
+	surfaceParams.FilterDescendantsInstances = exclude
+	local hit = workspace:Raycast(home + Vector3.new(0, 80, 0), Vector3.new(0, -80, 0), surfaceParams)
+	return if hit and hit.Position.Y > home.Y then hit.Position else home
+end
+
 local function teleportHome(g: Guardian)
 	local lift = g.Root.Size.Y / 2 + g.Humanoid.HipHeight + 0.5
 	g.Model:PivotTo(CFrame.new(g.Home + Vector3.new(0, lift, 0)))
@@ -460,7 +491,7 @@ end
 local function recover(g: Guardian, now: number): boolean
 	local position = g.Root.Position
 	-- (30: well below any slope a patrol walks down; a crevasse floor or the sea is further.)
-	if position.Y < g.Home.Y - 30 then
+	if position.Y < g.Home.Y - 30 or buried(position) then
 		teleportHome(g)
 		return true
 	end
@@ -580,6 +611,7 @@ end
 local folder: Folder
 
 local function spawnBody(g: Guardian)
+	g.Home = surfaced(g.Home)
 	local model, root, humanoid = build(g.Type, g.Def, g.Home)
 	model.Parent = folder
 	pcall(function()

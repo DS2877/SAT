@@ -77,6 +77,13 @@ local MENUS = {
 		Subtitle = "News • roadmap • events - sign up and we'll ping you when it starts",
 		Accent = Color3.fromRGB(230, 70, 80),
 	},
+	Admin = {
+		Module = script.Parent.Admin,
+		Title = "ADMIN PANEL",
+		Icon = "🛡",
+		Subtitle = "Messages, boosts and events • this server or every server",
+		Accent = Color3.fromRGB(200, 60, 60),
+	},
 	Store = {
 		Module = script.Parent.Store,
 		Title = "STORE",

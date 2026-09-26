@@ -1526,6 +1526,29 @@ test("Rimeheart loot spots sit on level ground", function()
 	check(string.find(source, "settled(unburied(", 1, true) ~= nil, "every treasure is lifted out of the ground")
 end)
 
+test("admin panel: boosts, broadcasts and events, admins only", function()
+	local cfg = require("../src/shared/Config/GameConfig")
+	local fs = require("@lune/fs")
+	for _, kind in cfg.GlobalBoosts.Order do
+		local info = cfg.GlobalBoosts[kind]
+		check(info ~= nil and info.Multiplier > 1 and info.Multiplier <= 5, "boost " .. kind .. " is a real but sane multiplier")
+	end
+	check(cfg.LikeGoal.Reward and cfg.GlobalBoosts[cfg.LikeGoal.Reward.Boost] ~= nil, "the like goal rewards a real boost")
+	for i = 2, #cfg.LikeGoal.Goals do
+		check(cfg.LikeGoal.Goals[i] > cfg.LikeGoal.Goals[i - 1], "like goals go up")
+	end
+	local admin = fs.readFile("src/server/Services/AdminService.luau")
+	local handler = string.match(admin, "local function onAction%(.-\nend")
+	check(handler ~= nil and string.find(handler, "if not EventService.IsAdmin(player)", 1, true) ~= nil, "every panel action checks the admin first")
+	check(string.find(admin, "FilterStringAsync", 1, true) ~= nil, "admin messages go through the text filter")
+	local net = fs.readFile("src/shared/Net.luau")
+	check(string.find(net, '"AdminAction"', 1, true) ~= nil, "the panel's remote exists")
+	for file, kind in { ["src/server/Services/VaultService.luau"] = "Cash", ["src/server/Services/TreasureService.luau"] = "Luck", ["src/server/Services/Training.luau"] = "Strength" } do
+		check(string.find(fs.readFile(file), ('Boosts.Multiplier("%s")'):format(kind), 1, true) ~= nil, kind .. " boost is applied")
+	end
+	check(string.find(fs.readFile("src/server/Services/TreasureService.luau"), 'Boosts.Multiplier("Mutation")', 1, true) ~= nil, "Mutation boost is applied")
+end)
+
 print(("%d passed, %d failed"):format(passed, failed))
 if failed > 0 then
 	error("tests failed")

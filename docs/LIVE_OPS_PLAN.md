@@ -218,3 +218,14 @@ Every item needs:
 - [ ] The host has the run sheet: `rain → (2 min) → gold → (2 min) → eruption → (2 min) → meteor`, repeated across 30 min.
 - [ ] Someone watches the Developer Console for `[Events] global broadcast failed`.
 - [ ] Afterwards, record the concurrent-player peak, session length and new favourites in `docs/DEV_STATUS.md`.
+
+## Built: the 🛡 Admin panel and the Like Goal
+
+- **Admin panel** (🛡 button next to 💬, only for the owner / `GameConfig.Events.AdminUserIds`):
+  pick THIS SERVER or ALL SERVERS, then send a message (banner on every screen, optional pin on
+  the Info Board), run a boost (LUCK x3, CASH x2, MUTATIONS x5, STRENGTH x2 for 5-60 min), end
+  boosts, or start any event. Server side: `Services/AdminService` (MessagingService topic
+  `SATAdmin`, boosts saved in DataStore `SATAdmin` so new servers join a running boost).
+- **Like Goal** (floating over the Info Board): at each goal in `GameConfig.LikeGoal.Goals`
+  every server gets the reward boost once. Community-wide, never a personal reward for liking.
+  Needs "Allow HTTP Requests" (reads likes through a public proxy of the games API).

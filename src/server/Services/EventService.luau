@@ -302,8 +302,35 @@ local function broadcast(eventId: string): boolean
 end
 
 -- Owners / admins (Studio, the place owner, GameConfig.Events.AdminUserIds): also used by
--- NewsService for "/announce".
+-- NewsService for "/announce" and the 🛡 Admin panel (AdminService).
 EventService.IsAdmin = isAdmin
+
+-- The events an admin can start, for the panel: { Id, Name, Icon }.
+EventService.Hostable = {}
+for _, id in { "TreasureRain", "CursedHour", "GoldRush", "Eruption", "Blizzard", "MeteorShower" } do
+	local info = cfg[id] or cfg.Storms[id]
+	if info then
+		table.insert(EventService.Hostable, { Id = id, Name = info.Name, Icon = info.Icon })
+	end
+end
+
+-- Start an event from the Admin panel: here only, or as a Heist Hour on every server.
+-- Returns (ok, message).
+function EventService.Host(eventId: string, global: boolean): (boolean, string)
+	if not Runners[eventId] then
+		return false, "Unknown event"
+	end
+	if global then
+		if RunService:IsStudio() then
+			task.spawn(startHosted, eventId)
+			return true, "Sent to every server (Studio: this one)"
+		end
+		local ok = broadcast(eventId)
+		return ok, if ok then "Sent to every server" else "Broadcast failed - try again"
+	end
+	local ok = EventService.Start(eventId)
+	return ok, if ok then "Started on this server" else "An event is already running here"
+end
 
 local lastCommand: { [Player]: number } = {}
 local function handleCommand(player: Player, message: string)

@@ -33,6 +33,8 @@ local WaystoneService = require(Services.WaystoneService)
 local BatService = require(Services.BatService)
 local NewsService = require(Services.NewsService)
 local CodeService = require(Services.CodeService)
+local AdminService = require(Services.AdminService)
+local LikeGoal = require(Services.LikeGoal)
 
 Net.Init()
 Players.RespawnTime = GameConfig.Player.RespawnTime
@@ -60,6 +62,8 @@ WaystoneService.Init()
 BatService.Init()
 NewsService.Init()
 CodeService.Init()
+AdminService.Init()
+LikeGoal.Init()
 
 -- Funnel step 1: every first-time player (lets the dashboard show where newcomers drop off).
 PlayerData.Loaded:Connect(function(player)

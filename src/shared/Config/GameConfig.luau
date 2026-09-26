@@ -566,4 +566,33 @@ function GameConfig.GetAscensionMultiplier(level: number): number
 		+ (level - maxDefined) * GameConfig.Ascension.MultiplierPerLevelAfterTable
 end
 
+-- GLOBAL BOOSTS ("admin abuse", Steal-a-Brainrot style): started by an admin from the 🛡 Admin
+-- panel (Services/AdminService) on this server or on EVERY server, or by the Like Goal. While
+-- one runs it multiplies something for everyone (Shared/Logic/Boosts reads the state).
+GameConfig.GlobalBoosts = {
+	Order = { "Luck", "Cash", "Mutation", "Strength" },
+	Luck = { Name = "LUCK", Icon = "🍀", Multiplier = 3, Text = "Epic and rarer loot spawns 3x as often" },
+	Cash = { Name = "CASH", Icon = "💰", Multiplier = 2, Text = "Every Vault earns double" },
+	Mutation = { Name = "MUTATIONS", Icon = "✨", Multiplier = 5, Text = "Treasure spawns mutated 5x as often" },
+	Strength = { Name = "STRENGTH", Icon = "💪", Multiplier = 2, Text = "Double Strength from every rep" },
+}
+
+GameConfig.Admin = {
+	BoostMinutes = { 5, 15, 30, 60 }, -- the duration buttons in the panel
+	MaxBoostMinutes = 120,
+	MaxBroadcast = 160, -- characters in an admin message
+}
+
+-- LIKE GOAL: a community goal on the board by the spawn. When the game's likes reach the goal,
+-- EVERY server gets a free boost (for everyone - nobody is rewarded personally for liking).
+-- Likes are read through a public proxy of the Roblox games API (needs "Allow HTTP Requests"
+-- in the game settings); if that's unavailable the board shows the goal without a count.
+GameConfig.LikeGoal = {
+	Enabled = true,
+	Goals = { 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000 },
+	Reward = { Boost = "Luck", Minutes = 30 },
+	PollSeconds = 120,
+	VotesUrl = "https://games.roproxy.com/v1/games/votes?universeIds=%d",
+}
+
 return GameConfig

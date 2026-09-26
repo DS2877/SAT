@@ -17,6 +17,7 @@ local Treasures = require(Shared.Config.Treasures)
 local Mutations = require(Shared.Config.Mutations)
 local Carry = require(Shared.Logic.Carry)
 local DayNight = require(Shared.Logic.DayNight)
+local Boosts = require(Shared.Logic.Boosts)
 local TreasureLabel = require(Shared.TreasureLabel)
 local TreasureRoll = require(Shared.Logic.TreasureRoll)
 local TreasureVisual = require(Shared.TreasureVisual)
@@ -295,12 +296,24 @@ local function weightsFor(area: string)
 	if regionBoost and regionBoost.Area == area and regionBoost.Rarity then
 		apply(regionBoost.Rarity)
 	end
+	-- Global LUCK boost: Epic and rarer x the boost everywhere, Rare halfway there.
+	local luck = Boosts.Multiplier("Luck")
+	if luck > 1 then
+		for rarity in weights do
+			local rank = Rarities.Rank(rarity)
+			if rank >= Rarities.Rank("Epic") then
+				weights[rarity] *= luck
+			elseif rank == Rarities.Rank("Rare") then
+				weights[rarity] *= (1 + luck) / 2
+			end
+		end
+	end
 	return weights, anywhere
 end
 
 local function rollMutation(area: string?): string?
 	local isNight = DayNight.IsNight(workspace:GetServerTimeNow())
-	local boost = if regionBoost and area and regionBoost.Area == area then regionBoost.Mutation or 1 else 1
+	local boost = (if regionBoost and area and regionBoost.Area == area then regionBoost.Mutation or 1 else 1) * Boosts.Multiplier("Mutation")
 	return Mutations.Roll(function()
 		return rng:NextNumber()
 	end, isNight, boost)

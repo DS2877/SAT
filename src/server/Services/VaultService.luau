@@ -15,6 +15,7 @@ local Treasures = require(Shared.Config.Treasures)
 local TreasureVisual = require(Shared.TreasureVisual)
 local TreasureLabel = require(Shared.TreasureLabel)
 local Economy = require(Shared.Logic.Economy)
+local Boosts = require(Shared.Logic.Boosts)
 local DayNight = require(Shared.Logic.DayNight)
 local Net = require(Shared.Net)
 
@@ -31,7 +32,8 @@ local plotOf: { [Player]: any } = {}
 -- Income boost from passes / Premium / friends / group, published by MonetizationService.
 local function boostOf(player: Player?): number
 	local boost = player and player:GetAttribute("IncomeBoost")
-	return if type(boost) == "number" and boost > 0 then boost else 1
+	-- x a global CASH boost while an admin (or the Like Goal) runs one.
+	return (if type(boost) == "number" and boost > 0 then boost else 1) * Boosts.Multiplier("Cash")
 end
 
 -- Hooks set by MonetizationService (defaults = no pass).

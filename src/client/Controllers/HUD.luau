@@ -15,6 +15,7 @@ local WorldLayout = require(Shared.Config.WorldLayout)
 local Carry = require(Shared.Logic.Carry)
 local Economy = require(Shared.Logic.Economy)
 local DayNight = require(Shared.Logic.DayNight)
+local Boosts = require(Shared.Logic.Boosts)
 local Zones = require(Shared.Util.Zones)
 local Net = require(Shared.Net)
 
@@ -38,6 +39,7 @@ local secretKnown = false
 local isTouch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 
 HUD.OpenMenu = nil :: ((string) -> ())? -- injected by Main
+HUD.TopStack = nil :: Frame? -- top-centre stack (built in buildObjective)
 
 local AREA_COLORS = {
 	["TREASURE DISTRICT"] = Theme.Color.Safe,
@@ -134,6 +136,29 @@ local function buildStats()
 			HUD.OpenMenu("Feedback")
 		end
 	end)
+	-- 🛡 Admin panel: only for the owner / admins (the server sets IsAdmin and checks every action).
+	local adminButton = Kit.button({
+		Name = "AdminButton",
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(1, 92, 0.5, 0),
+		Size = UDim2.fromOffset(34, 34),
+		Text = "🛡",
+		TextSize = 18,
+		BackgroundColor3 = Color3.fromRGB(170, 50, 50),
+		BackgroundTransparency = 0.1,
+		Radius = Theme.Radius.Round,
+		Visible = false,
+		Parent = refs.Strength.Parent,
+	}, function()
+		if HUD.OpenMenu then
+			HUD.OpenMenu("Admin")
+		end
+	end)
+	local function syncAdmin()
+		adminButton.Visible = player:GetAttribute("IsAdmin") == true
+	end
+	player:GetAttributeChangedSignal("IsAdmin"):Connect(syncAdmin)
+	syncAdmin()
 	refs.Cash = pill("Cash", "💰", Theme.Color.Cash, 2)
 	-- Vault income + day/night clock: "your money machine" is always in view.
 	refs.Income = Kit.label({
@@ -547,6 +572,58 @@ local function vaultNav()
 	local plot = plotFolder and plotIndex and plotFolder:FindFirstChild("Vault" .. tostring(plotIndex))
 	local center = plot and plot:GetAttribute("VaultCenter")
 	return if typeof(center) == "Vector3" then { Name = "YOUR VAULT", Position = center } else nil
+end
+
+-- Global boosts (admin abuse / Like Goal): small chips at the top centre with a countdown.
+local boostRow: Frame? = nil
+local boostChips: { [string]: TextLabel } = {}
+local function updateBoosts(serverNow: number)
+	if not boostRow and HUD.TopStack then
+		boostRow = Kit.new("Frame", {
+			Name = "GlobalBoosts",
+			LayoutOrder = -1,
+			Size = UDim2.new(1, 0, 0, 26),
+			BackgroundTransparency = 1,
+			Visible = false,
+			Parent = HUD.TopStack,
+		}, { Kit.list(Enum.FillDirection.Horizontal, 6, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center) })
+	end
+	local row = boostRow
+	if not row then
+		return
+	end
+	local active = Boosts.Active(serverNow)
+	local seen = {}
+	for i, boost in active do
+		seen[boost.Kind] = true
+		local chip = boostChips[boost.Kind]
+		if not chip then
+			chip = Kit.label({
+				LayoutOrder = i,
+				Size = UDim2.fromOffset(0, 26),
+				AutomaticSize = Enum.AutomaticSize.X,
+				BackgroundColor3 = Color3.fromRGB(120, 60, 200),
+				BackgroundTransparency = 0.1,
+				Font = Theme.Font.Black,
+				TextSize = Theme.TextSize.Small,
+				TextColor3 = Color3.new(1, 1, 1),
+				TextWrapped = false,
+				Parent = row,
+			})
+			Kit.corner(UDim.new(1, 0)).Parent = chip
+			Kit.padding(0, 10).Parent = chip
+			boostChips[boost.Kind] = chip
+		end
+		local left = math.ceil(boost.Remaining)
+		chip.Text = ("%s %s x%d • %d:%02d"):format(boost.Info.Icon, boost.Info.Name, boost.Info.Multiplier, left // 60, left % 60)
+	end
+	for kind, chip in boostChips do
+		if not seen[kind] then
+			chip:Destroy()
+			boostChips[kind] = nil
+		end
+	end
+	row.Visible = #active > 0
 end
 
 local function updateClock(serverNow: number)
@@ -1134,6 +1211,7 @@ function HUD.Init(screenGui: ScreenGui)
 			updateCooldowns(serverNow)
 			updateExtraction(serverNow)
 			updateClock(serverNow)
+			updateBoosts(serverNow)
 			-- No persistent event countdown: one short heads-up ~10 s before the end, then nothing.
 			local eventEnds = workspace:GetAttribute("EventEndsAt") or 0
 			local remaining = eventEnds - serverNow

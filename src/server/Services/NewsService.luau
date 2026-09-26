@@ -172,6 +172,9 @@ local function announce(player: Player, raw: string)
 	Net.Fire("Notify", player, { Kind = "Toast", Text = if text == "" then "Announcement cleared" else "Announcement posted on every server", Tone = "Info" })
 end
 
+-- The 🛡 Admin panel pins its message on the Info Board through the same path.
+NewsService.Announce = announce
+
 local lastCommand: { [Player]: number } = {}
 local function handleCommand(player: Player, message: string)
 	local rest = string.match(message, "^/[Aa][Nn][Nn][Oo][Uu][Nn][Cc][Ee]%s*(.*)$")

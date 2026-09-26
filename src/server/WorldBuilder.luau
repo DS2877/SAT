@@ -781,6 +781,9 @@ local function buildInfoBoard(district: Folder)
 		end
 	end
 	part({ Name = "InfoRoof", Size = Vector3.new(width + 5, 0.6, 4.2), CFrame = base * CFrame.new(0, bottom + height + 4, -0.2) * CFrame.Angles(math.rad(-10), 0, 0), Color = Color3.fromRGB(34, 36, 48), Material = Enum.Material.Slate, Parent = board })
+	-- Where the Like Goal floats (Services/LikeGoal fills it in).
+	local likeAnchor = part({ Name = "LikeGoalAnchor", Size = Vector3.new(0.4, 0.4, 0.4), CFrame = base * CFrame.new(0, bottom + height + 8.5, 0), Transparency = 1, CanCollide = false, CanQuery = false, Parent = board })
+	CollectionService:AddTag(likeAnchor, "LikeGoal")
 	-- Two lanterns so it glows at night.
 	for _, x in { -1, 1 } do
 		local lantern = part({ Name = "InfoLantern", Size = Vector3.new(0.9, 1.2, 0.9), CFrame = base * CFrame.new(x * (width / 2 + 0.9), bottom + height + 1.2, -1.2), Color = Color3.fromRGB(255, 210, 120), Material = Enum.Material.Neon, CanCollide = false, Parent = board })

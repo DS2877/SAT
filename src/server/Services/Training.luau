@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
+local Boosts = require(Shared.Logic.Boosts)
 local Lifting = require(Shared.Logic.Lifting)
 local Net = require(Shared.Net)
 
@@ -69,7 +70,7 @@ end
 local function repGainFor(player: Player, tier): number
 	local data = PlayerData.Get(player)
 	local ascension = if data then data.Ascension else 0
-	return GameConfig.GetRepGain(tier, ascension) * Training.MultiplierFor(player)
+	return GameConfig.GetRepGain(tier, ascension) * Training.MultiplierFor(player) * Boosts.Multiplier("Strength")
 end
 
 local function owns(data, tier): boolean
