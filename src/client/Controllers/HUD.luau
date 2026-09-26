@@ -393,6 +393,7 @@ local function buildActions()
 	})
 	local attack = Kit.button({
 		Name = "Attack",
+		Silent = true,
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.fromScale(1, 1),
 		Size = UDim2.fromOffset(96, 96),
@@ -411,6 +412,7 @@ local function buildActions()
 	-- your hand and your back (SLAP also draws it). H on keyboard.
 	local sheathe = Kit.button({
 		Name = "Sheathe",
+		Silent = true,
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, 14, 1, -139),
 		Size = UDim2.fromOffset(56, 56),
@@ -429,6 +431,7 @@ local function buildActions()
 	-- DROP: only while carrying. Separate from SLAP so mashing attack never drops your loot.
 	local drop = Kit.button({
 		Name = "Drop",
+		Silent = true,
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -230, 1, -6),
 		Size = UDim2.fromOffset(72, 72),
@@ -456,6 +459,7 @@ local function buildActions()
 	for slot = 1, GameConfig.Gadgets.Slots do
 		local button = Kit.button({
 			Name = "Gadget" .. slot,
+			Silent = true,
 			AnchorPoint = Vector2.new(1, 1),
 			Position = positions[slot],
 			Size = UDim2.fromOffset(68, 68),

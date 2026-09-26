@@ -98,7 +98,7 @@ function Kit.panel(props, children: { Instance }?): Frame
 		BorderSizePixel = 0,
 	}
 	for k, v in props do
-		if k ~= "Radius" then
+		if k ~= "Radius" and k ~= "Silent" then
 			defaults[k] = v
 		end
 	end
@@ -127,7 +127,7 @@ function Kit.button(props, onClick: (() -> ())?): TextButton
 		Text = "",
 	}
 	for k, v in props do
-		if k ~= "Radius" then
+		if k ~= "Radius" and k ~= "Silent" then
 			defaults[k] = v
 		end
 	end
@@ -155,7 +155,11 @@ function Kit.button(props, onClick: (() -> ())?): TextButton
 	button.MouseLeave:Connect(release)
 	if onClick then
 		button.Activated:Connect(function()
-			Sounds.Play("Click")
+			-- Silent: the action makes its own sound (SLAP's whoosh, a gadget's cue...) - one
+			-- sound per press, never a click stacked on top.
+			if not props.Silent then
+				Sounds.Play("Click")
+			end
 			onClick()
 		end)
 	end
