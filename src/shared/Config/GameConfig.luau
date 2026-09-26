@@ -167,7 +167,6 @@ GameConfig.Stability = {
 
 GameConfig.Treasure = {
 	ReclaimProtection = 2,
-	DroppedTimeout = 30,
 	MaxActive = 34, -- loot per night wave (world + carried + dropped)
 	SpawnTick = 1, -- seconds between spawn checks during the night wave
 	RespawnDelayMin = 15,
@@ -354,7 +353,9 @@ GameConfig.Vault = {
 	Stairs = { Width = 5, Run = 24, BandsZ = { 17.5, 11.5 } },
 	DisplayMaxScale = 2.4, -- treasure size cap on pedestals
 	AutoPlaceNewTreasures = true,
-	TeleportHomeOnExtract = true, -- carrier is brought to their Vault after extracting
+	TeleportHomeOnExtract = true, -- carrier is brought to their Vault after an exit beam
+	-- (banking at home through the gate never moves you: the treasure flies to your Vault)
+	HomeFlightSeconds = 1.4,
 	HomeStandDistance = 26, -- studs in front of the plot centre
 	HomeTrophySeconds = 3, -- how long the banked treasure is held overhead (cosmetic)
 }

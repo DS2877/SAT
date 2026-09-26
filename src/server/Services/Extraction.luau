@@ -28,7 +28,7 @@ local Analytics = require(script.Parent.Analytics)
 
 local Extraction = {}
 
-Extraction.Completed = Signal.new() -- (player, def, mutation, placedSlot: number?, soldFor: number)
+Extraction.Completed = Signal.new() -- (player, def, mutation, placedSlot: number?, soldFor: number, category: string)
 
 local cfg = GameConfig.Extraction
 -- Banking at home is a "zone" too, so both ways share one reward path.
@@ -189,7 +189,7 @@ local function complete(player: Player, session: Session)
 	Analytics.Event(player, "Extracted", { Treasure = def.Id, Zone = session.Zone.Id, Reward = reward })
 	Analytics.Economy(player, "Source", reward + soldFor, data.Cash, "Gameplay", def.Id)
 	TreasureService.RefreshCarrier(player)
-	Extraction.Completed:Fire(player, def, mutation, placedSlot, soldFor)
+	Extraction.Completed:Fire(player, def, mutation, placedSlot, soldFor, session.Zone.Category)
 end
 
 local function tick()

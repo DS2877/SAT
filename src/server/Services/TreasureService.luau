@@ -563,12 +563,7 @@ function TreasureService.Drop(player: Player, reason: string, knockedBy: Player?
 	Net.Fire("Feedback", player, { Type = "Dropped", Uid = record.Uid, Reason = reason, NearMiss = nearMiss })
 	TreasureService.Dropped:Fire(player, record, reason, knockedBy)
 
-	local droppedAt = now
-	task.delay(cfg.DroppedTimeout, function()
-		if records[record.Uid] == record and record.State == "Dropped" and record.DroppedAt == droppedAt then
-			remove(record, "Timeout")
-		end
-	end)
+	-- A dropped treasure stays where it fell until someone picks it up or night falls (ClearAll).
 	return record
 end
 

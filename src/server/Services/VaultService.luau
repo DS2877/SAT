@@ -5,6 +5,7 @@
 -- Others can walk in and look (social flex).
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
@@ -674,7 +675,44 @@ local function bringHome(player: Player, def, mutation: string?)
 	end)
 end
 
-local function onExtracted(player: Player, def, mutation: string?, placedSlot: number?, soldFor: number)
+-- Banked at home: the player stays where they are and the treasure flies from them to their
+-- Vault in a high arc (cosmetic only: it's already on its pedestal).
+local function flyHome(player: Player, def, mutation: string?)
+	local plot = plotOf[player]
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not plot or not root then
+		return
+	end
+	local s = TreasureVisual.Scale(def)
+	local from = root.Position + Vector3.new(0, 3 + s, 0)
+	local to = plot.CFrame.Position + Vector3.new(0, 6 + s, 0)
+	local trophy = TreasureVisual.Build(def, CFrame.new(from), nil, mutation, { Display = true })
+	trophy.Name = "FlyingTrophy"
+	for _, d in trophy:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = false
+			d.CanQuery = false
+			d.CanTouch = false
+		end
+	end
+	trophy.Parent = workspace
+	local height = math.max(30, (to - from).Magnitude * 0.35)
+	local started = os.clock()
+	local connection
+	connection = RunService.Heartbeat:Connect(function()
+		local t = math.min(1, (os.clock() - started) / cfg.HomeFlightSeconds)
+		local eased = t * t * (3 - 2 * t)
+		local position = from:Lerp(to, eased) + Vector3.new(0, math.sin(math.pi * eased) * height, 0)
+		trophy:PivotTo(CFrame.new(position) * CFrame.Angles(0, t * math.pi * 4, 0))
+		if t >= 1 then
+			connection:Disconnect()
+			trophy:Destroy()
+		end
+	end)
+end
+
+local function onExtracted(player: Player, def, mutation: string?, placedSlot: number?, soldFor: number, category: string?)
 	render(player)
 	if not placedSlot then
 		Net.Fire("Notify", player, {
@@ -684,7 +722,11 @@ local function onExtracted(player: Player, def, mutation: string?, placedSlot: n
 			Tone = "Warn",
 		})
 	end
-	if cfg.TeleportHomeOnExtract then
+	if category == "Home" then
+		if placedSlot then
+			flyHome(player, def, mutation)
+		end
+	elseif cfg.TeleportHomeOnExtract then
 		bringHome(player, def, mutation)
 	end
 end
