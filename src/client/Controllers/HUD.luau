@@ -778,19 +778,26 @@ local function computeObjective()
 	-- alert near the end) and players discover the world instead of following a marker.
 	navTarget = nil
 end
--- The direction pill (and Guide's path) is TUTORIAL ONLY: once the first cash is collected
--- (the last tutorial step) it never shows again - players read the world, not a GPS.
+-- The direction PILL is tutorial only: once the first cash is collected (the last tutorial
+-- step) it never shows again - players read the world, not a GPS. The Guide's glowing
+-- FOOTPRINTS also help newer players home while they carry treasure (first few banks).
+local GUIDE_CARRY_BANKS = 10
+local guideTarget: { Name: string, Position: Vector3 }? = nil
 local function refreshObjective()
 	computeObjective()
-	if ClientState.Milestone("FirstCollect") then
+	local tutorial = not ClientState.Milestone("FirstCollect")
+	local data = ClientState.Data
+	local newer = data ~= nil and (data.Stats.Extractions or 0) < GUIDE_CARRY_BANKS
+	guideTarget = if tutorial or (newer and ClientState.Carrying()) then navTarget else nil
+	if not tutorial then
 		navTarget = nil
 	end
 end
 HUD.RefreshObjective = refreshObjective
 
--- Where the objective is pointing right now ({ Name, Position } or nil), for Controllers/Guide.
+-- Where the Guide's footprints should lead right now ({ Name, Position } or nil).
 function HUD.NavTarget()
-	return navTarget
+	return guideTarget
 end
 
 local function refreshStats(data, previous)

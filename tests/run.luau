@@ -339,6 +339,16 @@ test("adventure: boost pads and geysers are sane", function()
 	check(boost.Count >= 12 and boost.Count <= 40, "enough rings to find, not a carpet")
 	check(boost.MinSpacing * boost.MinSpacing * boost.Count < math.pi * boost.MaxDistance ^ 2 * 0.5, "ring spacing leaves room to place them all")
 	check(boost.SpeedMultiplier * GameConfig.Player.BaseWalkSpeed < 30, "a boosted player can still be caught by a boosted chaser")
+	for _, area in boost.RouteAreas do
+		local known = false
+		for _, site in WorldLayout.EventSites do
+			known = known or site.Area == area
+		end
+		check(known, "route rings lead to a real early region: " .. area)
+	end
+	for _, along in boost.RouteAt do
+		check(along > 0 and along < 1, "route rings sit between the gate and the region")
+	end
 	local cliffTop = WorldLayout.Waterfall.CliffCenter.Y + WorldLayout.Waterfall.CliffSize.Y / 2
 	local templeTop = WorldLayout.Temple.Center.Y + WorldLayout.Temple.Tiers * WorldLayout.Temple.TierHeight
 	local found = {}

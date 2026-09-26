@@ -114,11 +114,16 @@ GameConfig.Boost = {
 	Duration = 4.5, -- seconds
 	Radius = 4.6, -- studs from the ring's centre (horizontal): run through the stones
 	Cooldown = 2, -- per player, before the same player can trigger another ring
-	-- Subtle wind rings scattered at random every server (World/Adventure): a discovery, not a route.
+	-- Subtle wind rings scattered at random every server (World/Adventure): a discovery.
 	Count = 30,
 	MaxPerArea = 7, -- per region, so every region gets a share
 	MinSpacing = 55, -- studs between rings
 	MaxDistance = 400, -- from the island centre
+	-- Plus fixed ROUTE rings on the way from the District gate to each early region (fractions
+	-- of the way there), so beginners find them on their first runs.
+	RouteAreas = { "Wilds", "Ruins", "Coast", "Falls", "Frost", "Marsh" },
+	RouteAt = { 0.35, 0.7 },
+	RouteSpacing = 30, -- studs between route rings
 }
 
 -- LAUNCH GEYSERS (WorldLayout.LaunchPads): straight up, then a guided glide onto the target.

@@ -1,5 +1,6 @@
--- Guided first run. Until a player has banked a treasure and collected their first Vault cash,
--- the HUD objective's target gets a trail you can SEE in the world:
+-- Guided first run. Until a player has banked a treasure and collected their first Vault cash -
+-- and afterwards while a newer player carries treasure (the way to the nearest exit) - the HUD's
+-- target gets a trail you can SEE in the world:
 --   * glowing footprints on the ground from you toward the target, a light wave running along them
 --   * a tall gold beacon of light standing on the target
 -- On the first bank ever: a full-screen "BANKED IT!" moment that explains what just happened
@@ -34,8 +35,9 @@ local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
 local function active(): boolean
-	-- Guided until the loop has clicked: first bank AND first Vault collect.
-	return ClientState.Data ~= nil and not ClientState.Milestone("FirstCollect")
+	-- HUD decides the target: the tutorial's steps, and the nearest exit while a newer player
+	-- (first 10 banks) carries treasure.
+	return ClientState.Data ~= nil
 end
 
 local function decor(props): Part

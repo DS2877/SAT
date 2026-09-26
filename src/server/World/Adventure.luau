@@ -244,18 +244,75 @@ function Adventure.BoostRingAt(parent: Instance, ground: Vector3, rng: Random)
 	return buildBoostRing(parent, ground, rng)
 end
 
+local function clearOf(avoid, flat: Vector2): boolean
+	for _, entry in avoid do
+		if (entry[1] - flat).Magnitude < entry[2] + 8 then
+			return false
+		end
+	end
+	return true
+end
+
+-- ROUTE RINGS: the same every server, on the way from the District gate to each early region,
+-- so a new player meets them on their first runs (and on the way home with treasure).
+local function buildRouteRings(parent: Instance, avoid, rng: Random, rings)
+	local cfg = GameConfig.Boost
+	local gate = WorldLayout.District.Gate
+	local districtCentre = WorldLayout.District.Center
+	local centreFlat = Vector2.new(districtCentre.X, districtCentre.Z)
+	local from = Vector2.new(gate.X, gate.Z)
+	for _, site in WorldLayout.EventSites do
+		if not table.find(cfg.RouteAreas, site.Area) then
+			continue
+		end
+		local to = Vector2.new(site.Position.X, site.Position.Z)
+		for _, along in cfg.RouteAt do
+			local spot = from:Lerp(to, along)
+			local placed = false
+			for radius = 0, 24, 6 do
+				for step = 0, (if radius == 0 then 0 else 7) do
+					local a = step / 8 * 2 * math.pi
+					local flat = spot + Vector2.new(math.cos(a), math.sin(a)) * radius
+					local ok = (flat - centreFlat).Magnitude > GameConfig.SafeZone.Radius + 20 and clearOf(avoid, flat)
+					if ok then
+						for _, ring in rings do
+							if (Vector2.new(ring.Position.X, ring.Position.Z) - flat).Magnitude < cfg.RouteSpacing then
+								ok = false
+								break
+							end
+						end
+					end
+					local ground = if ok then openGround(flat.X, flat.Y) else nil
+					if ground then
+						table.insert(rings, buildBoostRing(parent, ground, rng))
+						table.insert(avoid, { flat, 9 })
+						placed = true
+						break
+					end
+				end
+				if placed then
+					break
+				end
+			end
+		end
+	end
+end
+
 -- Returns { { Position } } for BoostService.
--- Scatters boost rings at RANDOM spots over the Wilds - a new layout every server - spread
--- across every region and kept apart from each other and from landmarks.
+-- Route rings on the way to every early region, then boost rings at RANDOM spots over the
+-- Wilds - a new layout every server - spread across every region and kept apart from each
+-- other and from landmarks.
 function Adventure.BuildBoostRings(parent: Instance, avoid)
 	local cfg = GameConfig.Boost
 	local rng = Random.new()
 	local folderRings = folder("BoostRings", parent)
 	local rings = {}
+	buildRouteRings(folderRings, avoid, rng, rings)
+	local routeCount = #rings
 	local perArea: { [string]: number } = {}
 	local districtCentre = WorldLayout.District.Center
 	for _ = 1, cfg.Count * 80 do
-		if #rings >= cfg.Count then
+		if #rings - routeCount >= cfg.Count then
 			break
 		end
 		local angle = rng:NextNumber(0, 2 * math.pi)
@@ -274,14 +331,7 @@ function Adventure.BuildBoostRings(parent: Instance, avoid)
 				end
 			end
 		end
-		if ok then
-			for _, entry in avoid do
-				if (entry[1] - flat).Magnitude < entry[2] + 8 then
-					ok = false
-					break
-				end
-			end
-		end
+		ok = ok and clearOf(avoid, flat)
 		local ground = if ok then openGround(x, z) else nil
 		if ground then
 			perArea[area] = (perArea[area] or 0) + 1
@@ -289,8 +339,8 @@ function Adventure.BuildBoostRings(parent: Instance, avoid)
 			table.insert(avoid, { flat, 9 })
 		end
 	end
-	if #rings < cfg.Count then
-		warn(("[Adventure] placed %d of %d boost rings"):format(#rings, cfg.Count))
+	if #rings - routeCount < cfg.Count then
+		warn(("[Adventure] placed %d of %d boost rings"):format(#rings - routeCount, cfg.Count))
 	end
 	return rings
 end
