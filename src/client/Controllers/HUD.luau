@@ -388,7 +388,7 @@ local function buildActions()
 		BackgroundTransparency = 1,
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -right, 1, -18),
-		Size = UDim2.fromOffset(250, 210),
+		Size = UDim2.fromOffset(310, 240),
 		Parent = gui,
 	})
 	local attack = Kit.button({
@@ -407,31 +407,30 @@ local function buildActions()
 	Kit.label({ Text = "🏏", Size = UDim2.new(1, 0, 0, 50), Position = UDim2.fromOffset(0, 12), TextSize = 38, Parent = attack })
 	refs.AttackLabel = Kit.label({ Text = "SLAP", Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, 1, -32), TextSize = 16, Font = Theme.Font.Black, Parent = attack })
 	refs.Attack = attack
-	-- Put the bat on your back (SLAP draws it again). Sits on SLAP's rim; H on keyboard.
+	-- BAT button: its own thumb-sized button on the arc above SLAP. Toggles the bat between
+	-- your hand and your back (SLAP also draws it). H on keyboard.
 	local sheathe = Kit.button({
 		Name = "Sheathe",
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.86, 0.1),
-		Size = UDim2.fromOffset(46, 26),
-		Text = "HIDE",
-		TextSize = 12,
-		Font = Theme.Font.Black,
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, 14, 1, -139),
+		Size = UDim2.fromOffset(56, 56),
 		BackgroundColor3 = Theme.Color.ButtonAlt,
 		TextColor3 = Theme.Color.Text,
 		Radius = Theme.Radius.Round,
-		ZIndex = 5,
-		Parent = attack,
+		Parent = cluster,
 	}, function()
 		HUD.SheatheBat()
 	end)
-	Kit.stroke(Color3.new(1, 1, 1), 1.5, 0.4).Parent = sheathe
+	Kit.stroke(Color3.new(1, 1, 1), 2, 0.35).Parent = sheathe
+	refs.SheatheIcon = Kit.label({ Text = "🎒", Size = UDim2.new(1, 0, 0, 28), Position = UDim2.fromOffset(0, 6), TextSize = 22, Parent = sheathe })
+	refs.SheatheLabel = Kit.label({ Text = "HIDE", Size = UDim2.new(1, 0, 0, 14), Position = UDim2.new(0, 0, 1, -19), TextSize = 11, Font = Theme.Font.Black, Parent = sheathe })
 	refs.Sheathe = sheathe
 
 	-- DROP: only while carrying. Separate from SLAP so mashing attack never drops your loot.
 	local drop = Kit.button({
 		Name = "Drop",
 		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -196, 1, -6),
+		Position = UDim2.new(1, -230, 1, -6),
 		Size = UDim2.fromOffset(72, 72),
 		BackgroundColor3 = Theme.Color.ButtonAlt,
 		TextColor3 = Theme.Color.Text,
@@ -447,10 +446,12 @@ local function buildActions()
 	refs.Drop = drop
 
 	refs.Slots = {}
+	-- Gadgets arc around SLAP (radius 128 from its centre, at 180 / 145 / 110 degrees) with
+	-- the BAT button at 74 (radius 124): at least 9 px of clear space between any two buttons.
 	local positions = {
-		UDim2.new(1, -118, 1, -2),
-		UDim2.new(1, -108, 1, -84),
-		UDim2.new(1, -32, 1, -112),
+		UDim2.new(1, -142, 1, -14),
+		UDim2.new(1, -119, 1, -87),
+		UDim2.new(1, -58, 1, -134),
 	}
 	for slot = 1, GameConfig.Gadgets.Slots do
 		local button = Kit.button({
@@ -851,8 +852,11 @@ local function refreshSlots()
 	end
 	refs.Reticle.Visible = aimed
 	refs.Drop.Visible = carrying ~= nil
-	-- HIDE only while the bat is in your hand (sheathed: SLAP is how you draw it).
-	refs.Sheathe.Visible = not carrying and not (data.Settings and data.Settings.SheatheBat)
+	-- BAT: HIDE while it's in your hand, DRAW while it's on your back; gone while carrying.
+	local sheathed = data.Settings ~= nil and data.Settings.SheatheBat == true
+	refs.Sheathe.Visible = not carrying
+	refs.SheatheIcon.Text = if sheathed then "🏏" else "🎒"
+	refs.SheatheLabel.Text = if sheathed then "DRAW" else "HIDE"
 	refs.AttackLabel.Text = if carrying and not GameConfig.Combat.CarrierCanAttack then "RUN!" else "SLAP"
 	refs.Attack.BackgroundColor3 = if carrying and not GameConfig.Combat.CarrierCanAttack then Theme.Color.Disabled else Theme.Color.Danger
 end
@@ -992,11 +996,11 @@ function HUD.Attack()
 	end
 end
 
--- Bat on your back / back in hand (the server moves it; SLAP also draws it).
+-- Bat on your back <-> in your hand (the server moves it; SLAP also draws it).
 function HUD.SheatheBat()
 	local data = ClientState.Data
-	if data and data.Settings and not data.Settings.SheatheBat then
-		Net.Get("SetSetting"):FireServer("SheatheBat", true)
+	if data and data.Settings and not ClientState.Carrying() then
+		Net.Get("SetSetting"):FireServer("SheatheBat", not data.Settings.SheatheBat)
 	end
 end
 
