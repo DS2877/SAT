@@ -8,7 +8,7 @@
 | Success sting | Extraction Fanfare | original | synthesised by `tools/music/stings.py` | 116829871483507 |
 | Fail sting | Lost It | original | synthesised by `tools/music/stings.py` | 97318551187594 |
 | Final-minute cue | Toccata and Fugue in D minor (Trailer Full Mix) | J. S. Bach | APM Music | 9043771726 |
-| Night cue | Night on Bald Mountain (30 Sec) | Modest Mussorgsky | APM Music | 9042354001 |
+| Night cue | Night on Bald Mountain (30 Sec) - replaced | Modest Mussorgsky | APM Music | 9042354001 |
 | Training | Trap Phonk Power Training Beat | (DistroKid catalog artist) | DistroKid → Roblox Creator Store | 126438335141122 |
 | Playlist | Morning Mood | Edvard Grieg | APM Music | 1846088038 |
 | Playlist | Anitra's Dance | Edvard Grieg | APM Music | 1843564354 |
@@ -46,3 +46,6 @@ prints every uploaded asset's moderation status. Our upload of the Mountain King
 - Swing: "Wood Whoosh Slicing Air Quick Swings 1 (SFX)", rbxassetid://9120972444
 - Hit: "Baseball Wood Bat Hits Hard Ball Power Whack (SFX)", rbxassetid://9125380872
 - Slap: "Hand Slap Claps 3 (SFX)", rbxassetid://9114771792
+
+## Night wind-down (replaces Night on Bald Mountain)
+- "Gymnopedie No. 1 (30)" (Satie), from APMOfficial in the Creator Store, rbxassetid://9045769414. It plays at 0.3 volume with a 4-second fade.

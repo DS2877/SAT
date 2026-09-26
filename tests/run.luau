@@ -614,6 +614,8 @@ test("music config is well-formed", function()
 		found = found or track.Name == Music.FirstTrack
 	end
 	check(found, "the first track (" .. tostring(Music.FirstTrack) .. ") is in the playlist")
+	check(Music.Night.Volume <= Music.PlaylistVolume, "night music is a quiet wind-down, softer than the day playlist")
+	check((Music.Night.FadeSeconds or 0) >= 2, "night melts in slowly")
 	check(Music.FinalMinuteSeconds >= 30 and Music.FinalMinuteSeconds < GameConfig.DayNight.CycleSeconds - GameConfig.DayNight.NightSeconds, "final-minute cue fits in the day")
 	-- Mix: background at half volume, the carry theme 50% above full volume.
 	check(Music.PlaylistVolume == 0.5, "playlist at 50%")

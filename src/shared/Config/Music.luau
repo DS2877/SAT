@@ -54,11 +54,13 @@ Music.FailSting = { Name = "Lost It", Id = "rbxassetid://97318551187594", Volume
 --   Both are APM library recordings (Roblox-licensed, verified APMOfficial account).
 --   * Final minute: Bach's Toccata and Fugue in D minor - the most recognisable "oh no" organ
 --     in music, as a trailer mix that builds for the whole minute.
---   * Night: Night on Bald Mountain (Mussorgsky: a witches' night) in APM's official 30-second
---     edit - exactly the length of the night. Alternatives found by the library search:
---     60 s edit 9042353909, trailer mix 9043770732, 15 s edit 104173705769074.
+--   * Night: a WIND-DOWN, not a cue to panic - Satie's Gymnopedie No. 1 (APM's 30-second
+--     edit, exactly the length of the night), barely above silence and melting in slowly, so
+--     players breathe out and plan their next run. Alternatives from the library search:
+--     Clair de Lune 30 s 140096334967406, Gymnopedie No. 2 (30) 1842165088, full-length
+--     Gymnopedie No. 1 9045766377. (The old Night on Bald Mountain, 9042354001, was too much.)
 Music.FinalMinute = { Name = "Toccata and Fugue in D (Trailer Mix)", Id = "rbxassetid://9043771726", Volume = 1.1 }
-Music.Night = { Name = "Night on Bald Mountain (30 Sec)", Id = "rbxassetid://9042354001", Volume = 1.2 }
+Music.Night = { Name = "Gymnopedie No. 1 (30)", Id = "rbxassetid://9045769414", Volume = 0.3, FadeSeconds = 4 }
 Music.FinalMinuteSeconds = 60
 
 -- TRAINING: hype gym music while you lift at the bench (under the phase cues and the carry
