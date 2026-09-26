@@ -65,7 +65,7 @@ def search(query):
             ids = [a.get("asset", {}).get("id") for a in data["creatorStoreAssets"]]
         info = details(ids[:30])
         print(f"  [{label}] {len(ids)} results")
-        for i in ids[:30]:
+        for i in ids[:15]:
             d = info.get(i, {})
             print(f"    {i} | {d.get('name')} | {d.get('creator')} (verified={d.get('verified')}) | {d.get('duration')}s")
         if ids:

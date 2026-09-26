@@ -1,73 +1,24 @@
-# Searched in Roblox's licensed audio library (asset type 3 = Audio) by tools/music/library_search.py
-Grieg
-Morning Mood
-Anitra
-Peer Gynt
-Tchaikovsky
-Nutcracker
-Sugar Plum
-Saint-Saens
-Danse Macabre
-Rimsky-Korsakov
-Bumblebee
-Mozart
-Turkish March
-Beethoven
-Fur Elise
-Chopin
-Joplin
-Entertainer
-ragtime
-classical
-APM classical
-sneaky
-
-# Night / final-minute recognition cues
-Danse Macabre
-Saint-Saens
-Toccata and Fugue
-Toccata
-Bach
-Night on Bald Mountain
-Mussorgsky
-Dies Irae
-Funeral March
-Midnight
-clock ticking
-suspense
-APM suspense
-APM tension
-# Training / hip-hop
-hip hop
-hip-hop beat
-boom bap
-trap beat
-workout
-gym
-APM hip hop
-funk
-
-# Bat slap sound effects (swing whoosh + cartoon slap/bonk hit)
-slap
-face slap
-cartoon slap
-bat hit
-bonk
-cartoon bonk
-punch
-whoosh
-swing whoosh
-swoosh
-
-# Calm night (wind-down: barely there)
-Clair de Lune
-Gymnopedie
-Satie
-Nocturne
-Debussy
-lullaby
-music box
-calm piano
-ambient night
-night ambience
-crickets
+# Active searches (tools/music/library_search.py). Past music searches: library_queries_music.txt
+# SFX remake: premium, soft UI + game sounds (ProSoundEffects / Roblox official preferred)
+Roblox_UI
+UI click soft
+UI tap
+button press soft
+UI notification
+notification chime soft
+chime success
+reward chime
+coins collect
+cash register
+level up
+achievement unlock
+treasure pickup
+magic sparkle
+UI error
+alert sting
+whoosh soft
+body fall thud
+water splash
+wind gust
+heartbeat
+footstep heavy
