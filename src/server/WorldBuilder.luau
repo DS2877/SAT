@@ -25,6 +25,7 @@ local Settlements = require(script.Parent.World.Settlements)
 local MapBoard = require(script.Parent.World.MapBoard)
 local DeepSouth = require(script.Parent.World.DeepSouth)
 local Bats = require(ReplicatedStorage.Shared.Config.Bats)
+local Gadgets = require(ReplicatedStorage.Shared.Config.Gadgets)
 local News = require(ReplicatedStorage.Shared.Config.News)
 local BatModels = require(ReplicatedStorage.Shared.BatModels)
 local Waystones = require(script.Parent.World.Waystones)
@@ -922,21 +923,139 @@ local function buildAscensionShop(district: Folder)
 	return p
 end
 
+-- Small models of each gadget for the shop shelves (a few parts each), standing on `at`.
+local GADGET_MINIS = {
+	speed_soda = function(at: CFrame, f: Folder)
+		cylinder((at * CFrame.new(0, 0.6, 0)).Position, 1.2, 0.7, { Name = "MiniSoda", Color = Color3.fromRGB(230, 60, 70), Material = Enum.Material.Metal, Parent = f })
+		cylinder((at * CFrame.new(0, 1.28, 0)).Position, 0.16, 0.6, { Name = "MiniSodaCap", Color = Color3.fromRGB(210, 210, 220), Material = Enum.Material.Metal, Parent = f })
+	end,
+	balloon = function(at: CFrame, f: Folder)
+		part({ Name = "MiniBalloon", Shape = Enum.PartType.Ball, Size = Vector3.new(1.1, 1.1, 1.1), CFrame = at * CFrame.new(0, 1.6, 0), Color = Color3.fromRGB(235, 50, 70), Material = Enum.Material.SmoothPlastic, Parent = f })
+		part({ Name = "MiniString", Size = Vector3.new(0.05, 1, 0.05), CFrame = at * CFrame.new(0, 0.55, 0), Color = Color3.new(1, 1, 1), Parent = f })
+	end,
+	bubble_blaster = function(at: CFrame, f: Folder)
+		part({ Name = "MiniBlaster", Size = Vector3.new(1.3, 0.5, 0.45), CFrame = at * CFrame.new(0, 0.7, 0), Color = Color3.fromRGB(70, 150, 255), Material = Enum.Material.SmoothPlastic, Parent = f })
+		part({ Name = "MiniBlasterGrip", Size = Vector3.new(0.3, 0.6, 0.35), CFrame = at * CFrame.new(-0.3, 0.3, 0), Color = Color3.fromRGB(40, 40, 60), Parent = f })
+		part({ Name = "MiniBubble", Shape = Enum.PartType.Ball, Size = Vector3.new(0.45, 0.45, 0.45), CFrame = at * CFrame.new(0.9, 1.1, 0), Color = Color3.fromRGB(170, 230, 255), Material = Enum.Material.Glass, Transparency = 0.4, Parent = f })
+	end,
+	grapple_hook = function(at: CFrame, f: Folder)
+		part({ Name = "MiniGrappleShaft", Size = Vector3.new(0.18, 1.2, 0.18), CFrame = at * CFrame.new(0, 0.7, 0), Color = Color3.fromRGB(120, 120, 130), Material = Enum.Material.Metal, Parent = f })
+		for _, sx in { -1, 1 } do
+			part({ Name = "MiniGrappleClaw", Size = Vector3.new(0.14, 0.5, 0.14), CFrame = at * CFrame.new(sx * 0.2, 1.35, 0) * CFrame.Angles(0, 0, math.rad(sx * -35)), Color = Color3.fromRGB(200, 200, 210), Material = Enum.Material.Metal, Parent = f })
+		end
+	end,
+	disguise = function(at: CFrame, f: Folder)
+		part({ Name = "MiniBush", Shape = Enum.PartType.Ball, Size = Vector3.new(1.3, 1.1, 1.3), CFrame = at * CFrame.new(0, 0.6, 0), Color = Color3.fromRGB(70, 150, 60), Material = Enum.Material.Grass, Parent = f })
+		part({ Name = "MiniBushEyes", Size = Vector3.new(0.5, 0.12, 0.05), CFrame = at * CFrame.new(0, 0.75, -0.62), Color = Color3.new(1, 1, 1), Material = Enum.Material.Neon, Parent = f })
+	end,
+	bee_box = function(at: CFrame, f: Folder)
+		part({ Name = "MiniBeeBox", Size = Vector3.new(1, 0.9, 0.9), CFrame = at * CFrame.new(0, 0.45, 0), Color = Color3.fromRGB(240, 190, 40), Material = Enum.Material.WoodPlanks, Parent = f })
+		for _, y in { 0.25, 0.65 } do
+			part({ Name = "MiniBeeStripe", Size = Vector3.new(1.02, 0.12, 0.92), CFrame = at * CFrame.new(0, y, 0), Color = Color3.fromRGB(40, 30, 20), Parent = f })
+		end
+	end,
+	boomerang = function(at: CFrame, f: Folder)
+		for _, sx in { -1, 1 } do
+			part({ Name = "MiniBoomerang", Size = Vector3.new(0.9, 0.12, 0.28), CFrame = at * CFrame.new(sx * 0.3, 0.8, 0) * CFrame.Angles(0, 0, math.rad(sx * 30)), Color = Color3.fromRGB(190, 110, 255), Material = Enum.Material.SmoothPlastic, Parent = f })
+		end
+	end,
+	decoy_duck = function(at: CFrame, f: Folder)
+		part({ Name = "MiniDuck", Shape = Enum.PartType.Ball, Size = Vector3.new(1, 0.8, 1.2), CFrame = at * CFrame.new(0, 0.45, 0), Color = Color3.fromRGB(255, 220, 60), Parent = f })
+		part({ Name = "MiniDuckHead", Shape = Enum.PartType.Ball, Size = Vector3.new(0.55, 0.55, 0.55), CFrame = at * CFrame.new(0, 0.95, -0.35), Color = Color3.fromRGB(255, 220, 60), Parent = f })
+		part({ Name = "MiniDuckBeak", Size = Vector3.new(0.3, 0.12, 0.3), CFrame = at * CFrame.new(0, 0.9, -0.68), Color = Color3.fromRGB(255, 140, 40), Parent = f })
+	end,
+}
+
+-- GADGET SHOP: a proper tinkerer's workshop - tiled floor, brick walls, a teal-and-cream
+-- awning under a sloped roof, a lit sign, shelves with a little model of every gadget on a
+-- wooden plaque (name + price), a counter with a register and a bell, and warm lanterns.
 local function buildShop(district: Folder)
 	local pos = WorldLayout.Shop
 	local shop = folder("GadgetShop", district)
-	local facing = CFrame.lookAt(pos, Vector3.new(WorldLayout.District.Center.X, pos.Y, WorldLayout.District.Center.Z))
-	local counter = part({ Name = "Counter", Size = Vector3.new(16, 4, 4), CFrame = facing * CFrame.new(0, 3, 0), Color = C.Wood, Material = Enum.Material.Wood, Parent = shop })
-	for _, x in { -7.5, 7.5 } do
-		part({ Name = "Post", Size = Vector3.new(1, 12, 1), CFrame = facing * CFrame.new(x, 7, 2), Color = C.DarkWood, Parent = shop })
+	local y = WorldLayout.District.Center.Y + 1
+	local base = CFrame.lookAt(Vector3.new(pos.X, y, pos.Z), Vector3.new(WorldLayout.District.Center.X, y, WorldLayout.District.Center.Z))
+	local width, depth, height = 24, 12, 11
+	local teal = Color3.fromRGB(30, 190, 170)
+	local brick = Color3.fromRGB(150, 85, 65)
+	local wood = Color3.fromRGB(120, 78, 46)
+	part({ Name = "ShopFloor", Size = Vector3.new(width + 2, 0.4, depth + 6), CFrame = base * CFrame.new(0, 0.2, 1), Color = Color3.fromRGB(215, 205, 185), Material = Enum.Material.Slate, Parent = shop })
+	part({ Name = "ShopBack", Size = Vector3.new(width, height, 1), CFrame = base * CFrame.new(0, height / 2, depth / 2), Color = brick, Material = Enum.Material.Brick, Parent = shop })
+	for _, sx in { -1, 1 } do
+		part({ Name = "ShopSide", Size = Vector3.new(1, height, depth), CFrame = base * CFrame.new(sx * width / 2, height / 2, 0), Color = brick, Material = Enum.Material.Brick, Parent = shop })
+		part({ Name = "ShopCorner", Size = Vector3.new(1.4, height + 0.4, 1.4), CFrame = base * CFrame.new(sx * width / 2, height / 2, -depth / 2), Color = C.Cream, Material = Enum.Material.SmoothPlastic, Parent = shop })
 	end
-	for i = 0, 7 do
-		part({ Name = "Awning", Size = Vector3.new(2, 0.4, 7), CFrame = facing * CFrame.new(-7 + i * 2, 13.2, 0) * CFrame.Angles(math.rad(-12), 0, 0), Color = if i % 2 == 0 then C.Red else C.Cream, Parent = shop })
+	part({ Name = "ShopRoof", Size = Vector3.new(width + 3, 0.8, depth + 3), CFrame = base * CFrame.new(0, height + 0.9, 0.3) * CFrame.Angles(math.rad(8), 0, 0), Color = Color3.fromRGB(45, 60, 70), Material = Enum.Material.Slate, Parent = shop })
+	-- Teal-and-cream awning over the open front.
+	local stripes = 12
+	for i = 0, stripes - 1 do
+		part({ Name = "ShopAwning", Size = Vector3.new(width / stripes + 0.05, 0.25, 4), CFrame = base * CFrame.new(-width / 2 + (i + 0.5) * width / stripes, height - 0.6, -depth / 2 - 1.6) * CFrame.Angles(math.rad(-18), 0, 0), Color = if i % 2 == 0 then teal else C.Cream, Parent = shop })
 	end
-	for i, colorValue in { Color3.fromRGB(255, 120, 60), Color3.fromRGB(255, 70, 90), Color3.fromRGB(150, 220, 255) } do
-		part({ Name = "Display", Shape = Enum.PartType.Ball, Size = Vector3.new(2, 2, 2), CFrame = facing * CFrame.new(-5 + (i - 1) * 5, 6, 0), Color = colorValue, Material = Enum.Material.Neon, Parent = shop })
+	-- The lit sign across the front.
+	local sign = part({ Name = "ShopSign", Size = Vector3.new(14, 2.4, 0.4), CFrame = base * CFrame.new(0, height + 2.2, -depth / 2 - 0.2), Color = Color3.fromRGB(25, 40, 50), Material = Enum.Material.SmoothPlastic, Parent = shop })
+	part({ Name = "ShopSignTrim", Size = Vector3.new(14.4, 2.8, 0.3), CFrame = base * CFrame.new(0, height + 2.2, -depth / 2 - 0.05), Color = teal, Material = Enum.Material.Neon, Parent = shop })
+	local signGui = Instance.new("SurfaceGui")
+	signGui.Face = Enum.NormalId.Front
+	signGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	signGui.PixelsPerStud = 40
+	signGui.LightInfluence = 0
+	signGui.Parent = sign
+	local signText = Instance.new("TextLabel")
+	signText.BackgroundTransparency = 1
+	signText.Size = UDim2.fromScale(1, 1)
+	signText.Font = Enum.Font.FredokaOne
+	signText.TextScaled = true
+	signText.TextColor3 = Color3.fromRGB(180, 255, 240)
+	signText.Text = "🛒 GADGET SHOP"
+	signText.Parent = signGui
+	-- Shelves on the back wall: every gadget as a little model on a plaque.
+	local count = #Gadgets.List
+	local perShelf = math.ceil(count / 2)
+	for i, gadget in Gadgets.List do
+		local row = if i <= perShelf then 0 else 1
+		local col = if row == 0 then i - 1 else i - 1 - perShelf
+		local x = -width / 2 + 2.5 + col * (width - 5) / math.max(perShelf - 1, 1)
+		local shelfY = 3.2 + row * 3.4
+		if col == 0 then
+			part({ Name = "ShopShelf", Size = Vector3.new(width - 2, 0.3, 1.8), CFrame = base * CFrame.new(0, shelfY, depth / 2 - 1.3), Color = wood, Material = Enum.Material.Wood, Parent = shop })
+		end
+		local mini = GADGET_MINIS[gadget.Id]
+		if mini then
+			mini(base * CFrame.new(x, shelfY + 0.15, depth / 2 - 1.3), shop)
+		end
+		local plaque = part({ Name = "GadgetPlaque", Size = Vector3.new(2.4, 0.7, 0.1), CFrame = base * CFrame.new(x, shelfY - 0.55, depth / 2 - 2.25), Color = wood, Material = Enum.Material.WoodPlanks, CanCollide = false, Parent = shop })
+		local plaqueGui = Instance.new("SurfaceGui")
+		plaqueGui.Face = Enum.NormalId.Front
+		plaqueGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		plaqueGui.PixelsPerStud = 80
+		plaqueGui.LightInfluence = 0.3
+		plaqueGui.Parent = plaque
+		local label = Instance.new("TextLabel")
+		label.BackgroundTransparency = 1
+		label.Size = UDim2.fromScale(0.94, 0.9)
+		label.Position = UDim2.fromScale(0.03, 0.05)
+		label.Font = Enum.Font.FredokaOne
+		label.TextScaled = true
+		label.RichText = true
+		label.TextColor3 = Color3.fromRGB(255, 240, 210)
+		label.Text = ('%s %s  <font color="#78EB78">%s</font>'):format(gadget.Icon or "", gadget.Name:upper(), priceTag(gadget.Price))
+		label.Parent = plaqueGui
 	end
-	billboardSign(counter, "🛒 GADGET SHOP", "Buy & equip gadgets", C.Teal, 160, 18, 10)
+	-- Counter up front: teal top, a cash register and a service bell.
+	local counter = part({ Name = "Counter", Size = Vector3.new(12, 3.6, 2.4), CFrame = base * CFrame.new(0, 1.8, -depth / 2 + 1.4), Color = wood, Material = Enum.Material.Wood, Parent = shop })
+	part({ Name = "CounterTop", Size = Vector3.new(12.6, 0.3, 3), CFrame = base * CFrame.new(0, 3.75, -depth / 2 + 1.4), Color = teal, Material = Enum.Material.SmoothPlastic, Parent = shop })
+	part({ Name = "Register", Size = Vector3.new(1.6, 1, 1.2), CFrame = base * CFrame.new(3.5, 4.4, -depth / 2 + 1.5) * CFrame.Angles(math.rad(-15), 0, 0), Color = Color3.fromRGB(60, 65, 75), Material = Enum.Material.Metal, Parent = shop })
+	part({ Name = "RegisterScreen", Size = Vector3.new(1.1, 0.4, 0.05), CFrame = base * CFrame.new(3.5, 4.75, -depth / 2 + 0.85), Color = Color3.fromRGB(120, 255, 170), Material = Enum.Material.Neon, CanCollide = false, Parent = shop })
+	part({ Name = "Bell", Shape = Enum.PartType.Ball, Size = Vector3.new(0.6, 0.35, 0.6), CFrame = base * CFrame.new(-3.8, 4.05, -depth / 2 + 1.4), Color = C.Gold, Material = Enum.Material.Metal, Parent = shop })
+	-- Warm lanterns.
+	for _, x in { -width / 3, width / 3 } do
+		local lamp = part({ Name = "ShopLamp", Shape = Enum.PartType.Ball, Size = Vector3.new(1, 1, 1), CFrame = base * CFrame.new(x, height - 1.8, 0.5), Color = Color3.fromRGB(255, 205, 140), Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = shop })
+		local glow = Instance.new("PointLight")
+		glow.Color = Color3.fromRGB(255, 195, 130)
+		glow.Brightness = 0.9
+		glow.Range = 14
+		glow.Shadows = true
+		glow.Parent = lamp
+	end
 	return prompt(counter, "Buy & Equip", "Gadget Shop", 0)
 end
 
