@@ -666,10 +666,52 @@ local function buildBatShop(district: Folder)
 		model.PrimaryPart.Anchored = true
 		model.Name = "Display_" .. bat.Id
 		model.Parent = shop
-		local tag = part({ Name = "BatTag", Size = Vector3.new(0.4, 0.4, 0.4), CFrame = base * CFrame.new(x, 9.2, depth / 2 - 0.9), Transparency = 1, CanCollide = false, CanQuery = false, Parent = shop })
+		-- A small wooden plaque under each bat (floating tags crowded into one unreadable line).
 		local unlock = if bat.RequiredAscension > 0 then ("✨ ASC %d"):format(bat.RequiredAscension) elseif bat.Price == 0 then "FREE" else priceTag(bat.Price)
-		billboardSign(tag, bat.Name:upper(), unlock, Bats.Color(bat), 45, 0, 3.2)
+		local plaque = part({ Name = "BatPlaque", Size = Vector3.new(2.3, 0.95, 0.12), CFrame = base * CFrame.new(x, 0.95, depth / 2 - 0.62), Color = Color3.fromRGB(120, 78, 46), Material = Enum.Material.WoodPlanks, CanCollide = false, Parent = shop })
+		local plaqueGui = Instance.new("SurfaceGui")
+		plaqueGui.Face = Enum.NormalId.Front -- -Z: toward the shop's open front
+		plaqueGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		plaqueGui.PixelsPerStud = 80
+		plaqueGui.LightInfluence = 0.3
+		plaqueGui.Parent = plaque
+		for row, lineInfo in { { bat.Name:upper(), Color3.fromRGB(255, 240, 210), 0.05, 0.5 }, { unlock, Bats.Color(bat), 0.55, 0.4 } } do
+			local label = Instance.new("TextLabel")
+			label.BackgroundTransparency = 1
+			label.Position = UDim2.fromScale(0.04, lineInfo[3])
+			label.Size = UDim2.fromScale(0.92, lineInfo[4])
+			label.Font = if row == 1 then Enum.Font.FredokaOne else Enum.Font.GothamBlack
+			label.TextScaled = true
+			label.TextColor3 = lineInfo[2]
+			label.Text = lineInfo[1]
+			label.Parent = plaqueGui
+			local stroke = Instance.new("UIStroke")
+			stroke.Color = Color3.fromRGB(40, 24, 14)
+			stroke.Thickness = 1.5
+			stroke.Parent = label
+		end
 	end
+	-- Calm, warm light: three hanging lanterns and a soft wash on the bat wall. Barely there in
+	-- the day, a cosy glow at night.
+	for _, x in { -width / 3, 0, width / 3 } do
+		part({ Name = "BatLampCord", Size = Vector3.new(0.1, 2, 0.1), CFrame = base * CFrame.new(x, height - 1, 0), Color = Color3.fromRGB(30, 30, 30), CanCollide = false, CanQuery = false, Parent = shop })
+		local lamp = part({ Name = "BatLamp", Shape = Enum.PartType.Ball, Size = Vector3.new(1.1, 1.1, 1.1), CFrame = base * CFrame.new(x, height - 2.3, 0), Color = Color3.fromRGB(255, 205, 140), Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = shop })
+		local glow = Instance.new("PointLight")
+		glow.Color = Color3.fromRGB(255, 190, 120)
+		glow.Brightness = 0.9
+		glow.Range = 14
+		glow.Shadows = true
+		glow.Parent = lamp
+	end
+	local wash = part({ Name = "BatWallWash", Size = Vector3.new(1, 1, 1), CFrame = base * CFrame.new(0, height - 1.5, -depth / 2 + 2) * CFrame.Angles(math.rad(25), 0, 0), Transparency = 1, CanCollide = false, CanQuery = false, Parent = shop })
+	local spot = Instance.new("SpotLight")
+	spot.Face = Enum.NormalId.Back -- toward the back wall and its bats
+	spot.Color = Color3.fromRGB(255, 215, 170)
+	spot.Brightness = 1.2
+	spot.Range = 18
+	spot.Angle = 80
+	spot.Parent = wash
+
 	-- The counter up front, and a giant bat on the roof.
 	local counter = part({ Name = "BatCounter", Size = Vector3.new(12, 3.6, 2.4), CFrame = base * CFrame.new(0, 1.8, -depth / 2 + 1), Color = Color3.fromRGB(150, 100, 60), Material = Enum.Material.Wood, Parent = shop })
 	part({ Name = "BatCounterTop", Size = Vector3.new(12.6, 0.3, 3), CFrame = base * CFrame.new(0, 3.75, -depth / 2 + 1), Color = C.Gold, Material = Enum.Material.Metal, Parent = shop })
@@ -817,6 +859,67 @@ local function buildInfoBoard(district: Folder)
 	local readerPrompt = prompt(reader, "Read & Sign Up", "Info Board", 0)
 	readerPrompt.MaxActivationDistance = 14
 	return readerPrompt
+end
+
+-- ASCENSION SHOP: a small marble-and-gold boutique with a purple crystal roof. Sealed with a
+-- glowing barrier ("OPENING SOON") until GameConfig.AscensionShop.Enabled.
+local function buildAscensionShop(district: Folder)
+	local layout = WorldLayout.AscensionShop
+	local shop = folder("AscensionShop", district)
+	local y = WorldLayout.District.Center.Y + 1
+	local base = CFrame.lookAt(Vector3.new(layout.Position.X, y, layout.Position.Z), Vector3.new(layout.Facing.X, y, layout.Facing.Z))
+	local width, depth, height = 20, 12, 13
+	local marble = Color3.fromRGB(240, 234, 220)
+	local purple = Color3.fromRGB(120, 60, 200)
+	part({ Name = "AscShopFloor", Size = Vector3.new(width + 3, 0.6, depth + 5), CFrame = base * CFrame.new(0, 0.3, 1), Color = Color3.fromRGB(70, 55, 105), Material = Enum.Material.Marble, Parent = shop })
+	part({ Name = "AscShopStep", Size = Vector3.new(width - 4, 0.5, 2), CFrame = base * CFrame.new(0, 0.25, -depth / 2 - 2), Color = marble, Material = Enum.Material.Marble, Parent = shop })
+	-- Walls: back and sides in marble, gold base trim.
+	part({ Name = "AscShopBack", Size = Vector3.new(width, height, 1), CFrame = base * CFrame.new(0, height / 2, depth / 2), Color = marble, Material = Enum.Material.Marble, Parent = shop })
+	for _, sx in { -1, 1 } do
+		part({ Name = "AscShopSide", Size = Vector3.new(1, height, depth), CFrame = base * CFrame.new(sx * width / 2, height / 2, 0), Color = marble, Material = Enum.Material.Marble, Parent = shop })
+		-- Front pillars with gold capitals.
+		cylinder((base * CFrame.new(sx * (width / 2 - 1.5), height / 2, -depth / 2)).Position, height, 1.8, { Name = "AscShopPillar", Color = marble, Material = Enum.Material.Marble, Parent = shop })
+		cylinder((base * CFrame.new(sx * (width / 2 - 1.5), height + 0.3, -depth / 2)).Position, 0.6, 2.4, { Name = "AscShopCapital", Color = C.Gold, Material = Enum.Material.Metal, Parent = shop })
+	end
+	part({ Name = "AscShopTrim", Size = Vector3.new(width + 0.4, 0.5, depth + 0.4), CFrame = base * CFrame.new(0, 0.85, 0), Color = C.Gold, Material = Enum.Material.Metal, CanCollide = false, Parent = shop })
+	-- Lintel and a crystal roof (a low purple glass pyramid of slabs).
+	part({ Name = "AscShopLintel", Size = Vector3.new(width + 1, 1.2, 1.4), CFrame = base * CFrame.new(0, height + 0.6, -depth / 2), Color = C.Gold, Material = Enum.Material.Metal, Parent = shop })
+	for i = 0, 3 do
+		local shrink = i * 2.6
+		part({ Name = "AscShopRoof", Size = Vector3.new(width + 1 - shrink * 2, 1, depth + 2 - shrink * 1.4), CFrame = base * CFrame.new(0, height + 1.2 + i, 0.2), Color = purple, Material = Enum.Material.Glass, Transparency = 0.25, Parent = shop })
+	end
+	local crystal = part({ Name = "AscShopCrystal", Size = Vector3.new(1.6, 4, 1.6), CFrame = base * CFrame.new(0, height + 6.5, 0.2) * CFrame.Angles(0, math.rad(45), 0), Color = Color3.fromRGB(200, 150, 255), Material = Enum.Material.Neon, CanCollide = false, Parent = shop })
+	local crystalLight = Instance.new("PointLight")
+	crystalLight.Color = Color3.fromRGB(190, 130, 255)
+	crystalLight.Brightness = 1.2
+	crystalLight.Range = 20
+	crystalLight.Parent = crystal
+	-- Inside: empty display plinths waiting for the premium gadgets, softly lit.
+	for _, x in { -6, 0, 6 } do
+		cylinder((base * CFrame.new(x, 1.6, depth / 2 - 3)).Position, 2.2, 2.4, { Name = "AscShopPlinth", Color = marble, Material = Enum.Material.Marble, Parent = shop })
+		local glow = part({ Name = "AscShopGlow", Shape = Enum.PartType.Ball, Size = Vector3.new(0.8, 0.8, 0.8), CFrame = base * CFrame.new(x, 3.4, depth / 2 - 3), Color = Color3.fromRGB(210, 160, 255), Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = shop })
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(200, 150, 255)
+		light.Brightness = 0.7
+		light.Range = 9
+		light.Parent = glow
+	end
+	-- The sealed entrance: a shimmering violet barrier until the shop opens.
+	local open = GameConfig.AscensionShop.Enabled
+	local barrier = part({
+		Name = "AscShopBarrier",
+		Size = Vector3.new(width - 4.8, height - 1, 0.3),
+		CFrame = base * CFrame.new(0, height / 2, -depth / 2 + 0.2),
+		Color = Color3.fromRGB(170, 110, 255),
+		Material = Enum.Material.ForceField,
+		Transparency = if open then 1 else 0.2,
+		CanCollide = not open,
+		Parent = shop,
+	})
+	billboardSign(crystal, "✨ ASCENSION SHOP", if open then "Premium gadgets • Ascension only" else "Opening soon • Premium gadgets", Color3.fromRGB(210, 160, 255), 160, 5, 10)
+	local p = prompt(barrier, if open then "Browse" else "Peek inside", "Ascension Shop", 0)
+	p.MaxActivationDistance = 14
+	return p
 end
 
 local function buildShop(district: Folder)
@@ -1940,6 +2043,7 @@ function WorldBuilder.Build()
 	local shopPrompt = buildShop(district)
 	local batShopPrompt = buildBatShop(district)
 	local infoBoardPrompt = buildInfoBoard(district)
+	local ascensionShopPrompt = buildAscensionShop(district)
 	local altarPrompt = buildAscensionAltar(district)
 	local plots = buildVaultPlots(district)
 	local leaderboards = buildLeaderboards(district)
@@ -2001,6 +2105,7 @@ function WorldBuilder.Build()
 		ShopPrompt = shopPrompt,
 		BatShopPrompt = batShopPrompt,
 		InfoBoardPrompt = infoBoardPrompt,
+		AscensionShopPrompt = ascensionShopPrompt,
 		AltarPrompt = altarPrompt,
 		VaultPlots = plots,
 		Leaderboards = leaderboards,

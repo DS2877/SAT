@@ -308,6 +308,14 @@ GameConfig.Training = {
 	},
 }
 
+-- ASCENSION SHOP (the building beside the spawn pavilion): premium gadgets, very expensive,
+-- each locked behind an Ascension level. The building is in; the shop opens when Enabled is
+-- true and Items are filled in (same shape as Config/Gadgets entries + RequiredAscension).
+GameConfig.AscensionShop = {
+	Enabled = false,
+	Items = {},
+}
+
 GameConfig.Vault = {
 	-- Progression tiers. Vaults grow UP: every PerFloor slots add a new floor to the gallery.
 	Tiers = {

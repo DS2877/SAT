@@ -204,6 +204,53 @@ local function trophyOf(data): (any, string?, number)
 	return def, mutation, if def then Economy.Income(def, mutation) else 0
 end
 
+-- A premium wooden sign in front of the plinth: whose trophy, what it is, what it earns.
+-- Readable up close like a museum plaque instead of text floating in the air.
+local function trophySign(plot, base: CFrame, player: Player, def, mutation: string?, income: number)
+	local dark = Color3.fromRGB(62, 40, 26)
+	local gold = Color3.fromRGB(255, 196, 50)
+	local at = base * CFrame.new(0, 0, -5.2)
+	for _, x in { -2.6, 2.6 } do
+		newPart(plot.Displays, { Name = "TrophySignPost", Size = Vector3.new(0.35, 3.6, 0.35), CFrame = at * CFrame.new(x, 1.8, 0.1), Color = dark, Material = Enum.Material.Wood })
+	end
+	newPart(plot.Displays, { Name = "TrophySignTrim", Size = Vector3.new(6.2, 2.9, 0.18), CFrame = at * CFrame.new(0, 2.45, 0.05), Color = gold, Material = Enum.Material.Metal, Reflectance = 0.15 })
+	local board = newPart(plot.Displays, { Name = "TrophySign", Size = Vector3.new(5.9, 2.6, 0.25), CFrame = at * CFrame.new(0, 2.45, -0.05), Color = Color3.fromRGB(120, 78, 46), Material = Enum.Material.WoodPlanks })
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front -- faces the plaza
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 70
+	gui.LightInfluence = 0.25
+	gui.Parent = board
+	local function line(text: string, y: number, height: number, color: Color3, font: Enum.Font)
+		local label = Instance.new("TextLabel")
+		label.BackgroundTransparency = 1
+		label.Position = UDim2.fromScale(0.06, y)
+		label.Size = UDim2.fromScale(0.88, height)
+		label.Font = font
+		label.TextScaled = true
+		label.TextColor3 = color
+		label.Text = text
+		label.Parent = gui
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Color3.fromRGB(40, 24, 14)
+		stroke.Thickness = 2
+		stroke.Parent = label
+		return label
+	end
+	local cream = Color3.fromRGB(255, 240, 210)
+	line(("%s'S TROPHY"):format(player.DisplayName:upper()), 0.06, 0.15, Color3.fromRGB(230, 200, 150), Enum.Font.GothamBold)
+	if not def then
+		line("CHOOSE ONE", 0.28, 0.3, cream, Enum.Font.FredokaOne)
+		line("Tap 🏆 on a treasure in your vault terminal", 0.64, 0.18, Color3.fromRGB(230, 200, 150), Enum.Font.GothamBold)
+		return
+	end
+	local info = Rarities.Info[def.Rarity]
+	line(def.Name:upper(), 0.24, 0.3, cream, Enum.Font.FredokaOne)
+	local mutationText = if mutation and mutation ~= "" then mutation:upper() .. " • " else ""
+	line(("%s%s%s"):format(info.Glyph and (info.Glyph .. " ") or "", mutationText, def.Rarity:upper()), 0.56, 0.16, info.Color, Enum.Font.GothamBlack)
+	line(("%s / s"):format(formatShort(income)), 0.75, 0.19, Color3.fromRGB(120, 235, 120), Enum.Font.FredokaOne)
+end
+
 local function buildTrophy(plot, player: Player, data, incomeMultiplier: number)
 	local half = cfg.PlotDepth / 2
 	local base = plot.CFrame * CFrame.new(-11.5, 0, -half - 5)
@@ -215,8 +262,7 @@ local function buildTrophy(plot, player: Player, data, incomeMultiplier: number)
 	newPart(plot.Displays, { Name = "TrophyColumn", Shape = Enum.PartType.Cylinder, Size = Vector3.new(3.4, 4, 4), CFrame = base * CFrame.new(0, 2.5, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = marble, Material = Enum.Material.Marble })
 	newPart(plot.Displays, { Name = "TrophyTop", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 5.4, 5.4), CFrame = base * CFrame.new(0, 4.45, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = gold, Material = Enum.Material.Metal, Reflectance = 0.2 })
 	if not def then
-		local sign = newPart(plot.Displays, { Name = "TrophyEmpty", Size = Vector3.new(1, 1, 1), CFrame = base * CFrame.new(0, 6.5, 0), Transparency = 1, CanCollide = false, CanQuery = false })
-		label(sign, "🏆 PICK A TROPHY AT YOUR VAULT TERMINAL", Color3.fromRGB(255, 225, 140), 0, 40, 8)
+		trophySign(plot, base, player, nil, nil, 0)
 		return
 	end
 	local info = Rarities.Info[def.Rarity]
@@ -247,12 +293,7 @@ local function buildTrophy(plot, player: Player, data, incomeMultiplier: number)
 	spot.Range = 20
 	spot.Angle = 50
 	spot.Parent = beam
-	-- A small nameplate on the plinth: whose, what, how much.
-	local plate = newPart(plot.Displays, { Name = "TrophyPlate", Size = Vector3.new(1, 1, 1), CFrame = base * CFrame.new(0, 1.6, -2.3), Transparency = 1, CanCollide = false, CanQuery = false })
-	local mutationText = if mutation and mutation ~= "" then mutation:upper() .. " " else ""
-	label(plate, ("%s • %s%s"):format(player.DisplayName, mutationText, def.Name:upper()), info.Color, 0, 70, 7)
-	local rate = newPart(plot.Displays, { Name = "TrophyRate", Size = Vector3.new(1, 1, 1), CFrame = base * CFrame.new(0, 0.7, -2.3), Transparency = 1, CanCollide = false, CanQuery = false })
-	label(rate, ("%s %s • %s/s"):format(info.Glyph or "", def.Rarity:upper(), formatShort(math.floor(income * incomeMultiplier + 0.5))), Color3.fromRGB(120, 235, 120), 0, 45, 5)
+	trophySign(plot, base, player, def, mutation, math.floor(income * incomeMultiplier + 0.5))
 end
 
 local function render(player: Player)

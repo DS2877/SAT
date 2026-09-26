@@ -32,6 +32,7 @@ local HazardService = require(Services.HazardService)
 local WaystoneService = require(Services.WaystoneService)
 local BatService = require(Services.BatService)
 local NewsService = require(Services.NewsService)
+local CodeService = require(Services.CodeService)
 
 Net.Init()
 Players.RespawnTime = GameConfig.Player.RespawnTime
@@ -58,6 +59,7 @@ HazardService.Init()
 WaystoneService.Init()
 BatService.Init()
 NewsService.Init()
+CodeService.Init()
 
 -- Funnel step 1: every first-time player (lets the dashboard show where newcomers drop off).
 PlayerData.Loaded:Connect(function(player)
@@ -68,6 +70,10 @@ end)
 
 world.BatShopPrompt.Triggered:Connect(function(player)
 	Net.Fire("OpenMenu", player, { Menu = "Bats", Anchor = (world.BatShopPrompt.Parent :: BasePart).Position })
+end)
+world.AscensionShopPrompt.Triggered:Connect(function(player)
+	-- Opens with GameConfig.AscensionShop.Enabled (menu to come); for now a teaser.
+	Net.Fire("Notify", player, { Kind = "Toast", Text = "✨ Opening soon: premium gadgets for Ascended heisters", Tone = "Info" })
 end)
 world.InfoBoardPrompt.Triggered:Connect(function(player)
 	Net.Fire("OpenMenu", player, { Menu = "News", Anchor = (world.InfoBoardPrompt.Parent :: BasePart).Position })

@@ -1,5 +1,6 @@
 -- Info Board menu (opened at the board beside the spawn pavilion): NEWS (live announcement +
--- posts), ROADMAP (done / now / next / later) and EVENTS (sign up; we ping you when it starts).
+-- posts), ROADMAP (done / now / next / later), EVENTS (sign up; we ping you when it starts)
+-- and CODES (type a code for a reward - Config/Codes, Services/CodeService).
 -- Content: Config/News. Sign-ups + live announcements: Services/NewsService.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -15,7 +16,7 @@ local Kit = require(UI.Kit)
 
 local NewsMenu = {}
 
-local TABS = { "NEWS", "ROADMAP", "EVENTS" }
+local TABS = { "NEWS", "ROADMAP", "EVENTS", "CODES" }
 local STATUS_TITLES = { Done = "✅ DONE", Now = "🛠 WORKING ON IT", Next = "⏭ UP NEXT", Later = "🔮 LATER" }
 local STATUS_ORDER = { "Now", "Next", "Later", "Done" }
 
@@ -91,7 +92,7 @@ function NewsMenu.Build(root: Frame)
 	end
 	for i, tab in TABS do
 		pages[tab] = page(root)
-		tabButtons[tab] = Kit.button({ LayoutOrder = i, Size = UDim2.fromScale(0.3, 1), Text = tab, TextSize = 18, Parent = tabBar }, function()
+		tabButtons[tab] = Kit.button({ LayoutOrder = i, Size = UDim2.fromScale(0.23, 1), Text = tab, TextSize = 16, Parent = tabBar }, function()
 			show(tab)
 		end)
 	end
@@ -153,6 +154,38 @@ function NewsMenu.Build(root: Frame)
 		end
 		eventRows[event.Id] = { Event = event, When = when, Count = count, Button = button, State = state }
 	end
+
+	-- CODES ---------------------------------------------------------------------------------
+	local codesPage = pages.CODES
+	local codeCard = card(codesPage, 1, Theme.Color.PanelLight, Theme.Color.Gold)
+	block(codeCard, { Text = "🎟 ENTER A CODE", Font = Theme.Font.Display, TextSize = 24, TextColor3 = Theme.Color.Gold })
+	block(codeCard, { Text = "Codes drop in updates, events and on our socials.", Font = Theme.Font.Body, TextSize = Theme.TextSize.Body, TextColor3 = Theme.Color.TextDim })
+	local codeRow = Kit.new("Frame", { Size = UDim2.new(1, 0, 0, 52), BackgroundTransparency = 1, Parent = codeCard })
+	local input = Kit.new("TextBox", {
+		Size = UDim2.fromScale(0.62, 1),
+		BackgroundColor3 = Color3.fromRGB(20, 24, 40),
+		TextColor3 = Theme.Color.Text,
+		PlaceholderText = "Type code here",
+		PlaceholderColor3 = Theme.Color.TextDim,
+		Text = "",
+		Font = Theme.Font.Bold,
+		TextSize = 20,
+		ClearTextOnFocus = false,
+		Parent = codeRow,
+	}, { Kit.corner(Theme.Radius.Medium), Kit.padding(0, 12) })
+	local function redeem()
+		local text = input.Text
+		if #text > 0 then
+			Net.Get("RedeemCode"):FireServer(text)
+			input.Text = ""
+		end
+	end
+	input.FocusLost:Connect(function(enterPressed)
+		if enterPressed then
+			redeem()
+		end
+	end)
+	Kit.button({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0), Size = UDim2.fromScale(0.35, 1), Text = "REDEEM", TextSize = 18, BackgroundColor3 = Theme.Color.Safe, TextColor3 = Color3.fromRGB(10, 40, 16), Parent = codeRow }, redeem)
 
 	local function tick()
 		local t = now()

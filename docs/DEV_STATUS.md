@@ -381,3 +381,13 @@ See docs/ROADMAP.md: 1 stabilise → 2 addictive core loop → 3 first 10 minute
   - selling works from inside the vault only
 - **One-time move:** returning players with 3 or more treasures get their best one moved out to the pedestal once (milestone `TrophyPedestal`).
 - **Stairs:** floors hold 16 pedestals, so floor 2 and its stairs appear at the 20-pedestal upgrade. Locked floors now say "🔒 FLOOR 2 • UPGRADE TO 20 PEDESTALS".
+
+## Trophy sign, Bat Shop lights, Ascension Shop building, codes
+- **Trophy sign:** the pedestal's floating text is replaced by a premium wooden sign in front of the plinth: a dark wood board with a gold trim showing whose trophy, the treasure, its mutation and rarity, and $/s.
+- **Bat Shop:**
+  - three hanging warm lanterns with shadows, plus a soft wall wash, giving a calm glow that shows at night
+  - the floating per-bat tags are replaced by wooden plaques under each bat
+- **Ascension Shop building:** a marble-and-gold boutique with a purple crystal roof across the pavilion from the Info Board (`WorldLayout.AscensionShop`). It's sealed by a violet barrier ("Opening soon") until `GameConfig.AscensionShop.Enabled` is true and its Items are filled in.
+- **Codes:** the Info Board's CODES tab feeds `Config/Codes` and `Services/CodeService`. Codes are case-insensitive, and `Once` codes are remembered in the save.
+  - `Devdev` (admins only): Ascension 3 and 140,000 Strength.
+  - `NoDev` (admins only): the save becomes a brand-new account, with purchase receipts kept so products are never granted twice, and the character respawns.

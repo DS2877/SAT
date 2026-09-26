@@ -1374,6 +1374,21 @@ test("trophy pedestal: an extra pedestal that never changes income", function()
 	check(#kept == 2, "the trophy counts for heirlooms")
 end)
 
+test("codes: the testing codes exist, are admin-only, and the reset keeps receipts", function()
+	local Codes = require("../src/shared/Config/Codes")
+	check(Codes.devdev and Codes.devdev.Action == "DevBoost" and Codes.devdev.AdminOnly == true, "Devdev: admin-only dev boost")
+	check(Codes.nodev and Codes.nodev.Action == "Reset" and Codes.nodev.AdminOnly == true, "NoDev: admin-only reset")
+	for code, entry in Codes do
+		if type(entry) == "table" then
+			check(code == string.lower(code), code .. " is stored lower-case (codes are case-insensitive)")
+		end
+	end
+	check(Codes.DevAscension == 3, "Devdev gives Ascension 3")
+	local fresh = DataSchema.Default()
+	check(fresh.Ascension == 0 and fresh.Cash == 0 and next(fresh.Vault.Displays) == nil, "a reset is a brand-new save")
+	check(type(fresh.RedeemedCodes) == "table", "one-time codes are remembered in the save")
+end)
+
 print(("%d passed, %d failed"):format(passed, failed))
 if failed > 0 then
 	error("tests failed")

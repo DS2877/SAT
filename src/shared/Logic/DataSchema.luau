@@ -47,6 +47,7 @@ function DataSchema.Default()
 		TutorialStep = 0,
 		EventSignups = {}, -- [eventId] = os.time() signed up at the Info Board (Config/News)
 		NewsSeen = "", -- id of the newest Info Board post the player has read
+		RedeemedCodes = {}, -- [code] = os.time() for one-time codes (Config/Codes)
 	}
 end
 

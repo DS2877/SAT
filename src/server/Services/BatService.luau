@@ -204,6 +204,11 @@ local function onEquip(player: Player, id: any)
 	attach(player)
 end
 
+-- Rebuild the bat in hand (e.g. after a save reset).
+function BatService.Refresh(player: Player)
+	attach(player)
+end
+
 function BatService.Init()
 	Net.On("BuyBat", onBuy, 3)
 	Net.On("EquipBat", onEquip, 4)

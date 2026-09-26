@@ -42,6 +42,7 @@ Net.ClientToServer = {
 	"SendFeedback", -- (vote -1/0/1, text) from the 💬 menu
 	"EventSignup", -- (eventId, wantIn) at the Info Board
 	"NewsSeen", -- (postId) the newest post the player has read on the Info Board
+	"RedeemCode", -- (text) a code typed on the Info Board (Config/Codes)
 }
 
 local FOLDER_NAME = "Remotes"
