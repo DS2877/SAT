@@ -25,6 +25,7 @@ local Settlements = require(script.Parent.World.Settlements)
 local MapBoard = require(script.Parent.World.MapBoard)
 local DeepSouth = require(script.Parent.World.DeepSouth)
 local Bats = require(ReplicatedStorage.Shared.Config.Bats)
+local News = require(ReplicatedStorage.Shared.Config.News)
 local BatModels = require(ReplicatedStorage.Shared.BatModels)
 local Waystones = require(script.Parent.World.Waystones)
 local Falls = require(script.Parent.World.Falls)
@@ -679,6 +680,143 @@ local function buildBatShop(district: Folder)
 	giant.Parent = shop
 	billboardSign(counter, "🏏 BAT SHOP", "Slap people further", Color3.fromRGB(255, 130, 80), 160, 17, 10)
 	return prompt(counter, "Browse Bats", "Bat Shop", 0)
+end
+
+-- THE INFO BOARD: a big lit notice board (Config/News). The face is a SurfaceGui the server
+-- fills with the latest post, the featured event and the roadmap ticker; the client keeps the
+-- live parts ticking (Controllers/InfoBoard: countdown, sign-up count, live announcement).
+local function buildInfoBoard(district: Folder)
+	local layout = WorldLayout.InfoBoard
+	local board = folder("InfoBoard", district)
+	local y = WorldLayout.District.Center.Y + 1
+	local base = CFrame.lookAt(Vector3.new(layout.Position.X, y, layout.Position.Z), Vector3.new(layout.Facing.X, y, layout.Facing.Z))
+	local width, height, bottom = 22, 12, 3.5
+	local midY = bottom + height / 2
+	local navy = Color3.fromRGB(16, 22, 46)
+	-- Posts, footing and the panel.
+	for _, x in { -1, 1 } do
+		part({ Name = "InfoPost", Size = Vector3.new(1.4, bottom + height + 3, 1.4), CFrame = base * CFrame.new(x * (width / 2 + 0.9), (bottom + height + 3) / 2, 0.4), Color = Color3.fromRGB(45, 32, 26), Material = Enum.Material.WoodPlanks, Parent = board })
+		part({ Name = "InfoPostCap", Size = Vector3.new(2, 0.6, 2), CFrame = base * CFrame.new(x * (width / 2 + 0.9), bottom + height + 3.3, 0.4), Color = C.Gold, Material = Enum.Material.Metal, Parent = board })
+		part({ Name = "InfoFoot", Size = Vector3.new(2.6, 0.8, 2.6), CFrame = base * CFrame.new(x * (width / 2 + 0.9), 0.4, 0.4), Color = C.Stone, Material = Enum.Material.Slate, Parent = board })
+	end
+	local panel = part({ Name = "InfoPanel", Size = Vector3.new(width, height, 0.8), CFrame = base * CFrame.new(0, midY, 0.4), Color = navy, Material = Enum.Material.SmoothPlastic, Parent = board })
+	CollectionService:AddTag(panel, "InfoBoard")
+	-- Gold frame.
+	for _, sy in { -1, 1 } do
+		part({ Name = "InfoFrame", Size = Vector3.new(width + 1, 0.5, 1), CFrame = base * CFrame.new(0, midY + sy * (height / 2 + 0.25), 0.3), Color = C.Gold, Material = Enum.Material.Metal, Parent = board })
+	end
+	for _, sx in { -1, 1 } do
+		part({ Name = "InfoFrame", Size = Vector3.new(0.5, height, 1), CFrame = base * CFrame.new(sx * (width / 2 + 0.25), midY, 0.3), Color = C.Gold, Material = Enum.Material.Metal, Parent = board })
+	end
+	-- Marquee on top: a red sign ringed with bulbs, and a little slate roof over it all.
+	local marqueeY = bottom + height + 1.9
+	local marquee = part({ Name = "InfoMarquee", Size = Vector3.new(14, 2.6, 0.8), CFrame = base * CFrame.new(0, marqueeY, 0.3), Color = Color3.fromRGB(190, 40, 50), Material = Enum.Material.SmoothPlastic, Parent = board })
+	local marqueeGui = Instance.new("SurfaceGui")
+	marqueeGui.Face = Enum.NormalId.Front
+	marqueeGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	marqueeGui.PixelsPerStud = 40
+	marqueeGui.LightInfluence = 0
+	marqueeGui.Parent = marquee
+	local marqueeText = Instance.new("TextLabel")
+	marqueeText.BackgroundTransparency = 1
+	marqueeText.Size = UDim2.fromScale(1, 1)
+	marqueeText.Font = Enum.Font.FredokaOne
+	marqueeText.TextScaled = true
+	marqueeText.TextColor3 = Color3.fromRGB(255, 230, 120)
+	marqueeText.Text = "📰 ISLAND NEWS"
+	marqueeText.Parent = marqueeGui
+	local bulbs = 16
+	for i = 0, bulbs - 1 do
+		local x = -7.4 + i * 14.8 / (bulbs - 1)
+		for _, sy in { -1, 1 } do
+			local bulb = part({ Name = "InfoBulb", Shape = Enum.PartType.Ball, Size = Vector3.new(0.45, 0.45, 0.45), CFrame = base * CFrame.new(x, marqueeY + sy * 1.55, -0.15), Color = if i % 2 == 0 then Color3.fromRGB(255, 220, 120) else Color3.new(1, 1, 1), Material = Enum.Material.Neon, CanCollide = false, Parent = board })
+			CollectionService:AddTag(bulb, "InfoBulb")
+		end
+	end
+	part({ Name = "InfoRoof", Size = Vector3.new(width + 5, 0.6, 4.2), CFrame = base * CFrame.new(0, bottom + height + 4, -0.2) * CFrame.Angles(math.rad(-10), 0, 0), Color = Color3.fromRGB(34, 36, 48), Material = Enum.Material.Slate, Parent = board })
+	-- Two lanterns so it glows at night.
+	for _, x in { -1, 1 } do
+		local lantern = part({ Name = "InfoLantern", Size = Vector3.new(0.9, 1.2, 0.9), CFrame = base * CFrame.new(x * (width / 2 + 0.9), bottom + height + 1.2, -1.2), Color = Color3.fromRGB(255, 210, 120), Material = Enum.Material.Neon, CanCollide = false, Parent = board })
+		local light = Instance.new("PointLight")
+		light.Range = 18
+		light.Brightness = 1.3
+		light.Color = Color3.fromRGB(255, 210, 140)
+		light.Parent = lantern
+	end
+
+	-- The face.
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "InfoFace"
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 50 -- 1100 x 600
+	gui.LightInfluence = 0
+	gui.Parent = panel
+	local function text(name: string, props: { [string]: any }): TextLabel
+		local label = Instance.new("TextLabel")
+		label.Name = name
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.GothamBold
+		label.TextColor3 = Color3.new(1, 1, 1)
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextYAlignment = Enum.TextYAlignment.Top
+		label.TextWrapped = true
+		for key, value in props do
+			(label :: any)[key] = value
+		end
+		label.Parent = props.Parent or gui
+		return label
+	end
+	local function card(name: string, position: UDim2, size: UDim2, color: Color3): Frame
+		local frame = Instance.new("Frame")
+		frame.Name = name
+		frame.Position = position
+		frame.Size = size
+		frame.BackgroundColor3 = color
+		frame.Parent = gui
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 18)
+		corner.Parent = frame
+		return frame
+	end
+	-- Live announcement strip (hidden until "/announce").
+	local live = card("Live", UDim2.fromOffset(24, 18), UDim2.new(1, -48, 0, 70), Color3.fromRGB(230, 60, 60))
+	live.Visible = false
+	text("LiveText", { Parent = live, Position = UDim2.fromOffset(20, 10), Size = UDim2.new(1, -40, 1, -20), Font = Enum.Font.FredokaOne, TextScaled = true, TextYAlignment = Enum.TextYAlignment.Center, Text = "" })
+	-- Latest post (left).
+	local latest = News.Posts[1]
+	local postCard = card("Post", UDim2.fromOffset(24, 104), UDim2.fromOffset(640, 400), Color3.fromRGB(28, 36, 72))
+	text("PostTag", { Parent = postCard, Position = UDim2.fromOffset(28, 20), Size = UDim2.fromOffset(580, 36), TextSize = 30, TextColor3 = Color3.fromRGB(255, 200, 60), Text = if latest then ("%s • %s"):format(if latest.Kind == "Announcement" then "📌 ANNOUNCEMENT" else "📰 NEWS", latest.Date) else "" })
+	text("PostTitle", { Parent = postCard, Position = UDim2.fromOffset(28, 62), Size = UDim2.fromOffset(590, 100), Font = Enum.Font.FredokaOne, TextScaled = true, Text = if latest then ("%s %s"):format(latest.Icon, latest.Title) else "" })
+	local body = text("PostBody", { Parent = postCard, Position = UDim2.fromOffset(28, 176), Size = UDim2.fromOffset(590, 210), TextScaled = true, Font = Enum.Font.Gotham, TextColor3 = Color3.fromRGB(215, 222, 245), Text = if latest then latest.Body else "" })
+	local fit = Instance.new("UITextSizeConstraint") -- long posts shrink to fit, short ones stay readable
+	fit.MaxTextSize = 30
+	fit.Parent = body
+	-- Featured event (right).
+	local eventCard = card("Event", UDim2.fromOffset(688, 104), UDim2.fromOffset(388, 400), Color3.fromRGB(70, 30, 110))
+	text("EventTag", { Parent = eventCard, Position = UDim2.fromOffset(24, 20), Size = UDim2.fromOffset(340, 36), TextSize = 30, TextColor3 = Color3.fromRGB(255, 200, 60), Text = "📅 NEXT EVENT" })
+	text("EventTitle", { Parent = eventCard, Position = UDim2.fromOffset(24, 62), Size = UDim2.fromOffset(340, 110), Font = Enum.Font.FredokaOne, TextScaled = true, Text = "" })
+	text("EventWhen", { Parent = eventCard, Position = UDim2.fromOffset(24, 186), Size = UDim2.fromOffset(340, 80), Font = Enum.Font.FredokaOne, TextScaled = true, TextColor3 = Color3.fromRGB(120, 230, 255), Text = "" })
+	text("EventSignups", { Parent = eventCard, Position = UDim2.fromOffset(24, 280), Size = UDim2.fromOffset(340, 40), TextSize = 30, Text = "" })
+	text("EventHint", { Parent = eventCard, Position = UDim2.fromOffset(24, 336), Size = UDim2.fromOffset(340, 40), TextSize = 26, TextColor3 = Color3.fromRGB(255, 220, 120), Text = "▶ SIGN UP AT THE BOARD" })
+	-- Roadmap ticker (bottom).
+	local ticker = card("Ticker", UDim2.fromOffset(24, 524), UDim2.new(1, -48, 0, 56), Color3.fromRGB(10, 14, 30))
+	local now, nextUp = {}, {}
+	for _, item in News.Roadmap do
+		if item.Status == "Now" then
+			table.insert(now, item.Title)
+		elseif item.Status == "Next" then
+			table.insert(nextUp, item.Title)
+		end
+	end
+	text("TickerText", { Parent = ticker, Position = UDim2.fromOffset(20, 8), Size = UDim2.new(1, -40, 1, -16), TextScaled = true, TextYAlignment = Enum.TextYAlignment.Center, TextColor3 = Color3.fromRGB(200, 210, 240), Text = ("🛠 NOW: %s     ⏭ NEXT: %s"):format(table.concat(now, " • "), table.concat(nextUp, " • ")) })
+
+	billboardSign(marquee, "📰 INFO BOARD", "News • Roadmap • Events", Color3.fromRGB(255, 200, 80), 160, 6, 10)
+	-- The prompt sits at the front, at chest height.
+	local reader = part({ Name = "InfoReader", Size = Vector3.new(4, 3, 1), CFrame = base * CFrame.new(0, 2, -1.5), Transparency = 1, CanCollide = false, CanQuery = false, Parent = board })
+	local readerPrompt = prompt(reader, "Read & Sign Up", "Info Board", 0)
+	readerPrompt.MaxActivationDistance = 14
+	return readerPrompt
 end
 
 local function buildShop(district: Folder)
@@ -1801,6 +1939,7 @@ function WorldBuilder.Build()
 	local machines = buildGym(district)
 	local shopPrompt = buildShop(district)
 	local batShopPrompt = buildBatShop(district)
+	local infoBoardPrompt = buildInfoBoard(district)
 	local altarPrompt = buildAscensionAltar(district)
 	local plots = buildVaultPlots(district)
 	local leaderboards = buildLeaderboards(district)
@@ -1861,6 +2000,7 @@ function WorldBuilder.Build()
 		Benches = machines,
 		ShopPrompt = shopPrompt,
 		BatShopPrompt = batShopPrompt,
+		InfoBoardPrompt = infoBoardPrompt,
 		AltarPrompt = altarPrompt,
 		VaultPlots = plots,
 		Leaderboards = leaderboards,

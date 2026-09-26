@@ -39,6 +39,8 @@ Net.ClientToServer = {
 	"SetSetting", -- (name, value) player preferences, e.g. Music on/off
 	"DropTreasure", -- put down the treasure you are carrying
 	"SendFeedback", -- (vote -1/0/1, text) from the 💬 menu
+	"EventSignup", -- (eventId, wantIn) at the Info Board
+	"NewsSeen", -- (postId) the newest post the player has read on the Info Board
 }
 
 local FOLDER_NAME = "Remotes"

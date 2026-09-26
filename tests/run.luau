@@ -17,6 +17,8 @@ local Monetization = require("../src/shared/Config/Monetization")
 local Mutations = require("../src/shared/Config/Mutations")
 local Music = require("../src/shared/Config/Music")
 local AdminCommand = require("../src/shared/Logic/AdminCommand")
+local News = require("../src/shared/Config/News")
+local NewsBoard = require("../src/shared/Logic/NewsBoard")
 Economy.Use(GameConfig, Mutations)
 DayNight.Use(GameConfig)
 Lifting.Use(GameConfig)
@@ -1240,6 +1242,55 @@ test("admin event commands parse", function()
 	check(e ~= nil and e.EventId == nil and not e.Global, "bare 'all' is unknown, not global")
 	local hosted = GameConfig.Events.Hosted
 	check(type(hosted.Title) == "string" and hosted.Lead >= 0 and hosted.Lead < 15, "hosted banner config")
+end)
+
+test("info board: event status, featured event, countdown, unread", function()
+	local e = { Id = "a", StartsAt = 1000, Duration = 100 }
+	check(NewsBoard.Status(e, 999) == "Upcoming" and NewsBoard.Status(e, 1000) == "Live", "starts on time")
+	check(NewsBoard.Status(e, 1099) == "Live" and NewsBoard.Status(e, 1100) == "Ended", "ends after its duration")
+	check(NewsBoard.Status({ Id = "b", Duration = 60 }, 5) == "TBA", "no date = TBA")
+	local live = { Id = "live", StartsAt = 900, Duration = 300 }
+	local soon = { Id = "soon", StartsAt = 2000, Duration = 60 }
+	local later = { Id = "later", StartsAt = 5000, Duration = 60 }
+	local tba = { Id = "tba", Duration = 60 }
+	local over = { Id = "over", StartsAt = 10, Duration = 60 }
+	check(NewsBoard.Featured({ later, tba, soon, live, over }, 1000) == live, "a live event is featured first")
+	check(NewsBoard.Featured({ later, tba, soon, over }, 1000) == soon, "then the soonest upcoming")
+	check(NewsBoard.Featured({ tba, over }, 1000) == tba, "then one still TBA")
+	check(NewsBoard.Featured({ over }, 1000) == nil, "ended events are never featured")
+	check(NewsBoard.Countdown(2 * 86400 + 4 * 3600 + 59) == "2d 4h", "days")
+	check(NewsBoard.Countdown(3 * 3600 + 12 * 60) == "3h 12m", "hours")
+	check(NewsBoard.Countdown(12 * 60 + 5) == "12m 05s", "minutes")
+	check(NewsBoard.Countdown(45) == "45s" and NewsBoard.Countdown(-3) == "0s", "seconds, never negative")
+	check(NewsBoard.When(tba, 0) == "DATE COMING SOON", "TBA line")
+	check(string.find(NewsBoard.When(live, 1000), "LIVE", 1, true) ~= nil, "live line")
+	local posts = { { Id = "c" }, { Id = "b" }, { Id = "a" } }
+	check(NewsBoard.UnreadCount(posts, "c") == 0 and NewsBoard.UnreadCount(posts, "a") == 2, "unread = posts above the last one read")
+	check(NewsBoard.UnreadCount(posts, "") == 3 and NewsBoard.UnreadCount(posts, nil) == 3, "never read = all unread")
+end)
+
+test("info board content is well-formed", function()
+	check(#News.Posts > 0, "at least one post")
+	local seen = {}
+	for _, post in News.Posts do
+		check(not seen[post.Id], "unique post id " .. post.Id)
+		seen[post.Id] = true
+		check(#post.Id <= 64, post.Id .. " fits the NewsSeen remote limit")
+		check(post.Kind == "News" or post.Kind == "Announcement", post.Id .. " kind")
+		check(#post.Title > 0 and #post.Body > 0 and #post.Date > 0, post.Id .. " has title, body and date")
+	end
+	for _, item in News.Roadmap do
+		check(News.StatusColors[item.Status] ~= nil, item.Title .. " has a known roadmap status")
+	end
+	local ids = {}
+	for _, event in News.Events do
+		check(not ids[event.Id], "unique event id " .. event.Id)
+		ids[event.Id] = true
+		check(News.GetEvent(event.Id) == event, event.Id .. " is found by id")
+		check(event.Duration >= 60, event.Id .. " lasts at least a minute")
+		check(event.StartsAt == nil or event.StartsAt > 1.7e9, event.Id .. " StartsAt is a real UTC unix time")
+	end
+	check(News.RemindBefore > 0 and News.LiveAnnouncementHours > 0, "reminder and announcement windows")
 end)
 
 print(("%d passed, %d failed"):format(passed, failed))

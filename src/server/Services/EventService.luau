@@ -301,6 +301,10 @@ local function broadcast(eventId: string): boolean
 	return ok
 end
 
+-- Owners / admins (Studio, the place owner, GameConfig.Events.AdminUserIds): also used by
+-- NewsService for "/announce".
+EventService.IsAdmin = isAdmin
+
 local lastCommand: { [Player]: number } = {}
 local function handleCommand(player: Player, message: string)
 	local parsed = AdminCommand.Parse(message, ALIASES)

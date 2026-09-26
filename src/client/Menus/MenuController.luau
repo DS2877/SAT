@@ -70,6 +70,13 @@ local MENUS = {
 		Subtitle = "Tell us what to add or fix • we read every message",
 		Accent = Color3.fromRGB(90, 160, 255),
 	},
+	News = {
+		Module = script.Parent.News,
+		Title = "INFO BOARD",
+		Icon = "📰",
+		Subtitle = "News • roadmap • events - sign up and we'll ping you when it starts",
+		Accent = Color3.fromRGB(230, 70, 80),
+	},
 	Store = {
 		Module = script.Parent.Store,
 		Title = "STORE",

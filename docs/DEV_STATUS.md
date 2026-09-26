@@ -334,3 +334,18 @@ See docs/ROADMAP.md: 1 stabilise → 2 addictive core loop → 3 first 10 minute
 - The Backpack hotbar is turned off. While you carry treasure the bat moves to your Backpack, then comes back to your hand.
 - Reach is short melee: 7 studs for the Wooden Bat, up to 9.5 for The Big Bang.
 - Sounds: a wooden whoosh when you swing, and a bat whack plus a hand slap where it lands (ProSoundEffects, see `music/CREDITS.md`).
+
+## Info Board (news, roadmap, announcements, event sign-ups)
+- A lit notice board sits beside the spawn pavilion (`WorldLayout.InfoBoard`). It has a red marquee with chasing bulbs, lanterns, and a live face showing the latest post, the next event's countdown and sign-up count, and a roadmap ticker.
+- Walking up and pressing **Read & Sign Up** opens a menu with three tabs:
+  - **NEWS:** the live announcement, pinned announcements and news.
+  - **ROADMAP:** done / now / next / later.
+  - **EVENTS:** your local time, a countdown, the sign-up count, and a **SIGN UP** button.
+- **Posting news, the roadmap or events:** edit `src/shared/Config/News.luau` and push.
+  - Posts go newest first.
+  - An event with `StartsAt = nil` shows "date coming soon". Players can still sign up for it.
+- **Live announcement from inside the game:** owners and admins type `/announce <text>` in chat.
+  - The text goes through Roblox's text filter, then appears on every server as a banner and pinned on the board for 24h.
+  - `/announce clear` takes it down.
+- **Sign-ups:** the global count per event is kept in the `SATEventSignups` DataStore. Signed-up players who are online get a heads-up 10 minutes before the start and a banner when it goes live, including if they join while it's on.
+- **Unread posts:** returning players get one toast about a post they haven't read. Opening the board marks it read.

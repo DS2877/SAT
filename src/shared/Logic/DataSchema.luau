@@ -44,6 +44,8 @@ function DataSchema.Default()
 			AutoCollect = true, -- only matters with the Auto Collect pass (can be switched off)
 		},
 		TutorialStep = 0,
+		EventSignups = {}, -- [eventId] = os.time() signed up at the Info Board (Config/News)
+		NewsSeen = "", -- id of the newest Info Board post the player has read
 	}
 end
 

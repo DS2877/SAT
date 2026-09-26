@@ -52,6 +52,9 @@ WorldLayout.Waystones = {
 -- Leaderboards: arc behind the fountain, facing the spawn
 WorldLayout.Leaderboards = { Radius = 40, SpreadDegrees = 100 }
 WorldLayout.AscensionAltar = Vector3.new(58, 10, 160)
+-- Info Board (news, roadmap, events + sign-ups): beside the spawn pavilion, facing the
+-- walk from the pavilion to the fountain so every arriving player sees it.
+WorldLayout.InfoBoard = { Position = Vector3.new(-36, 10, 270), Facing = Vector3.new(0, 10, 270) }
 
 -- Exits are big, easy-to-hit circles (radius 17 safe / 14-15 dangerous / 13 secret).
 WorldLayout.ExtractionZones = {
