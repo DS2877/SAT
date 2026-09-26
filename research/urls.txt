@@ -1,0 +1,6 @@
+# Public pages fetched by .github/workflows/research.yml (tools/research/fetch.py).
+# DevForum topics: use https://devforum.roblox.com/t/<id>.json ; search: /search.json?q=...
+https://devforum.roblox.com/t/4137672.json
+https://devforum.roblox.com/search.json?q=steal%20a%20brainrot%20bat%20animation
+https://devforum.roblox.com/search.json?q=steal%20a%20brainrot%20bat%20swing
+https://devforum.roblox.com/search.json?q=bat%20swing%20animation%20tool

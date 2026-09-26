@@ -1,0 +1,22 @@
+name: Research fetch
+
+# Prints the readable text of the public pages in research/urls.txt (read-only, no secrets),
+# for design research on sites the development sandbox can't reach.
+on:
+  push:
+    branches: ["claude/**", main]
+    paths:
+      - "research/**"
+      - "tools/research/**"
+      - ".github/workflows/research.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/research/fetch.py
