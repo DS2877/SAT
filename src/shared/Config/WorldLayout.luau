@@ -225,6 +225,10 @@ WorldLayout.TreasureSpawns = {
 	{ Area = "Wilds", Position = S.Farm + Vector3.new(8, 0, 22) }, -- by the crop field
 	{ Area = "Wilds", Position = S.Watchtower + Vector3.new(0, 22, 0), RayFrom = 36 }, -- on top
 	{ Area = "Wilds", Position = S.Camp + Vector3.new(5, 0, 5) },
+	{ Area = "Wilds", Position = Vector3.new(-175, 10, -85) },
+	{ Area = "Wilds", Position = Vector3.new(45, 10, -65) },
+	{ Area = "Wilds", Position = Vector3.new(-110, 10, -150) },
+	{ Area = "Wilds", Position = Vector3.new(20, 10, -130) },
 	-- SHIPWRECK COAST
 	{ Area = "Coast", Position = Vector3.new(-270, 10, 50) },
 	{ Area = "Coast", Position = Vector3.new(-280, 10, -80) },
@@ -233,6 +237,9 @@ WorldLayout.TreasureSpawns = {
 	{ Area = "Coast", Position = Vector3.new(-350, 10, -70) },
 	{ Area = "Coast", Position = Vector3.new(-215, 10, 30) },
 	{ Area = "Coast", Position = Vector3.new(-240, 10, -120) },
+	{ Area = "Coast", Position = Vector3.new(-300, 10, 95) },
+	{ Area = "Coast", Position = Vector3.new(-380, 10, -60) },
+	{ Area = "Coast", Position = Vector3.new(-230, 10, -40) },
 	{ Area = "Coast", Position = S.Village + Vector3.new(-11, 0, -16), RayFrom = 16 }, -- in a hut
 	{ Area = "Coast", Position = Vector3.new(S.Village.X - 90, 11, S.Village.Z - 2), RayFrom = 15 }, -- pier end
 	-- GLOWSHROOM MARSH
@@ -242,6 +249,9 @@ WorldLayout.TreasureSpawns = {
 	{ Area = "Marsh", Position = Vector3.new(320, 10, 200) },
 	{ Area = "Marsh", Position = Vector3.new(290, 10, 250) },
 	{ Area = "Marsh", Position = Vector3.new(195, 10, 170) },
+	{ Area = "Marsh", Position = Vector3.new(345, 10, 215) },
+	{ Area = "Marsh", Position = Vector3.new(215, 10, 250) },
+	{ Area = "Marsh", Position = Vector3.new(300, 10, 75) },
 	{ Area = "Marsh", Position = S.StiltVillage + Vector3.new(-9, 0, -8), RayFrom = S.StiltVillage.Y + 6 }, -- stilt hut
 	{ Area = "Marsh", Position = Vector3.new(241.5, 10, 101) }, -- drowned chapel nave
 	-- ANCIENT RUINS
@@ -339,18 +349,26 @@ WorldLayout.GuardianSpawns = {
 	-- EMBERFALL
 	{ Type = "MagmaGolem", Position = Vector3.new(100, 12, -615), PatrolRadius = 26 },
 	{ Type = "MagmaGolem", Position = Vector3.new(-40, 12, -760), PatrolRadius = 26 },
+	{ Type = "MagmaGolem", Position = Vector3.new(-120, 12, -610), PatrolRadius = 24 },
 	{ Type = "Salamander", Position = Vector3.new(125, 12, -710), PatrolRadius = 17 }, -- stays out of the Lava Outpost exit
 	{ Type = "Salamander", Position = Vector3.new(-170, 12, -700), PatrolRadius = 30 },
 	{ Type = "Salamander", Position = Vector3.new(80, 12, -560), PatrolRadius = 28 },
-	-- RIMEHEART
-	{ Type = "IceWraith", Position = Vector3.new(-80, 40, -860), PatrolRadius = 26, RayFrom = 80 },
-	{ Type = "IceWraith", Position = Vector3.new(70, 40, -915), PatrolRadius = 26, RayFrom = 80 },
-	{ Type = "IceWraith", Position = Vector3.new(-90, 40, -935), PatrolRadius = 24, RayFrom = 80 },
-	{ Type = "GlacialTitan", Position = Vector3.new(40, 40, -980), PatrolRadius = 24, RayFrom = 80 },
-	-- THE STARFALL ISLES (short patrols: they stay on their island)
-	{ Type = "StarSentinel", Position = Vector3.new(-70, 72, -1122), PatrolRadius = 7, RayFrom = 100 },
-	{ Type = "VoidWraith", Position = Vector3.new(70, 80, -1120), PatrolRadius = 7, RayFrom = 110 },
-	{ Type = "VoidWraith", Position = Vector3.new(-58, 95, -1184), PatrolRadius = 7, RayFrom = 130 },
+	{ Type = "Salamander", Position = Vector3.new(170, 12, -645), PatrolRadius = 26 },
+	{ Type = "Salamander", Position = Vector3.new(-90, 12, -765), PatrolRadius = 22 },
+	-- RIMEHEART: each one keeps to its own strip of glacier between the crevasses (Range), so
+	-- none of them can tumble in. North strip z -835..-874, middle -886..-944, south -956..-1005.
+	{ Type = "IceWraith", Position = Vector3.new(-90, 40, -852), PatrolRadius = 16, Range = 18, RayFrom = 80 },
+	{ Type = "IceWraith", Position = Vector3.new(105, 40, -852), PatrolRadius = 16, Range = 18, RayFrom = 80 },
+	{ Type = "IceWraith", Position = Vector3.new(-40, 40, -918), PatrolRadius = 18, Range = 20, RayFrom = 80 },
+	{ Type = "IceWraith", Position = Vector3.new(55, 40, -912), PatrolRadius = 18, Range = 22, RayFrom = 80 },
+	{ Type = "GlacialTitan", Position = Vector3.new(35, 40, -980), PatrolRadius = 18, Range = 20, RayFrom = 80 },
+	{ Type = "GlacialTitan", Position = Vector3.new(-110, 40, -982), PatrolRadius = 18, Range = 20, RayFrom = 80 },
+	-- THE STARFALL ISLES: each one owns an island (Range keeps it on top, never off the edge)
+	{ Type = "StarSentinel", Position = Vector3.new(-72, 72, -1120), PatrolRadius = 9, Range = 12, RayFrom = 100 },
+	{ Type = "VoidWraith", Position = Vector3.new(72, 80, -1122), PatrolRadius = 9, Range = 12, RayFrom = 110 },
+	{ Type = "VoidWraith", Position = Vector3.new(-60, 95, -1180), PatrolRadius = 9, Range = 12, RayFrom = 130 },
+	{ Type = "VoidWraith", Position = Vector3.new(0, 60, -1097), PatrolRadius = 7, Range = 10, RayFrom = 100 }, -- the Landing's far side
+	{ Type = "StarSentinel", Position = Vector3.new(12, 120, -1222), PatrolRadius = 5, Range = 8, RayFrom = 128 }, -- the Observatory (under its dome ring)
 }
 
 return WorldLayout

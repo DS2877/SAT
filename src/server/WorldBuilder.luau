@@ -2219,6 +2219,7 @@ function WorldBuilder.Build()
 			Type = info.Type,
 			Position = groundAt(info.Position.X, info.Position.Z, info.RayFrom or 40),
 			PatrolRadius = info.PatrolRadius,
+			Range = info.Range,
 		})
 	end
 

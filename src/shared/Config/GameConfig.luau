@@ -168,7 +168,7 @@ GameConfig.Stability = {
 GameConfig.Treasure = {
 	ReclaimProtection = 2,
 	DroppedTimeout = 30,
-	MaxActive = 30, -- loot per night wave (world + carried + dropped)
+	MaxActive = 34, -- loot per night wave (world + carried + dropped)
 	SpawnTick = 1, -- seconds between spawn checks during the night wave
 	RespawnDelayMin = 15,
 	RespawnDelayMax = 40,
@@ -181,8 +181,9 @@ GameConfig.Treasure = {
 	RarityByDanger = {
 		-- Legendaries are a real event near home (~1 in 80 in Ruins/Frost) and only become a
 		-- regular sight in the Deep South.
-		[1] = { Common = 60, Uncommon = 30, Rare = 9, Epic = 1, Legendary = 0 },
-		[2] = { Common = 32, Uncommon = 38, Rare = 24, Epic = 5.7, Legendary = 0.3 },
+		-- The first zones lean a little more Uncommon/Rare than they used to (60/30/9 in the Wilds).
+		[1] = { Common = 48, Uncommon = 36, Rare = 14, Epic = 2, Legendary = 0 },
+		[2] = { Common = 25, Uncommon = 41, Rare = 28, Epic = 5.7, Legendary = 0.3 },
 		[3] = { Common = 10, Uncommon = 30, Rare = 42, Epic = 16.8, Legendary = 1.2 },
 		[4] = { Common = 2, Uncommon = 20, Rare = 45, Epic = 30, Legendary = 3 },
 		[5] = { Common = 0, Uncommon = 14, Rare = 40, Epic = 40, Legendary = 6 },

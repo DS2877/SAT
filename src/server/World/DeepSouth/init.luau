@@ -43,8 +43,9 @@ local function paintRoad(terrain: Terrain)
 			for _, from in { Enum.Material.Basalt, Enum.Material.Rock, Enum.Material.CrackedLava, Enum.Material.Slate } do
 				terrain:ReplaceMaterial(region, 4, from, Enum.Material.Ground)
 			end
-			for _, from in { Enum.Material.Glacier, Enum.Material.Ice } do
-				terrain:ReplaceMaterial(region, 4, from, Enum.Material.Snow)
+			-- On the glacier: a trodden trail of packed grey snow through the white.
+			for _, from in { Enum.Material.Glacier, Enum.Material.Ice, Enum.Material.Snow } do
+				terrain:ReplaceMaterial(region, 4, from, Enum.Material.Salt)
 			end
 		end
 	end

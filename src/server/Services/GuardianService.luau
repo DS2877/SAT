@@ -25,6 +25,10 @@ type Guardian = {
 	Humanoid: Humanoid,
 	Home: Vector3,
 	PatrolRadius: number,
+	Range: number?, -- hard limit from Home it never walks past (islands, between crevasses)
+	Spawn: any, -- the spawn info, to rebuild it if it's ever lost
+	LastPos: Vector3,
+	StuckSince: number?,
 	State: string, -- "Patrol" | "Chase" | "Return" | "Stunned"
 	SlowUntil: number?, -- os.clock(): slowed by a bat hit until then
 	Target: Player?,
@@ -429,20 +433,77 @@ local function setState(g: Guardian, state: string, target: Player?)
 	end
 end
 
+-- Every walk goes through here: the goal is clamped to the guardian's Range, so it chases
+-- you to the edge of its island (or its strip of glacier) and no further.
+local function moveTo(g: Guardian, goal: Vector3)
+	if g.Range then
+		local offset = Vector3.new(goal.X - g.Home.X, 0, goal.Z - g.Home.Z)
+		if offset.Magnitude > g.Range then
+			goal = g.Home + offset.Unit * g.Range
+		end
+	end
+	g.Humanoid:MoveTo(goal)
+end
+
+local function teleportHome(g: Guardian)
+	local lift = g.Root.Size.Y / 2 + g.Humanoid.HipHeight + 0.5
+	g.Model:PivotTo(CFrame.new(g.Home + Vector3.new(0, lift, 0)))
+	g.Root.AssemblyLinearVelocity = Vector3.zero
+	g.StuckSince = nil
+	g.LastPos = g.Root.Position
+	setState(g, "Patrol", nil)
+	g.NextPatrolAt = 0
+end
+
+-- Keeps every guardian working: one that fell (a crevasse, off an island, through the map)
+-- is put back home, and one stuck on a rock for a while hops, then is put back home.
+local function recover(g: Guardian, now: number): boolean
+	local position = g.Root.Position
+	-- (30: well below any slope a patrol walks down; a crevasse floor or the sea is further.)
+	if position.Y < g.Home.Y - 30 then
+		teleportHome(g)
+		return true
+	end
+	local moved = (position - g.LastPos).Magnitude
+	g.LastPos = position
+	local goal = g.Humanoid.WalkToPoint
+	local wants = Vector3.new(goal.X - position.X, 0, goal.Z - position.Z).Magnitude > 5 and g.State ~= "Stunned"
+	if not wants or moved > 0.3 then
+		g.StuckSince = nil
+		return false
+	end
+	g.StuckSince = g.StuckSince or now
+	local stuck = now - (g.StuckSince :: number)
+	if stuck > 1.5 then
+		g.Humanoid.Jump = true
+	end
+	if stuck > 8 and g.State ~= "Chase" then
+		teleportHome(g)
+		return true
+	end
+	return false
+end
+
+local respawn
+
 local function step(g: Guardian, now: number)
-	if not g.Model.Parent then
+	if not g.Model.Parent or not g.Root.Parent then
+		respawn(g)
+		return
+	end
+	if recover(g, now) then
 		return
 	end
 	if g.State == "Stunned" then
 		if now < g.StateUntil then
-			g.Humanoid:MoveTo(g.Root.Position)
+			moveTo(g, g.Root.Position)
 			return
 		end
 		setState(g, "Return", nil)
 	end
 	if g.State == "Return" and now < g.StateUntil then
 		setSpeed(g, g.Def.PatrolSpeed * 1.4)
-		g.Humanoid:MoveTo(g.Home)
+		moveTo(g, g.Home)
 		return
 	end
 
@@ -451,7 +512,7 @@ local function step(g: Guardian, now: number)
 	if decoy and (decoy.Root.Position - g.Home).Magnitude <= g.Def.LeashRange then
 		setState(g, "Chase", nil)
 		setSpeed(g, g.Def.ChaseSpeed)
-		g.Humanoid:MoveTo(decoy.Root.Position)
+		moveTo(g, decoy.Root.Position)
 		if (decoy.Root.Position - g.Root.Position).Magnitude <= g.Def.AttackRange + g.Root.Size.Z / 2 then
 			decoy:Pop(nil)
 			setState(g, "Return", nil)
@@ -464,7 +525,7 @@ local function step(g: Guardian, now: number)
 	if target and targetRoot then
 		setState(g, "Chase", target)
 		setSpeed(g, g.Def.ChaseSpeed * rage(g))
-		g.Humanoid:MoveTo(targetRoot.Position)
+		moveTo(g, targetRoot.Position)
 		local reach = g.Def.AttackRange + g.Root.Size.Z / 2
 		if (targetRoot.Position - g.Root.Position).Magnitude <= reach and now - g.LastAttack >= g.Def.AttackCooldown then
 			g.LastAttack = now
@@ -485,7 +546,7 @@ local function step(g: Guardian, now: number)
 		setState(g, "Return", nil)
 		g.StateUntil = now + 1
 		setSpeed(g, g.Def.PatrolSpeed * 1.4)
-		g.Humanoid:MoveTo(g.Home)
+		moveTo(g, g.Home)
 		return
 	end
 	setState(g, "Patrol", nil)
@@ -494,7 +555,7 @@ local function step(g: Guardian, now: number)
 		g.NextPatrolAt = now + rng:NextNumber(3, 7)
 		local angle = rng:NextNumber(0, math.pi * 2)
 		local r = rng:NextNumber(0, g.PatrolRadius)
-		g.Humanoid:MoveTo(g.Home + Vector3.new(math.cos(angle) * r, 0, math.sin(angle) * r))
+		moveTo(g, g.Home + Vector3.new(math.cos(angle) * r, 0, math.sin(angle) * r))
 	end
 end
 
@@ -516,32 +577,52 @@ local function tryHitGuardian(attacker: Player, attackerRoot: BasePart): boolean
 	return false
 end
 
+local folder: Folder
+
+local function spawnBody(g: Guardian)
+	local model, root, humanoid = build(g.Type, g.Def, g.Home)
+	model.Parent = folder
+	pcall(function()
+		root:SetNetworkOwner(nil)
+	end)
+	g.Model, g.Root, g.Humanoid = model, root, humanoid
+	g.LastPos = root.Position
+	g.StuckSince = nil
+	g.State = "Patrol"
+	g.Target = nil
+	g.NextPatrolAt = 0
+end
+
+-- Lost entirely (fell below the world and was destroyed): build it again at home.
+function respawn(g: Guardian)
+	if g.Model then
+		g.Model:Destroy()
+	end
+	spawnBody(g)
+end
+
 function GuardianService.Init(spawns)
-	local folder = Instance.new("Folder")
+	folder = Instance.new("Folder")
 	folder.Name = "Guardians"
 	folder.Parent = workspace
 	for _, spawnInfo in spawns do
 		local def = Guardians[spawnInfo.Type]
 		if def then
-			local model, root, humanoid = build(spawnInfo.Type, def, spawnInfo.Position)
-			model.Parent = folder
-			pcall(function()
-				root:SetNetworkOwner(nil)
-			end)
-			table.insert(guardians, {
+			local g = {
 				Type = spawnInfo.Type,
 				Def = def,
-				Model = model,
-				Root = root,
-				Humanoid = humanoid,
 				Home = spawnInfo.Position,
 				PatrolRadius = spawnInfo.PatrolRadius or 30,
+				Range = spawnInfo.Range,
+				Spawn = spawnInfo,
 				State = "Patrol",
 				Target = nil,
 				NextPatrolAt = 0,
 				LastAttack = 0,
 				StateUntil = 0,
-			})
+			} :: any
+			spawnBody(g)
+			table.insert(guardians, g)
 		end
 	end
 	Combat.TryHitGuardian = tryHitGuardian

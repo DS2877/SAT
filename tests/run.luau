@@ -1420,9 +1420,39 @@ test("no guardian spawns or patrols onto an extraction zone", function()
 	for _, g in W.GuardianSpawns do
 		for _, z in W.ExtractionZones do
 			local flat = Vector3.new(g.Position.X - z.Position.X, 0, g.Position.Z - z.Position.Z).Magnitude
-			check(flat - (g.PatrolRadius or 30) > z.Radius, ("%s at (%d, %d) patrols clear of %s"):format(g.Type, g.Position.X, g.Position.Z, z.Id))
+			local reach = math.max(g.PatrolRadius or 30, g.Range or 0)
+			check(flat - reach > z.Radius, ("%s at (%d, %d) patrols clear of %s"):format(g.Type, g.Position.X, g.Position.Z, z.Id))
 		end
 	end
+end)
+
+test("south guardians can't fall off their ground", function()
+	local roblox = require("@lune/roblox") :: any
+	Vector3 = roblox.Vector3
+	local W = require("../src/shared/Config/WorldLayout")
+	local T = require("../src/server/World/TerrainGen")
+	local counts = {}
+	for _, g in W.GuardianSpawns do
+		local z = g.Position.Z
+		local area = if z < W.DeepSouth.StarStart then "Star" elseif z < W.DeepSouth.RimeStart then "Rime" elseif z < W.DeepSouth.EmberStart then "Ember" else nil
+		if area then
+			counts[area] = (counts[area] or 0) + 1
+		end
+		if area == "Rime" or area == "Star" then
+			check(g.Range ~= nil and g.Range >= (g.PatrolRadius or 30), ("%s at (%d, %d) has a Range covering its patrol"):format(g.Type, g.Position.X, z))
+		end
+		if area == "Rime" and g.Range then
+			for _, cz in T.SOUTH.CrevasseZ do
+				check(math.abs(z - cz) - g.Range > 8, ("%s at z %d stays clear of the crevasse at %d"):format(g.Type, z, cz))
+			end
+		end
+	end
+	check((counts.Ember or 0) >= 7, "Emberfall is well guarded")
+	check((counts.Rime or 0) >= 6, "Rimeheart is well guarded")
+	check((counts.Star or 0) >= 5, "the Starfall Isles are guarded")
+	local source = require("@lune/fs").readFile("src/server/Services/GuardianService.luau")
+	check(string.find(source, "local function recover", 1, true) ~= nil, "guardians recover from falls and snags")
+	check(select(2, string.gsub(source, "Humanoid:MoveTo%(", "")) == 1, "every walk goes through moveTo (the Range clamp)")
 end)
 
 print(("%d passed, %d failed"):format(passed, failed))

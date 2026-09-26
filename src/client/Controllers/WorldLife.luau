@@ -5,6 +5,7 @@
 --   * leaves drift down in the Wilds groves
 --   * street lamps (tag "NightLamp") glow and cast light only after dusk
 --   * now and then a fish jumps out of the sea near you
+--   * Rimeheart's aurora (tag "Aurora") brightens at night
 -- Day/night comes from the shared DayNight clock (server time).
 
 local CollectionService = game:GetService("CollectionService")
@@ -284,6 +285,12 @@ function WorldLife.Init()
 		end
 		for _, emitter in butterflies do
 			emitter.Rate = 0.6 * (1 - night)
+		end
+		-- Rimeheart's aurora: a faint shimmer by day, bright curtains at night.
+		for _, beam in CollectionService:GetTagged("Aurora") do
+			if beam:IsA("Beam") then
+				beam.Brightness = 0.5 + night * 2.5
+			end
 		end
 		local lit = night > 0.35
 		if lit ~= lampsLit then

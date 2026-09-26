@@ -55,6 +55,10 @@ TerrainGen.FLAT_ZONES = {
 	{ 120, -915, 22, 14 }, -- Glacier Station
 	{ -60, -990, 26, 14 }, -- igloo village
 	{ 80, -985, 14, 10 }, -- the frozen mammoth
+	{ -88, -915, 20, 12 }, -- the Heart of the Rime
+	{ -145, -985, 30, 12 }, -- the frozen lake
+	{ -3, -900, 17, 10 }, -- ice arch over the trail
+	{ 0, -1003, 17, 10 }, -- ice arch over the trail
 	{ 8, -1218, 8, 6 }, -- (the Observatory, secret: over the sea)
 	{ -122, -1240, 8, 6 }, -- (the Rift, secret: over the sea)
 }
@@ -264,7 +268,26 @@ TerrainGen.SOUTH = {
 	RimeStart = -790, -- the glacier rises from here
 	StarStart = -1045, -- the Starfall Isles begin past the glacier tip
 	PlateauHeight = 40,
+	-- Rimeheart's crevasses (z of each; World/DeepSouth/Rime.CREVASSES): no relief near them.
+	CrevasseZ = { -880, -950 },
 }
+
+-- RIMEHEART RELIEF: the plateau is not a table top. Soft wind-blown dunes everywhere, and
+-- long PRESSURE RIDGES where the ice buckled - kept off the road down the middle, away from
+-- the crevasse lips and (through FlatMask) off everything built up there. Pure.
+function TerrainGen.RimeRelief(x: number, z: number): number
+	local S = TerrainGen.SOUTH
+	local road = smoothstep((math.abs(x - 2) - 12) / 22)
+	local lips = 1
+	for _, cz in S.CrevasseZ do
+		lips = math.min(lips, smoothstep((math.abs(z - cz) - 10) / 16))
+	end
+	local dunes = (noise2(x * 0.6, z, 1 / 55, 211) + 0.35) * 4
+	-- Ridged noise, stretched across the glacier (east-west), so ridges run like frozen waves.
+	local ridge = 1 - math.abs(noise2(x * 0.45, z, 1 / 42, 223))
+	ridge = ridge ^ 4 * 11
+	return math.max(0, dunes + ridge) * road * lips
+end
 
 -- Height of the peninsula at (x, z), or nil where it doesn't reach. Pure.
 function TerrainGen.SouthHeight(x: number, z: number): (number?, number)
@@ -288,7 +311,7 @@ function TerrainGen.SouthHeight(x: number, z: number): (number?, number)
 	else
 		-- Rimeheart: the glacier rises steeply into a high, mostly flat ice plateau.
 		local rise = smoothstep((S.RimeStart - z) / 45)
-		ground = 12 + rise * (S.PlateauHeight - 12) + fbm(x, z) * 3
+		ground = 12 + rise * (S.PlateauHeight - 12) + fbm(x, z) * 2 + rise * TerrainGen.RimeRelief(x, z)
 		level = 12 + rise * (S.PlateauHeight - 12) -- flat zones up here flatten to the plateau
 	end
 	ground = level + (ground - level) * TerrainGen.FlatMask(x, z)
@@ -351,7 +374,7 @@ TerrainGen.BIOME_MATERIALS = {
 	Frost = { "Snow", "Glacier", "Rock", "Glacier", 0.45 }, -- snowfields and blue ice cliffs
 	Marsh = { "Asphalt", "Mud", "Slate", "Concrete", 0.2 }, -- dark glowing bog (recoloured)
 	Ember = { "Basalt", "Rock", "Slate", "CrackedLava", 0.38 }, -- black rock, glowing cracks
-	Rime = { "Glacier", "Ice", "Glacier", "Snow", 0.25 }, -- all ice
+	Rime = { "Snow", "Glacier", "Glacier", "Glacier", 0.3 }, -- snowfields, blue ice on every rise
 	Star = { "Rock", "Rock", "Slate" }, -- (only shores: the isles are built from parts)
 }
 

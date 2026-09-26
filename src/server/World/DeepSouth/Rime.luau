@@ -1,4 +1,10 @@
--- RIMEHEART (danger 6, Ascension 2): a dead white glacier plateau.
+-- RIMEHEART (danger 6, Ascension 2): a glacier under the aurora.
+--   * The plateau rolls: wind-blown dunes and pressure ridges of blue ice (TerrainGen.RimeRelief)
+--     either side of a trodden trail marked with glowing ice posts.
+--   * SERAC FIELDS: towers of blue ice leaning over the glacier's edges.
+--   * THE HEART OF THE RIME: a colossal frozen crystal at the middle of the glacier.
+--   * Two natural ICE ARCHES over the trail, and a FROZEN LAKE with fish locked in the ice.
+--   * The AURORA: curtains of green and violet light across the sky (brighter at night).
 --   * The Rime Gate and an ice gorge climbing the glacier face.
 --   * Two CREVASSES cut the plateau (fall in = pulled out at the edge, loot dropped:
 --     HazardService, tag "FallZone"). Cross on the ice bridge, a rope bridge, or jump the
@@ -10,6 +16,7 @@
 --   * Glacier Station (Dangerous exit), an igloo village, a mammoth frozen in a block of ice.
 --   * The Starfall launch at the glacier tip (Rune Gate, Ascension 3).
 
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
@@ -22,6 +29,10 @@ local Common = require(script.Parent.Common)
 local Rime = {}
 
 local part = Common.part
+
+local function cylinderPart(parent: Instance, position: Vector3, height: number, diameter: number, color: Color3, material: Enum.Material, transparency: number): BasePart
+	return Common.cylinder(position, height, diameter, { Name = "Disc", Color = color, Material = material, Transparency = transparency, CanCollide = false, Parent = parent })
+end
 local light, emitter = Common.light, Common.emitter
 
 local ICE = Color3.fromRGB(170, 220, 245)
@@ -29,6 +40,7 @@ local DEEP_ICE = Color3.fromRGB(90, 160, 220)
 local SNOW = Color3.fromRGB(245, 250, 255)
 local FROST_WOOD = Color3.fromRGB(150, 160, 170)
 local METAL = Color3.fromRGB(120, 125, 135)
+local GLOW = Color3.fromRGB(120, 225, 255)
 
 local TOP = WorldLayout.DeepSouth.PlateauHeight
 Rime.TOMB = Vector3.new(-170, 12, -852) -- crypt floor
@@ -263,6 +275,203 @@ local function buildMammoth(parent: Instance)
 	return { Vector2.new(c.X, c.Z), 16 }
 end
 
+-- LANDMARKS -------------------------------------------------------------------------------
+
+Rime.HEART = Vector3.new(-88, TOP, -915)
+Rime.LAKE = { X = -145, Z = -985, R = 22 }
+Rime.ARCHES = { { Z = -900, X = -3 }, { Z = -1003, X = 0 } }
+
+-- A serac: a leaning tower of blue ice, stacked from two or three blocks.
+local function serac(parent: Instance, ground: Vector3, rng: Random, scale: number)
+	local tilt = CFrame.new(ground) * CFrame.Angles(math.rad(rng:NextNumber(-10, 10)), rng:NextNumber(0, 2 * math.pi), math.rad(rng:NextNumber(-10, 10)))
+	local h = rng:NextNumber(10, 18) * scale
+	local w = rng:NextNumber(4, 7) * scale
+	part({ Name = "Serac", Size = Vector3.new(w, h, w * 0.8), CFrame = tilt * CFrame.new(0, h / 2 - 2, 0), Color = DEEP_ICE:Lerp(ICE, rng:NextNumber(0, 0.5)), Material = Enum.Material.Glacier, Parent = parent })
+	local h2 = h * rng:NextNumber(0.4, 0.7)
+	part({ Name = "SeracTop", Class = "WedgePart", Size = Vector3.new(w * 0.8, h2, w * 0.7), CFrame = tilt * CFrame.new(0, h - 2 + h2 / 2, 0) * CFrame.Angles(0, if rng:NextNumber() > 0.5 then 0 else math.pi, 0), Color = ICE, Material = Enum.Material.Glacier, Parent = parent })
+	part({ Name = "SeracSnow", Size = Vector3.new(w + 0.6, 1, w * 0.8 + 0.6), CFrame = tilt * CFrame.new(0, h - 2, 0), Color = SNOW, Material = Enum.Material.Snow, CanCollide = false, Parent = parent })
+	if rng:NextNumber() < 0.6 then
+		local side = rng:NextNumber(3, 6) * scale
+		part({ Name = "SeracShard", Size = Vector3.new(side * 0.6, side * 1.6, side * 0.6), CFrame = tilt * CFrame.new(w * 0.7, side * 0.6 - 1.5, 0) * CFrame.Angles(0, 0, math.rad(-18)), Color = Color3.fromRGB(150, 210, 245), Material = Enum.Material.Glass, Transparency = 0.25, Parent = parent })
+	end
+end
+
+local function buildSeracFields(parent: Instance, groundAt, rng: Random, avoid)
+	local f = Common.folder("SeracFields", parent)
+	-- The fields hug the glacier's sides, leaving the middle open to run through.
+	local bounds = { MinX = -205, MaxX = 205, MinZ = -1000, MaxZ = -838 }
+	Common.scatter(rng, 26, 500, bounds, function(x, z)
+		if math.abs(x) < 70 or Zones.AreaId(Vector3.new(x, TOP, z)) ~= "Rime" or Common.tooClose(avoid, x, z, 4) or nearCrevasse(x, z, 8) then
+			return false
+		end
+		return groundAt(x, z, 120).Y > TOP - 6
+	end, function(x, z)
+		local g = groundAt(x, z, 120)
+		for i = 1, rng:NextInteger(2, 4) do
+			local at = if i == 1 then g else groundAt(x + rng:NextNumber(-7, 7), z + rng:NextNumber(-7, 7), 120)
+			serac(f, at, rng, if i == 1 then rng:NextNumber(1.1, 1.6) else rng:NextNumber(0.6, 1))
+		end
+		table.insert(avoid, { Vector2.new(x, z), 12 })
+	end)
+end
+
+-- THE HEART OF THE RIME: a colossal crystal frozen mid-rise, broken ice pillars around it.
+local function buildHeart(parent: Instance, rng: Random)
+	local f = Common.folder("HeartOfTheRime", parent)
+	local c = Rime.HEART
+	part({ Name = "HeartBase", Shape = Enum.PartType.Cylinder, Size = Vector3.new(2, 22, 22), CFrame = CFrame.new(c + Vector3.new(0, 0.6, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = DEEP_ICE, Material = Enum.Material.Glacier, Parent = f })
+	local core = part({ Name = "HeartCrystal", Size = Vector3.new(6, 26, 6), CFrame = CFrame.new(c + Vector3.new(0, 16, 0)) * CFrame.Angles(math.rad(6), math.rad(30), math.rad(-5)), Color = GLOW, Material = Enum.Material.Glass, Transparency = 0.15, Parent = f })
+	part({ Name = "HeartGlow", Size = Vector3.new(2.4, 20, 2.4), CFrame = core.CFrame, Color = Color3.fromRGB(170, 240, 255), Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = f })
+	for i = 1, 5 do
+		local a = i / 5 * 2 * math.pi
+		local h = rng:NextNumber(8, 14)
+		part({ Name = "HeartShard", Size = Vector3.new(2.6, h, 2.6), CFrame = CFrame.new(c + Vector3.new(math.cos(a) * 4.5, h / 2 + 1, math.sin(a) * 4.5)) * CFrame.Angles(math.cos(a) * 0.35, a, math.sin(a) * 0.35), Color = ICE, Material = Enum.Material.Glass, Transparency = 0.2, Parent = f })
+	end
+	-- Broken pillars in a ring: whoever built this, it wasn't built to hold it.
+	for i = 1, 7 do
+		local a = i / 7 * 2 * math.pi + 0.2
+		local h = if i % 3 == 0 then 3 else rng:NextNumber(6, 11)
+		part({ Name = "RingPillar", Size = Vector3.new(2.2, h, 2.2), CFrame = CFrame.new(c + Vector3.new(math.cos(a) * 16, h / 2, math.sin(a) * 16)) * CFrame.Angles(0, a, math.rad(rng:NextNumber(-6, 6))), Color = Color3.fromRGB(190, 215, 235), Material = Enum.Material.Slate, Parent = f })
+	end
+	light(core, Color3.fromRGB(120, 220, 255), 40, 1.6)
+	emitter(core, { Texture = Common.SPARKLE, Color = ColorSequence.new(Color3.fromRGB(190, 245, 255)), LightEmission = 1, Size = NumberSequence.new(0.6, 0), Lifetime = NumberRange.new(2, 3.5), Rate = 10, Speed = NumberRange.new(1, 3), SpreadAngle = Vector2.new(180, 180), Acceleration = Vector3.new(0, 1.5, 0) })
+	return { Vector2.new(c.X, c.Z), 19 }
+end
+
+-- A natural arch of ice over the trail.
+local function buildArch(parent: Instance, groundAt, info)
+	local f = Common.folder("IceArch", parent)
+	local span, rise, segments = 26, 22, 9
+	local base = Vector3.new(info.X, TOP, info.Z)
+	local points = {}
+	for i = 0, segments do
+		local t = i / segments
+		local a = math.pi * t
+		local x = info.X - math.cos(a) * span / 2
+		local y = groundAt(x, info.Z, 120).Y * (1 - math.sin(a)) + (TOP + rise) * math.sin(a)
+		table.insert(points, Vector3.new(x, y, info.Z))
+	end
+	for i = 1, #points - 1 do
+		local a, b = points[i], points[i + 1]
+		local thick = 5 - math.sin(math.pi * (i - 0.5) / segments) * 1.8
+		part({ Name = "ArchIce", Size = Vector3.new(thick, thick * 0.9, (b - a).Magnitude + 2), CFrame = CFrame.lookAt((a + b) / 2, b), Color = DEEP_ICE:Lerp(ICE, i / #points), Material = Enum.Material.Glacier, Parent = f })
+	end
+	for _, side in { -1, 1 } do
+		part({ Name = "ArchFoot", Size = Vector3.new(7, 6, 7), CFrame = CFrame.new(base + Vector3.new(side * span / 2, 1, 0)) * CFrame.Angles(0, math.rad(20), 0), Color = DEEP_ICE, Material = Enum.Material.Glacier, Parent = f })
+	end
+	-- Icicles hanging off the crown.
+	for i = -2, 2 do
+		local len = 4 - math.abs(i) * 0.6
+		part({ Name = "Icicle", Class = "WedgePart", Size = Vector3.new(0.7, len, 0.7), CFrame = CFrame.new(info.X + i * 2.2, TOP + rise - 2.6 - len / 2, info.Z) * CFrame.Angles(math.pi, 0, 0), Color = Color3.fromRGB(220, 245, 255), Material = Enum.Material.Glass, Transparency = 0.2, CanCollide = false, Parent = f })
+	end
+	return { Vector2.new(info.X, info.Z), 16 }
+end
+
+-- THE FROZEN LAKE: a sheet of clear ice over dark water, fish locked mid-swim below it.
+local function buildLake(terrain: Terrain, parent: Instance, rng: Random)
+	local f = Common.folder("FrozenLake", parent)
+	local l = Rime.LAKE
+	local c = Vector3.new(l.X, TOP, l.Z)
+	terrain:FillCylinder(CFrame.new(c + Vector3.new(0, -4, 0)), 8, l.R, Enum.Material.Air)
+	terrain:FillCylinder(CFrame.new(c + Vector3.new(0, -9, 0)), 2, l.R + 1, Enum.Material.Glacier)
+	cylinderPart(f, c + Vector3.new(0, -7.6, 0), 0.6, l.R * 2, Color3.fromRGB(20, 50, 90), Enum.Material.SmoothPlastic, 0)
+	local sheet = cylinderPart(f, c + Vector3.new(0, -0.6, 0), 1.2, l.R * 2 + 1, Color3.fromRGB(170, 225, 250), Enum.Material.Glass, 0.45)
+	sheet.CanCollide = true
+	for _ = 1, 9 do
+		local a, r = rng:NextNumber(0, 2 * math.pi), rng:NextNumber(3, l.R - 4)
+		local fish = CFrame.new(c + Vector3.new(math.cos(a) * r, rng:NextNumber(-6, -3), math.sin(a) * r)) * CFrame.Angles(0, rng:NextNumber(0, 2 * math.pi), 0)
+		local color = if rng:NextNumber() < 0.3 then Color3.fromRGB(255, 170, 80) else Color3.fromRGB(150, 200, 230)
+		part({ Name = "FrozenFish", Shape = Enum.PartType.Ball, Size = Vector3.new(0.9, 1, 2.4), CFrame = fish, Color = color, Material = Enum.Material.SmoothPlastic, CanCollide = false, CanQuery = false, Parent = f })
+		part({ Name = "FishTail", Class = "WedgePart", Size = Vector3.new(0.2, 1, 1), CFrame = fish * CFrame.new(0, 0, 1.5), Color = color, Material = Enum.Material.SmoothPlastic, CanCollide = false, CanQuery = false, Parent = f })
+	end
+	-- White cracks across the surface.
+	for _ = 1, 6 do
+		local a = rng:NextNumber(0, 2 * math.pi)
+		local len = rng:NextNumber(8, 16)
+		local from = c + Vector3.new(math.cos(a) * rng:NextNumber(0, 8), 0.02, math.sin(a) * rng:NextNumber(0, 8))
+		part({ Name = "IceCrack", Size = Vector3.new(0.15, 0.05, len), CFrame = CFrame.new(from) * CFrame.Angles(0, a, 0) * CFrame.new(0, 0, -len / 2), Color = Color3.new(1, 1, 1), Material = Enum.Material.SmoothPlastic, Transparency = 0.3, CanCollide = false, CanQuery = false, Parent = f })
+	end
+	-- Snowbanks around the shore.
+	for i = 1, 10 do
+		local a = i / 10 * 2 * math.pi + rng:NextNumber(-0.2, 0.2)
+		local w = rng:NextNumber(5, 8)
+		part({ Name = "Snowbank", Shape = Enum.PartType.Ball, Size = Vector3.new(w, w * 0.6, w), CFrame = CFrame.new(c + Vector3.new(math.cos(a) * (l.R + 3), -w * 0.1, math.sin(a) * (l.R + 3))), Color = SNOW, Material = Enum.Material.Snow, Parent = f })
+	end
+	return { Vector2.new(l.X, l.Z), l.R + 6 }
+end
+
+-- Glowing ice posts either side of the trail, so it reads from far away (and at night).
+local function buildTrailPosts(parent: Instance, groundAt, spine: { Vector2 })
+	local f = Common.folder("TrailPosts", parent)
+	local count = 0
+	for i = 1, #spine - 1 do
+		local a, b = spine[i], spine[i + 1]
+		if a.Y > -845 then
+			continue
+		end
+		local delta = b - a
+		local across = Vector2.new(-delta.Y, delta.X).Unit
+		for t = 0, delta.Magnitude - 1, 24 do
+			local p = a + delta.Unit * t
+			if nearCrevasse(p.X, p.Y, 6) then
+				continue
+			end
+			count += 1
+			local side = if count % 2 == 0 then 1 else -1
+			local q = p + across * side * 8
+			local g = groundAt(q.X, q.Y, 120)
+			part({ Name = "TrailPost", Size = Vector3.new(0.8, 4, 0.8), CFrame = CFrame.new(g + Vector3.new(0, 2, 0)) * CFrame.Angles(0, t, math.rad(4)), Color = DEEP_ICE, Material = Enum.Material.Glacier, Parent = f })
+			local tip = part({ Name = "TrailGlow", Class = "WedgePart", Size = Vector3.new(0.8, 1.2, 0.8), CFrame = CFrame.new(g + Vector3.new(0, 4.6, 0)), Color = GLOW, Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = f })
+			if count % 3 == 0 then
+				light(tip, GLOW, 14, 1, true)
+			end
+		end
+	end
+end
+
+-- THE AURORA: slow curtains of light high over the glacier (Controllers/WorldLife brightens
+-- them at night: tag "Aurora").
+local function buildAurora(parent: Instance)
+	local f = Common.folder("Aurora", parent)
+	local curtains = {
+		{ Z = -860, Y = 170, Colors = { Color3.fromRGB(80, 255, 170), Color3.fromRGB(90, 220, 255) } },
+		{ Z = -925, Y = 185, Colors = { Color3.fromRGB(120, 255, 190), Color3.fromRGB(170, 120, 255) } },
+		{ Z = -995, Y = 175, Colors = { Color3.fromRGB(90, 230, 255), Color3.fromRGB(80, 255, 160) } },
+	}
+	for i, curtain in curtains do
+		local anchor = part({ Name = "AuroraAnchor", Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(0, curtain.Y, curtain.Z), Transparency = 1, CanCollide = false, CanQuery = false, CastShadow = false, Parent = f })
+		local a0 = Instance.new("Attachment")
+		a0.Position = Vector3.new(-240, 0, (i - 2) * 10)
+		a0.Parent = anchor
+		local a1 = Instance.new("Attachment")
+		a1.Position = Vector3.new(240, 0, -(i - 2) * 10)
+		a1.Parent = anchor
+		local beam = Instance.new("Beam")
+		beam.Attachment0, beam.Attachment1 = a0, a1
+		beam.Color = ColorSequence.new(curtain.Colors[1], curtain.Colors[2])
+		beam.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.2, 0.55),
+			NumberSequenceKeypoint.new(0.5, 0.4),
+			NumberSequenceKeypoint.new(0.8, 0.6),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		beam.Texture = Common.SMOKE
+		beam.TextureMode = Enum.TextureMode.Wrap
+		beam.TextureLength = 90
+		beam.TextureSpeed = 0.04 * (if i % 2 == 0 then -1 else 1)
+		beam.LightEmission = 1
+		beam.LightInfluence = 0
+		beam.Brightness = 1
+		beam.Width0, beam.Width1 = 45, 60
+		beam.CurveSize0, beam.CurveSize1 = 90 * (if i % 2 == 0 then 1 else -1), -70 * (if i % 2 == 0 then 1 else -1)
+		beam.Segments = 24
+		beam.FaceCamera = true
+		beam.Parent = anchor
+		CollectionService:AddTag(beam, "Aurora")
+	end
+end
+
 -- THE STARFALL LAUNCH at the glacier tip: Rune Gate (Ascension 3) and the geyser beyond it
 -- (the geyser itself is WorldLayout.LaunchPads "Starfall Launch", built by World/Adventure).
 local function buildTip(parent: Instance, groundAt)
@@ -286,11 +495,11 @@ local function scatter(parent: Instance, groundAt, rng: Random, avoid, spine: { 
 		end
 		return groundAt(x, z, 120).Y > TOP - 6
 	end
-	Common.scatter(rng, 30, 400, bounds, ok, function(x, z)
+	Common.scatter(rng, 22, 400, bounds, ok, function(x, z)
 		Props.IceCrystals(f, groundAt(x, z, 120), rng)
 		table.insert(avoid, { Vector2.new(x, z), 5 })
 	end)
-	Common.scatter(rng, 18, 300, bounds, ok, function(x, z)
+	Common.scatter(rng, 10, 300, bounds, ok, function(x, z)
 		Props.DeadTree(f, groundAt(x, z, 120), rng, Color3.fromRGB(200, 215, 230))
 		table.insert(avoid, { Vector2.new(x, z), 5 })
 	end)
@@ -310,8 +519,24 @@ function Rime.Build(terrain: Terrain, parent: Instance, rng: Random, groundAt, s
 	local root = Common.folder("Rimeheart", parent)
 	local avoid = {}
 	local spawns = {}
+	-- Keep props off the loot spots and the guardians' homes.
+	for _, info in WorldLayout.TreasureSpawns do
+		if info.Area == "Rime" then
+			table.insert(avoid, { Vector2.new(info.Position.X, info.Position.Z), 6 })
+		end
+	end
+	for _, info in WorldLayout.GuardianSpawns do
+		if info.Position.Z < WorldLayout.DeepSouth.RimeStart then
+			table.insert(avoid, { Vector2.new(info.Position.X, info.Position.Z), 8 })
+		end
+	end
 	buildClimb(terrain, root)
 	buildCrevasses(terrain, root, avoid)
+	table.insert(avoid, buildLake(terrain, root, rng))
+	table.insert(avoid, buildHeart(root, rng))
+	for _, info in Rime.ARCHES do
+		table.insert(avoid, buildArch(root, groundAt, info))
+	end
 	for _, built in { buildTomb(terrain, root), buildShip(terrain, root, rng) } do
 		table.insert(spawns, built.Spawn)
 		table.insert(avoid, built.Avoid)
@@ -321,7 +546,10 @@ function Rime.Build(terrain: Terrain, parent: Instance, rng: Random, groundAt, s
 	table.insert(avoid, buildMammoth(root))
 	buildTip(root, groundAt)
 	table.insert(avoid, { Vector2.new(0, -1030), 18 })
+	buildTrailPosts(root, groundAt, spine)
+	buildSeracFields(root, groundAt, rng, avoid)
 	scatter(root, groundAt, rng, avoid, spine)
+	buildAurora(root)
 	-- A steady fall of snow over the whole glacier.
 	Common.weather(root, Vector3.new(0, 95, -910), Vector2.new(420, 240), {
 		Texture = Common.SPARKLE,

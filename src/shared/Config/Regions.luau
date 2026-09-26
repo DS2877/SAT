@@ -54,9 +54,10 @@ Regions.Info = {
 	},
 	Rime = {
 		Title = "RIMEHEART",
-		Tagline = "A dead white glacier. Mind the crevasses. Mind the Wraiths.",
+		Tagline = "A glacier under the aurora. Mind the crevasses. Mind the Wraiths.",
 		Color = { 150, 225, 255 },
-		Mood = { Tint = { 214, 236, 255 }, Saturation = -0.12, Contrast = 0.16, Density = 0.4, Haze = 2 },
+		-- Crisp and blue, not grey: low haze so the seracs, arches and the Heart read from afar.
+		Mood = { Tint = { 205, 232, 255 }, Saturation = 0.08, Contrast = 0.2, Density = 0.3, Haze = 1.4 },
 	},
 	Star = {
 		Title = "STARFALL ISLES",
