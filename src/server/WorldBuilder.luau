@@ -701,7 +701,7 @@ local function buildBatShop(district: Folder)
 		glow.Color = Color3.fromRGB(255, 190, 120)
 		glow.Brightness = 0.9
 		glow.Range = 14
-		glow.Shadows = true
+		glow.Shadows = false -- phones: point-light shadows are expensive
 		glow.Parent = lamp
 	end
 	local wash = part({ Name = "BatWallWash", Size = Vector3.new(1, 1, 1), CFrame = base * CFrame.new(0, height - 1.5, -depth / 2 + 2) * CFrame.Angles(math.rad(25), 0, 0), Transparency = 1, CanCollide = false, CanQuery = false, Parent = shop })
@@ -1053,7 +1053,7 @@ local function buildShop(district: Folder)
 		glow.Color = Color3.fromRGB(255, 195, 130)
 		glow.Brightness = 0.9
 		glow.Range = 14
-		glow.Shadows = true
+		glow.Shadows = false -- phones: point-light shadows are expensive
 		glow.Parent = lamp
 	end
 	return prompt(counter, "Buy & Equip", "Gadget Shop", 0)

@@ -495,7 +495,7 @@ GameConfig.Data = {
 	StoreName = "SAT_PlayerData",
 	Scope = "launch1", -- fresh saves for launch (all test progress stays in scope "v1")
 	AutosaveInterval = 120,
-	SessionLockTimeout = 300, -- seconds before another server's lock is considered stale
+	SessionLockTimeout = 180, -- seconds before another server's lock is considered stale (live servers refresh it every AutosaveInterval)
 	LoadRetries = 4,
 }
 

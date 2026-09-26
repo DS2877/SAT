@@ -125,6 +125,7 @@ local function stairDirection(f: number): number
 	return if f % 2 == 1 then 1 else -1
 end
 local sellSlot -- forward declaration (pedestal sell prompts)
+local render: (Player) -> () -- forward declaration (throttled rebuild, see RENDER_GAP)
 
 -- owner/slot are set for filled pedestals (sell prompt); income = the owner's actual $/s.
 local function buildPedestal(parent: Instance, base: CFrame, def, ghost: boolean, mutation: string?, owner: Player?, slot: number?, income: number?)
@@ -297,7 +298,7 @@ local function buildTrophy(plot, player: Player, data, incomeMultiplier: number)
 	trophySign(plot, base, player, def, mutation, math.floor(income * incomeMultiplier + 0.5))
 end
 
-local function render(player: Player)
+local function renderNow(player: Player)
 	local plot = plotOf[player]
 	local data = PlayerData.Get(player)
 	if not plot or not data then
@@ -527,6 +528,31 @@ local function render(player: Player)
 	plot.CollectRate = rate
 
 	plot.Sign.Text = ("%s'S VAULT"):format(player.DisplayName:upper())
+end
+
+-- Rebuilding a vault is hundreds of parts: coalesce bursts (spammed sells / trophy swaps) into
+-- at most one rebuild every RENDER_GAP seconds per player - the last change always lands.
+local RENDER_GAP = 0.5
+local lastRender: { [Player]: number } = {}
+local renderQueued: { [Player]: boolean } = {}
+render = function(player: Player)
+	if renderQueued[player] then
+		return
+	end
+	local wait = (lastRender[player] or -math.huge) + RENDER_GAP - os.clock()
+	if wait <= 0 then
+		lastRender[player] = os.clock()
+		renderNow(player)
+		return
+	end
+	renderQueued[player] = true
+	task.delay(wait, function()
+		renderQueued[player] = nil
+		if player.Parent then
+			lastRender[player] = os.clock()
+			renderNow(player)
+		end
+	end)
 end
 
 sellSlot = function(player: Player, slot: any)
@@ -814,6 +840,8 @@ local function assign(player: Player)
 end
 
 local function release(player: Player)
+	lastRender[player] = nil
+	renderQueued[player] = nil
 	local plot = plotOf[player]
 	if plot then
 		plot.Owner = nil

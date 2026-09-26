@@ -17,6 +17,22 @@ local News = {}
 
 News.Posts = {
 	{
+		Id = "2026-09-27-launch",
+		Kind = "Announcement",
+		Date = "Sep 27",
+		Icon = "🗝",
+		Title = "WELCOME, HEISTERS",
+		Body = "The island is open! Train at the gym, sneak into the Wilds at night, grab treasure, slap anyone who tries to steal it and get it to an exit. Bank it in your vault, show your best piece on your trophy pedestal - and sign up for the first Heist Hour on the EVENTS tab.",
+	},
+	{
+		Id = "2026-09-27-polish",
+		Kind = "News",
+		Date = "Sep 27",
+		Icon = "✨",
+		Title = "FRESH PAINT",
+		Body = "A brand-new Gadget Shop, cosy lights in the Bat Shop, calmer vaults, softer sounds mixed under the music, and guardians that throw you out instead of hurting you. Too weak for an area? They throw you further - go train!",
+	},
+	{
 		Id = "2026-09-26-bats",
 		Kind = "Announcement",
 		Date = "Sep 26",
@@ -54,10 +70,11 @@ News.Roadmap = {
 	{ Status = "Done", Icon = "🏏", Title = "Bats & slap combat", Text = "11 bats, slap to steal" },
 	{ Status = "Done", Icon = "🌋", Title = "The Deep South", Text = "3 new regions + storms" },
 	{ Status = "Done", Icon = "🏆", Title = "Trophy pedestals", Text = "Show off your best loot" },
+	{ Status = "Done", Icon = "📰", Title = "Info Board", Text = "News, roadmap, sign-ups, codes" },
 	{ Status = "Now", Icon = "🎙", Title = "Heist Hour", Text = "Live dev-hosted events" },
-	{ Status = "Now", Icon = "📰", Title = "Info Board", Text = "News, roadmap, sign-ups" },
+	{ Status = "Now", Icon = "✨", Title = "Ascension Shop", Text = "Premium gadgets for the Ascended" },
 	{ Status = "Next", Icon = "👑", Title = "The Dev Crown", Text = "One per server. Steal it." },
-	{ Status = "Next", Icon = "✨", Title = "Heisted mutation", Text = "Event-only treasure sheen" },
+	{ Status = "Next", Icon = "💰", Title = "Heisted mutation", Text = "Event-only treasure sheen" },
 	{ Status = "Later", Icon = "🌪", Title = "Storm Week", Text = "A 7-day seasonal event" },
 	{ Status = "Later", Icon = "🗺", Title = "A new region", Text = "You'll see..." },
 }

@@ -391,3 +391,13 @@ See docs/ROADMAP.md: 1 stabilise → 2 addictive core loop → 3 first 10 minute
 - **Codes:** the Info Board's CODES tab feeds `Config/Codes` and `Services/CodeService`. Codes are case-insensitive, and `Once` codes are remembered in the save.
   - `Devdev` (admins only): Ascension 3 and 140,000 Strength.
   - `NoDev` (admins only): the save becomes a brand-new account, with purchase receipts kept so products are never granted twice, and the character respawns.
+
+## Pre-launch audit (Sep 27)
+- **Remotes:** all 19 client→server handlers validate their arguments, and ownership, prices and cooldowns are checked on the server. Gadget aim vectors are sanitised, NaN included.
+  - Fixed: vault rebuilds (hundreds of parts) could be spammed through sell or trophy swaps. They're now coalesced to at most one every 0.5 s per player (`RENDER_GAP`), and the last change always lands.
+- **Saving:** session-locked `UpdateAsync`, retries with backoff (about 22 s), autosave every 120 s, and a `BindToClose` flush.
+  - Stale-lock timeout lowered from 300 to 180 s, so a crashed server blocks rejoining for 3 minutes instead of 5.
+- **Purchases:** `ProcessReceipt` is idempotent, retries when the player isn't loaded, and saves before `PurchaseGranted`. All pass and product IDs are live; `GroupId` is still 0.
+- **Performance:** the new shop lanterns no longer cast shadows (point-light shadows are expensive on phones).
+- **Content:** launch posts added to the Info Board and the roadmap refreshed.
+- **Note:** `tools/balance/sim.py` uses its own simplified loot table. It does not reflect the Sep 26 rarity rebalance.
