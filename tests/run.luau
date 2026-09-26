@@ -900,7 +900,7 @@ test("bats: a free starter, 3 cash upgrades, 7 more behind Ascension, each slapp
 	-- Held like a Roblox tool: Handle = GripFrame * Grip:Inverse(), grip frame +Y up, -Z forward.
 	local handle = Bats.Grip:Inverse()
 	local axis = handle:VectorToWorldSpace(roblox.Vector3.new(0, 1, 0))
-	check(-axis.Z > 0.8 and axis.Y > 0.3 and axis.Y < 0.6 and math.abs(axis.X) < 1e-6, ("the bat leans FORWARD, a little up (fwd %.2f up %.2f)"):format(-axis.Z, axis.Y))
+	check(axis.Y > 0.85 and -axis.Z > 0.2 and -axis.Z < 0.5 and math.abs(axis.X) < 1e-6, ("the bat stands up, tipped a little forward (fwd %.2f up %.2f)"):format(-axis.Z, axis.Y))
 	check(handle:PointToWorldSpace(roblox.Vector3.new(0, 0.4, 0)).Magnitude < 1e-6, "the hand holds the handle just above the knob")
 	-- Each Ascension-gated bat is affordable within that Ascension's run (Cash resets on Ascending).
 	for _, bat in Bats.List do

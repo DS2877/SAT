@@ -25,9 +25,10 @@ Bats.StarterId = "wooden_bat"
 
 -- Tool.Grip: how the bat sits in the hand, the way every Roblox melee tool is held. Roblox's
 -- grip frame (arm held out by the stock tool pose) has +Y up and -Z forward; the bat grows
--- along its own +Y from the knob. Held a little up the handle and leaning FORWARD, 30 degrees
--- above level (not straight up like a torch).
-Bats.GripElevation = 30
+-- along its own +Y from the knob. Like the bats in the Steal-a-* games it stands UP from the
+-- fist, tipped a little FORWARD (70 degrees above level = 20 degrees off vertical) - not
+-- pointing straight ahead like a lance, not bolt upright like a torch.
+Bats.GripElevation = 70
 Bats.Grip = CFrame.new(0, 0.4, 0) * CFrame.Angles(math.rad(90 - Bats.GripElevation), 0, 0)
 
 Bats.List = {
