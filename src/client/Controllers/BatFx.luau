@@ -28,13 +28,30 @@ local function trailOf(character: Model): Trail?
 	return if trail and trail:IsA("Trail") then trail else nil
 end
 
--- Right shoulder + waist joints (R15), or the right shoulder alone (R6).
-local function jointsOf(character: Model): (Motor6D?, Motor6D?)
-	local arm = character:FindFirstChild("RightUpperArm")
-	local shoulder = (arm and arm:FindFirstChild("RightShoulder")) or (character:FindFirstChild("Torso") and (character :: any).Torso:FindFirstChild("Right Shoulder"))
-	local upper = character:FindFirstChild("UpperTorso")
-	local waist = upper and upper:FindFirstChild("Waist")
-	return (if shoulder and shoulder:IsA("Motor6D") then shoulder else nil), (if waist and waist:IsA("Motor6D") then waist else nil)
+-- A joint we can bend: a Motor6D (classic rigs: offset C0) or an AnimationConstraint (the
+-- upgraded avatar joints: offset its parent-side attachment). Both rotate the same way.
+type Joint = { Get: () -> CFrame, Target: Instance, Property: string }
+
+local function jointNamed(part: Instance?, name: string): Joint?
+	local joint = part and part:FindFirstChild(name)
+	if joint and joint:IsA("Motor6D") then
+		local motor = joint
+		return { Get = function()
+			return motor.C0
+		end, Target = motor, Property = "C0" }
+	elseif joint and joint:IsA("AnimationConstraint") and joint.Attachment0 then
+		local attachment = joint.Attachment0 :: Attachment
+		return { Get = function()
+			return attachment.CFrame
+		end, Target = attachment, Property = "CFrame" }
+	end
+	return nil
+end
+
+-- Right shoulder + waist (R15), or the right shoulder alone (R6).
+local function jointsOf(character: Model): (Joint?, Joint?)
+	local shoulder = jointNamed(character:FindFirstChild("RightUpperArm"), "RightShoulder") or jointNamed(character:FindFirstChild("Torso"), "Right Shoulder")
+	return shoulder, jointNamed(character:FindFirstChild("UpperTorso"), "Waist")
 end
 
 -- `base` turned `degrees` around the parent part's vertical axis, through the joint.
@@ -43,26 +60,35 @@ local function turned(base: CFrame, degrees: number): CFrame
 end
 
 -- The SWAT (Config/Bats.Swing): wind up right, whip across left, recover. Animated on every
--- client for every player (joint offsets on top of the held-tool pose), so it shows at once.
+-- client for every player, so it shows at once: the arm and waist turn, and the bat itself
+-- tips back and chops through level in the hand (that part works on every avatar).
 local function swing(player: Player)
 	local character = player.Character
-	if not character or swinging[character] or not character:FindFirstChild("Bat") then
-		return
-	end
-	local shoulder, waist = jointsOf(character)
-	if not shoulder then
+	local tool = character and character:FindFirstChild("Bat")
+	if not character or swinging[character] or not tool or not tool:IsA("Tool") then
 		return
 	end
 	swinging[character] = true
 	local cfg = Bats.Swing
-	local baseArm = shoulder.C0
-	local baseWaist = waist and waist.C0
+	local shoulder, waist = jointsOf(character)
+	local baseArm = shoulder and shoulder.Get()
+	local baseWaist = waist and waist.Get()
+	local lean = Instance.new("NumberValue")
+	lean.Value = Bats.GripElevation
+	lean.Changed:Connect(function(value)
+		if tool.Parent == character then
+			tool.Grip = Bats.GripAt(value)
+		end
+	end)
 	local function pose(step, time: number, style: Enum.EasingStyle, direction: Enum.EasingDirection?)
 		local info = TweenInfo.new(time, style, direction or Enum.EasingDirection.Out)
-		TweenService:Create(shoulder, info, { C0 = if step then turned(baseArm, step.Arm) else baseArm }):Play()
-		if waist and baseWaist then
-			TweenService:Create(waist, info, { C0 = if step then turned(baseWaist, step.Waist) else baseWaist }):Play()
+		if shoulder and baseArm then
+			TweenService:Create(shoulder.Target, info, { [shoulder.Property] = if step then turned(baseArm, step.Arm) else baseArm }):Play()
 		end
+		if waist and baseWaist then
+			TweenService:Create(waist.Target, info, { [waist.Property] = if step then turned(baseWaist, step.Waist) else baseWaist }):Play()
+		end
+		TweenService:Create(lean, info, { Value = if step then step.Bat else Bats.GripElevation }):Play()
 	end
 	local trail = trailOf(character)
 	-- Smooth: ease out of the ready pose into the wind-up, then one continuous sweep that
@@ -78,14 +104,18 @@ local function swing(player: Player)
 				trail.Enabled = false
 			end
 			pose(nil, cfg.Recover, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-			task.delay(cfg.Recover, function()
+			task.delay(cfg.Recover + 0.02, function()
 				-- Snap exactly home (a respawn or a new bat mid-swing can't leave it twisted).
-				if shoulder.Parent then
-					shoulder.C0 = baseArm
+				if shoulder and baseArm and shoulder.Target.Parent then
+					(shoulder.Target :: any)[shoulder.Property] = baseArm
 				end
-				if waist and baseWaist and waist.Parent then
-					waist.C0 = baseWaist
+				if waist and baseWaist and waist.Target.Parent then
+					(waist.Target :: any)[waist.Property] = baseWaist
 				end
+				if tool.Parent == character then
+					tool.Grip = Bats.Grip
+				end
+				lean:Destroy()
 				swinging[character] = nil
 			end)
 		end)
@@ -93,9 +123,12 @@ local function swing(player: Player)
 end
 
 -- Your own swing starts the moment you press SLAP (HUD), not after the server round trip.
+local lastLocalSwing = 0
 function BatFx.SwingLocal()
-	if localPlayer.Character and not swinging[localPlayer.Character] and localPlayer.Character:FindFirstChild("Bat") then
-		Sounds.Play("Swing")
+	local character = localPlayer.Character
+	Sounds.Play("Swing")
+	if character and not swinging[character] and character:FindFirstChild("Bat") then
+		lastLocalSwing = os.clock()
 		swing(localPlayer)
 	end
 end
@@ -167,7 +200,9 @@ function BatFx.Init()
 		end
 		if payload.Type == "Swing" then
 			local other = Players:GetPlayerByUserId(payload.UserId)
-			if other and other ~= localPlayer then
+			-- Your own swing already played on the press - unless the bat was on your back
+			-- (the server just drew it), then it plays now.
+			if other and (other ~= localPlayer or os.clock() - lastLocalSwing > 0.6) then
 				swing(other)
 			end
 		elseif payload.Type == "SlapImpact" and typeof(payload.Position) == "Vector3" then

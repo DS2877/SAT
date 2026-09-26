@@ -77,7 +77,7 @@ world.ShopPrompt.Triggered:Connect(function(player)
 end)
 
 -- Player preferences. Only known boolean settings are accepted.
-local BOOLEAN_SETTINGS = { Music = true, AutoCollect = true }
+local BOOLEAN_SETTINGS = { Music = true, AutoCollect = true, SheatheBat = true }
 Net.On("SetSetting", function(player, name, value)
 	if type(name) ~= "string" or not BOOLEAN_SETTINGS[name] or type(value) ~= "boolean" then
 		return
@@ -85,6 +85,9 @@ Net.On("SetSetting", function(player, name, value)
 	PlayerData.Update(player, function(d)
 		d.Settings[name] = value
 	end)
+	if name == "SheatheBat" then
+		BatService.Place(player)
+	end
 end, 4)
 
 Net.On("TutorialProgress", function(player, step)

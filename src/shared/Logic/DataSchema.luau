@@ -42,6 +42,7 @@ function DataSchema.Default()
 		Settings = {
 			Music = true,
 			AutoCollect = true, -- only matters with the Auto Collect pass (can be switched off)
+			SheatheBat = false, -- bat on your back instead of in hand (SLAP draws it again)
 		},
 		TutorialStep = 0,
 		EventSignups = {}, -- [eventId] = os.time() signed up at the Info Board (Config/News)

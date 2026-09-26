@@ -407,6 +407,25 @@ local function buildActions()
 	Kit.label({ Text = "🏏", Size = UDim2.new(1, 0, 0, 50), Position = UDim2.fromOffset(0, 12), TextSize = 38, Parent = attack })
 	refs.AttackLabel = Kit.label({ Text = "SLAP", Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, 1, -32), TextSize = 16, Font = Theme.Font.Black, Parent = attack })
 	refs.Attack = attack
+	-- Put the bat on your back (SLAP draws it again). Sits on SLAP's rim; H on keyboard.
+	local sheathe = Kit.button({
+		Name = "Sheathe",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.86, 0.1),
+		Size = UDim2.fromOffset(46, 26),
+		Text = "HIDE",
+		TextSize = 12,
+		Font = Theme.Font.Black,
+		BackgroundColor3 = Theme.Color.ButtonAlt,
+		TextColor3 = Theme.Color.Text,
+		Radius = Theme.Radius.Round,
+		ZIndex = 5,
+		Parent = attack,
+	}, function()
+		HUD.SheatheBat()
+	end)
+	Kit.stroke(Color3.new(1, 1, 1), 1.5, 0.4).Parent = sheathe
+	refs.Sheathe = sheathe
 
 	-- DROP: only while carrying. Separate from SLAP so mashing attack never drops your loot.
 	local drop = Kit.button({
@@ -832,6 +851,8 @@ local function refreshSlots()
 	end
 	refs.Reticle.Visible = aimed
 	refs.Drop.Visible = carrying ~= nil
+	-- HIDE only while the bat is in your hand (sheathed: SLAP is how you draw it).
+	refs.Sheathe.Visible = not carrying and not (data.Settings and data.Settings.SheatheBat)
 	refs.AttackLabel.Text = if carrying and not GameConfig.Combat.CarrierCanAttack then "RUN!" else "SLAP"
 	refs.Attack.BackgroundColor3 = if carrying and not GameConfig.Combat.CarrierCanAttack then Theme.Color.Disabled else Theme.Color.Danger
 end
@@ -963,8 +984,20 @@ function HUD.Attack()
 		return
 	end
 	lastSwing = os.clock()
-	BatFx.SwingLocal()
+	-- The slap itself goes first: a visual hiccup must never cost you the hit.
 	Net.Get("Attack"):FireServer()
+	local ok, err = pcall(BatFx.SwingLocal)
+	if not ok then
+		warn("[BatFx] swing:", err)
+	end
+end
+
+-- Bat on your back / back in hand (the server moves it; SLAP also draws it).
+function HUD.SheatheBat()
+	local data = ClientState.Data
+	if data and data.Settings and not data.Settings.SheatheBat then
+		Net.Get("SetSetting"):FireServer("SheatheBat", true)
+	end
 end
 
 function HUD.UseGadget(slot: number)
@@ -1058,6 +1091,8 @@ function HUD.Init(screenGui: ScreenGui)
 			HUD.UseGadget(3)
 		elseif key == Enum.KeyCode.G or key == Enum.KeyCode.DPadDown then
 			HUD.DropTreasure()
+		elseif key == Enum.KeyCode.H then
+			HUD.SheatheBat()
 		end
 	end)
 

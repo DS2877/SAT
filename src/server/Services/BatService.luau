@@ -2,8 +2,9 @@
 --   * Gives every character the equipped bat as a real Roblox TOOL, held in hand: Roblox does
 --     the grip (Config/Bats Grip) and the arm-out hold pose, like every Roblox melee game.
 --     The swing itself is our own swat (Controllers/BatFx). No hotbar: the Backpack UI is
---     off (Controllers/BatFx), and while you carry treasure the bat goes to your back pocket
---     (Backpack) - both hands are on the loot - and comes back when you're done.
+--     off (Controllers/BatFx). The bat goes ON YOUR BACK (a copy strapped across it, the Tool
+--     itself waits in the Backpack) while you carry treasure - both hands are on the loot -
+--     or when you sheathe it (setting "SheatheBat"); pressing SLAP draws it again (Draw).
 --   * Buying (Cash, plus an Ascension level from tier 5) and equipping, from the Bat Shop.
 --   * Combat asks Get(player) for the equipped bat's Knockback and Range.
 
@@ -34,20 +35,85 @@ local function toolOf(player: Player): Tool?
 	return nil
 end
 
--- In hand unless carrying treasure (then in the Backpack).
+-- The bat strapped diagonally across your back (a display copy; the Tool stays in the Backpack).
+local function backModelOf(character: Model): Model?
+	local model = character:FindFirstChild("BatOnBack")
+	return if model and model:IsA("Model") then model else nil
+end
+
+local function setOnBack(player: Player, show: boolean)
+	local character = player.Character
+	if not character then
+		return
+	end
+	local existing = backModelOf(character)
+	local batId = tostring(player:GetAttribute("BatId") or Bats.StarterId)
+	if existing and (not show or existing:GetAttribute("BatId") ~= batId) then
+		existing:Destroy()
+		existing = nil
+	end
+	if not show or existing then
+		return
+	end
+	local torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+	if not torso or not torso:IsA("BasePart") then
+		return
+	end
+	-- Knob low on the right hip, head over the left shoulder, resting against the back (+Z).
+	local offset = CFrame.new(0.8, -0.9, torso.Size.Z / 2 + 0.35) * CFrame.Angles(0, 0, math.rad(38))
+	local model = BatModels.Build(batId, torso.CFrame * offset)
+	model.Name = "BatOnBack"
+	model:SetAttribute("BatId", batId)
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.Anchored = false
+			d.CanCollide = false
+			d.CanQuery = false
+			d.CanTouch = false
+			d.Massless = true
+		elseif d:IsA("ParticleEmitter") or d:IsA("Trail") then
+			d.Enabled = false
+		end
+	end
+	local weld = Instance.new("Weld")
+	weld.Part0 = torso
+	weld.Part1 = model.PrimaryPart
+	weld.C0 = offset
+	weld.Parent = model.PrimaryPart
+	model.Parent = character
+end
+
+-- In hand, unless carrying treasure or sheathed: then it's on your back.
 local function place(player: Player)
 	local tool = toolOf(player)
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	local backpack = player:FindFirstChildOfClass("Backpack")
-	if not tool or not humanoid or humanoid.Health <= 0 or not backpack then
+	if not tool or not character or not humanoid or humanoid.Health <= 0 or not backpack then
 		return
 	end
+	local data = PlayerData.Get(player)
+	local sheathed = data ~= nil and data.Settings.SheatheBat == true
 	local carrying = (player:GetAttribute("CarryingUid") or 0) ~= 0
-	if carrying and tool.Parent ~= backpack then
+	local inHand = not carrying and not sheathed
+	if not inHand and tool.Parent ~= backpack then
+		humanoid:UnequipTools()
 		tool.Parent = backpack
-	elseif not carrying and tool.Parent ~= character then
+	elseif inHand and tool.Parent ~= character then
 		humanoid:EquipTool(tool)
+	end
+	setOnBack(player, not inHand)
+end
+BatService.Place = place
+
+-- SLAP while sheathed: draw the bat (and remember it's out).
+function BatService.Draw(player: Player)
+	local data = PlayerData.Get(player)
+	if data and data.Settings.SheatheBat then
+		PlayerData.Update(player, function(d)
+			d.Settings.SheatheBat = false
+		end)
+		place(player)
 	end
 end
 

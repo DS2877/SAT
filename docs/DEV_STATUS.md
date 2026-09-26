@@ -349,3 +349,5 @@ See docs/ROADMAP.md: 1 stabilise → 2 addictive core loop → 3 first 10 minute
   - `/announce clear` takes it down.
 - **Sign-ups:** the global count per event is kept in the `SATEventSignups` DataStore. Signed-up players who are online get a heads-up 10 minutes before the start and a banner when it goes live, including if they join while it's on.
 - **Unread posts:** returning players get one toast about a post they haven't read. Opening the board marks it read.
+- **Joints:** the swing drives both avatar joint types, the classic Motor6D (via C0) and the new upgraded AnimationConstraint (via its parent attachment). The bat itself also tips back and chops through level in the hand, so the swing shows on every avatar. The slap is sent to the server before any visuals run.
+- **Sheathe:** the **HIDE** button on SLAP (or **H** on PC) straps the bat across your back (setting `SheatheBat`). SLAP draws it again and swings in the same press. The bat also rides on your back while you carry treasure.

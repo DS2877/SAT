@@ -179,6 +179,7 @@ local function onAttack(attacker: Player)
 		return
 	end
 	lastAttack[attacker] = now
+	BatService.Draw(attacker) -- a sheathed bat comes out on the first SLAP
 	local bat = BatService.Get(attacker)
 
 	-- Everyone sees the swing (animation + sound are client-side).

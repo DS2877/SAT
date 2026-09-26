@@ -26,17 +26,23 @@ Bats.StarterId = "wooden_bat"
 -- Tool.Grip: how the bat sits in the hand, the way every Roblox melee tool is held. Roblox's
 -- grip frame (arm held out by the stock tool pose) has +Y up and -Z forward; the bat grows
 -- along its own +Y from the knob. Like the bats in the Steal-a-* games it stands UP from the
--- fist, tipped a little FORWARD (70 degrees above level = 20 degrees off vertical) - not
--- pointing straight ahead like a lance, not bolt upright like a torch.
-Bats.GripElevation = 70
-Bats.Grip = CFrame.new(0, 0.4, 0) * CFrame.Angles(math.rad(90 - Bats.GripElevation), 0, 0)
+-- fist with just a slight forward lean (80 degrees above level).
+Bats.GripElevation = 80
+-- The grip at any lean (degrees above level): the swing animates this too (Controllers/BatFx).
+function Bats.GripAt(elevation: number): CFrame
+	return CFrame.new(0, 0.4, 0) * CFrame.Angles(math.rad(90 - elevation), 0, 0)
+end
+Bats.Grip = Bats.GripAt(Bats.GripElevation)
 
 -- THE SWING (Controllers/BatFx): a fast horizontal SWAT across the body, the swing every
 -- Steal-a-* style bat does - not Roblox's overhead "Slash" chop. The right arm (and the waist,
 -- on R15 rigs) turn around the body's vertical axis: degrees, + = toward the left / across.
 Bats.Swing = {
-	WindUp = { Arm = -70, Waist = -30, Time = 0.07 }, -- cock it far back to the right
-	Strike = { Arm = 125, Waist = 40, Time = 0.09 }, -- one wide sweep across to the left
+	-- Arm/Waist: degrees around the body's vertical axis. Bat: the bat's lean in the hand
+	-- (degrees above level) - it tips back on the wind-up and chops through level on the
+	-- strike, so the swing reads even on avatars whose arm joints can't be driven.
+	WindUp = { Arm = -70, Waist = -30, Bat = 110, Time = 0.07 }, -- cock it far back to the right
+	Strike = { Arm = 125, Waist = 40, Bat = 5, Time = 0.09 }, -- one wide sweep across to the left
 	Hold = 0.02, -- barely a beat: the follow-through flows straight into the recovery
 	Recover = 0.16, -- back to the ready pose
 }
