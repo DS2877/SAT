@@ -264,9 +264,9 @@ GameConfig.Extraction = {
 }
 
 GameConfig.Combat = {
-	AttackRange = 9,
+	AttackRange = 12, -- bat reach on guardians (players: each bat's Range, Config/Bats)
 	AttackCooldown = 0.7,
-	AttackArcDot = 0.25, -- target must be roughly in front (dot of look vector)
+	AttackArcDot = -0.15, -- a wide swing: anything in front or beside you (dot of look vector)
 	PvPDamage = 8,
 	KnockbackPower = 45, -- guardians and gadgets; bat slaps use the bat's own Knockback (Config/Bats)
 	ShakenShove = 0.45, -- a carrier's first slap: a short shove (x the bat's knockback)...

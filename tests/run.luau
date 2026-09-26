@@ -913,9 +913,9 @@ test("bats: a free starter, 3 cash upgrades, 7 more behind Ascension, each slapp
 		check(bat.Tier == i, bat.Id .. " tier in order")
 		check(bat.Price > prev.Price, bat.Id .. " costs more than the last")
 		check(bat.Knockback > prev.Knockback, bat.Id .. " slaps further than the last")
-		check(bat.Range >= prev.Range and bat.Range <= 10, bat.Id .. " reach grows a little (melee, like every Roblox bat)")
+		check(bat.Range >= prev.Range and bat.Range <= 14, bat.Id .. " reach grows a little (a generous melee hitbox)")
 	end
-	check(Bats.List[1].Range >= 6 and Bats.List[1].Range <= 8, "starter bat is short-range melee")
+	check(Bats.List[1].Range >= 10 and Bats.List[1].Range <= 12, "starter bat has a generous hitbox")
 	-- Held like a Roblox tool: Handle = GripFrame * Grip:Inverse(), grip frame +Y up, -Z forward.
 	local handle = Bats.Grip:Inverse()
 	local axis = handle:VectorToWorldSpace(roblox.Vector3.new(0, 1, 0))
