@@ -69,10 +69,10 @@ local function showIntro(gui: ScreenGui)
 		Parent = card,
 	}, { Kit.list(Enum.FillDirection.Horizontal, 10, Enum.HorizontalAlignment.Center) })
 	for i, beat in {
-		{ "💪", "TRAIN", "Lift at the gym to carry heavier loot" },
-		{ "💎", "FIND", "Treasure spawns in the Wilds at night" },
-		{ "🏃", "RUN IT HOME", "Others can SLAP you - 2 slaps and you drop it!" },
+		{ "💎", "FIND", "Head out through the gate: treasure waits in the Wilds" },
+		{ "🏃", "RUN IT HOME", "Back through the gate! 2 slaps and you drop it" },
 		{ "💰", "EARN", "Treasure in your Vault pays $ every second" },
+		{ "💪", "TRAIN", "Lift at the gym to carry heavier, richer loot" },
 	} do
 		local cell = Kit.new("Frame", { LayoutOrder = i, Size = UDim2.fromOffset(134, 130), BackgroundColor3 = Theme.Color.PanelLight, ZIndex = 52, Parent = steps })
 		Kit.corner(Theme.Radius.Medium).Parent = cell

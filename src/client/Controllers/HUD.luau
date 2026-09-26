@@ -687,30 +687,34 @@ local function computeObjective()
 		return
 	end
 
-	if not ClientState.Milestone("FirstTraining") then
-		setObjective("STEP 1 • GET STRONGER", "LIFT AT THE BENCH PRESS", Theme.Color.Strength, "Stronger = carry heavy treasure faster", nil)
-		navTarget = { Name = "STRENGTH GYM", Position = WorldLayout.Gym.Origin }
-		return
-	end
+	-- The first-run order: go out and find treasure, bring it home, collect the cash it earns,
+	-- THEN train (and gadgets after that).
 	if not ClientState.Milestone("FirstExtraction") then
 		local target = nearestTreasure(position, 2)
 		local night = DayNight.State(workspace:GetServerTimeNow())
 		if night.IsNight then
 			local left = math.ceil(night.SecondsLeft)
-			setObjective("STEP 2 • WAIT FOR DAWN", "THE WILDS ARE CLOSED", Theme.Color.Info, ("New treasure is spawning • Gate opens in %d:%02d"):format(left // 60, left % 60), nil)
+			setObjective("STEP 1 • WAIT FOR DAWN", "THE WILDS ARE CLOSED", Theme.Color.Info, ("New treasure is spawning • Gate opens in %d:%02d"):format(left // 60, left % 60), nil)
 		elseif ClientState.Milestone("FirstTreasure") then
-			setObjective("STEP 3 • PICK IT UP", "GRAB A TREASURE", Theme.Color.Gold, "Carry it HOME through the gate to bank it", nil)
+			setObjective("STEP 2 • PICK IT UP", "GRAB A TREASURE", Theme.Color.Gold, "Carry it HOME through the gate to bank it", nil)
 		else
-			setObjective("STEP 2 • EXPLORE", "FIND A TREASURE", Theme.Color.Gold, "Head through the gate into THE WILDS", nil)
+			setObjective("STEP 1 • EXPLORE", "FIND A TREASURE", Theme.Color.Gold, "Head through the gate into THE WILDS", nil)
 		end
 		navTarget = if target then { Name = "TREASURE", Position = target.Position } else { Name = "THE WILDS", Position = WorldLayout.District.Gate }
 		return
 	end
 
-	-- Step 4: the new economy's key idea - your Vault pays you, walk over and collect it.
+	-- Step 3: the key idea - your Vault pays you, walk over and collect it.
 	if not ClientState.Milestone("FirstCollect") then
-		setObjective("STEP 4 • GET PAID", "COLLECT YOUR CASH", Theme.Color.Cash, "Your treasure earns $ every second", "▶ STEP ON THE GREEN PAD AT YOUR VAULT", nil)
+		setObjective("STEP 3 • GET PAID", "COLLECT YOUR CASH", Theme.Color.Cash, "Your treasure earns $ every second", "▶ STEP ON THE GREEN PAD AT YOUR VAULT", nil)
 		navTarget = vaultNav()
+		return
+	end
+
+	-- Step 4: now that they know the loop, get stronger to carry the heavier, richer loot.
+	if not ClientState.Milestone("FirstTraining") then
+		setObjective("STEP 4 • GET STRONGER", "LIFT AT THE BENCH PRESS", Theme.Color.Strength, "Stronger = carry heavier, richer treasure faster", nil)
+		navTarget = { Name = "STRENGTH GYM", Position = WorldLayout.Gym.Origin }
 		return
 	end
 
@@ -780,14 +784,14 @@ local function computeObjective()
 	-- alert near the end) and players discover the world instead of following a marker.
 	navTarget = nil
 end
--- The direction PILL is tutorial only: once the first cash is collected (the last tutorial
--- step) it never shows again - players read the world, not a GPS. The Guide's glowing
+-- The direction PILL is tutorial only: once the first cash is collected and the first lift done
+-- (the last tutorial steps) it never shows again - players read the world, not a GPS. The Guide's glowing
 -- FOOTPRINTS also help newer players home while they carry treasure (first few banks).
 local GUIDE_CARRY_BANKS = 10
 local guideTarget: { Name: string, Position: Vector3 }? = nil
 local function refreshObjective()
 	computeObjective()
-	local tutorial = not ClientState.Milestone("FirstCollect")
+	local tutorial = not ClientState.Milestone("FirstCollect") or not ClientState.Milestone("FirstTraining")
 	local data = ClientState.Data
 	local newer = data ~= nil and (data.Stats.Extractions or 0) < GUIDE_CARRY_BANKS
 	guideTarget = if tutorial or (newer and ClientState.Carrying()) then navTarget else nil

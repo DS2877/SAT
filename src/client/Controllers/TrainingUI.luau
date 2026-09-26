@@ -37,6 +37,7 @@ local cfg = GameConfig.Training
 local player = Players.LocalPlayer
 local gui: ScreenGui
 local panel: Frame
+local stopButton: TextButton
 local title: TextLabel
 local rateLabel: TextLabel
 local totalLabel: TextLabel
@@ -258,6 +259,7 @@ local function stop()
 	end
 	session = nil
 	panel.Visible = false
+	stopButton.Visible = false
 	ProximityPromptService.Enabled = true
 	if heartbeat then
 		heartbeat:Disconnect()
@@ -275,6 +277,7 @@ local function start(payload)
 	setLabel.Text = ("SET BONUS +%d%% EVERY %d REPS"):format(math.floor(cfg.SetBonus * 100 + 0.5), cfg.SetSize)
 	refreshGoal()
 	panel.Visible = true
+	stopButton.Visible = true
 	ProximityPromptService.Enabled = false
 	Sounds.Play("TrainPerfect", 0.6)
 
@@ -290,8 +293,13 @@ local function start(payload)
 			session.Shown = math.min(session.Target, session.Shown + math.max(1, (session.Target - session.Shown) * dt * 8))
 			totalLabel.Text = ("+%s 💪"):format(Kit.bigNumber(math.floor(session.Shown)))
 		end
-		-- Push the stick / movement keys to get up.
+		-- Push the stick / movement keys (or jump) to get up.
 		local hum = humanoid()
+		if hum and hum.Jump then
+			Net.Get("StopTraining"):FireServer()
+			stop()
+			return
+		end
 		if hum and hum.MoveDirection.Magnitude > 0.5 then
 			session.MovingFor += dt
 			if session.MovingFor > 0.25 then
@@ -387,15 +395,34 @@ function TrainingUI.Init(screenGui: ScreenGui)
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.fromScale(0, 1),
 		Size = UDim2.new(0.58, -4, 0, 30),
-		Text = "🚶 GET UP",
+		Text = "✖ STOP",
 		TextSize = Theme.TextSize.Small,
-		BackgroundColor3 = Theme.Color.ButtonAlt,
-		TextColor3 = Theme.Color.Text,
+		BackgroundColor3 = Theme.Color.Danger,
+		TextColor3 = Color3.new(1, 1, 1),
 		Parent = panel,
 	}, function()
 		Net.Get("StopTraining"):FireServer()
 		stop()
 	end)
+	-- The big, obvious way off the bench: a red button right above the panel (thumb-sized on a
+	-- phone). Walking or jumping gets you up too.
+	stopButton = Kit.button({
+		Name = "StopTraining",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -24 - 172 - 10),
+		Size = UDim2.fromOffset(250, 50),
+		Text = "✖ STOP TRAINING",
+		Font = Theme.Font.Display,
+		TextSize = 22,
+		BackgroundColor3 = Theme.Color.Danger,
+		TextColor3 = Color3.new(1, 1, 1),
+		Visible = false,
+		Parent = gui,
+	}, function()
+		Net.Get("StopTraining"):FireServer()
+		stop()
+	end)
+	Kit.label({ Text = "or walk / jump to get up", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 1, 2), Size = UDim2.fromOffset(250, 14), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Color3.new(1, 1, 1), TextStrokeTransparency = 0.3, Parent = stopButton })
 	-- Strength Surge (x3 for 15 min): shows the time left while active, otherwise opens the store.
 	boostButton = Kit.button({
 		Name = "Boost",
