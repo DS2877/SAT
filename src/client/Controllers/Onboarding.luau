@@ -70,7 +70,7 @@ local function showIntro(gui: ScreenGui)
 	}, { Kit.list(Enum.FillDirection.Horizontal, 10, Enum.HorizontalAlignment.Center) })
 	for i, beat in {
 		{ "💎", "FIND", "Head out through the gate: treasure waits in the Wilds" },
-		{ "🏃", "RUN IT HOME", "Back through the gate! 2 slaps and you drop it" },
+		{ "🏃", "RUN IT HOME", "Back through the gate! One slap and you drop it" },
 		{ "💰", "EARN", "Treasure in your Vault pays $ every second" },
 		{ "💪", "TRAIN", "Lift at the gym to carry heavier, richer loot" },
 	} do
@@ -115,7 +115,7 @@ function Onboarding.Init(gui: ScreenGui)
 	player:GetAttributeChangedSignal("CarryingId"):Connect(function()
 		local id = player:GetAttribute("CarryingId")
 		if type(id) == "string" and id ~= "" then
-			tip("pickup", "🏃 GET IT HOME", "Carry it home through the gate • exit beams pay more • 2 hits = you drop it", "Reward")
+			tip("pickup", "🏃 GET IT HOME", "Carry it home through the gate • exit beams pay more • 1 slap = you drop it", "Reward")
 		end
 	end)
 	player:GetAttributeChangedSignal("Stability"):Connect(function()

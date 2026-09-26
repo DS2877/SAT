@@ -159,6 +159,7 @@ GameConfig.Carry = {
 }
 
 GameConfig.Stability = {
+	HitsToKnock = 1, -- one slap and a carrier drops the treasure (2 = the old Shaken-first rule)
 	ShakenWindow = 3, -- seconds a carrier stays Shaken without another hit
 	ShakenSpeed = 0.55, -- walk speed multiplier while Shaken (the first slap slows you)
 	KnockedDuration = 1.5,

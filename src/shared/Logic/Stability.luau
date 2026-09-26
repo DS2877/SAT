@@ -35,7 +35,8 @@ function Stability.Hit(st: State, now: number, config): string
 	if Stability.IsImmune(st, now) then
 		return "Ignored"
 	end
-	if st.State == "Shaken" then
+	-- One hit is all it takes when HitsToKnock is 1 (the default now): no Shaken warning step.
+	if st.State == "Shaken" or (config.HitsToKnock or 2) <= 1 then
 		st.State = "Knocked"
 		st.KnockedUntil = now + config.KnockedDuration
 		st.ImmuneUntil = st.KnockedUntil + config.KnockImmunity

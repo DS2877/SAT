@@ -81,8 +81,18 @@ test("carry never hard-locks and jump has a floor", function()
 end)
 
 -- STABILITY ---------------------------------------------------------------------
-test("stable -> shaken -> knocked", function()
+test("one slap knocks a carrier", function()
 	local cfg = GameConfig.Stability
+	check(cfg.HitsToKnock == 1, "one hit is enough")
+	local st = Stability.new()
+	check(Stability.Hit(st, 0, cfg) == "Knocked", "first hit knocks (the treasure drops)")
+	check(Stability.Hit(st, 0.5, cfg) == "Ignored", "no chain-stun while knocked")
+end)
+
+-- The two-hit rule (HitsToKnock = 2) still works if it's ever switched back on.
+test("stable -> shaken -> knocked", function()
+	local cfg = table.clone(GameConfig.Stability)
+	cfg.HitsToKnock = 2
 	local st = Stability.new()
 	check(Stability.Hit(st, 0, cfg) == "Shaken", "first hit shakes")
 	check(Stability.Hit(st, 1, cfg) == "Knocked", "second hit inside window knocks")
@@ -95,7 +105,8 @@ test("stable -> shaken -> knocked", function()
 end)
 
 test("shaken decays back to stable", function()
-	local cfg = GameConfig.Stability
+	local cfg = table.clone(GameConfig.Stability)
+	cfg.HitsToKnock = 2
 	local st = Stability.new()
 	Stability.Hit(st, 10, cfg)
 	check(Stability.Update(st, 10 + cfg.ShakenWindow - 0.01, cfg) == false, "still shaken inside window")
@@ -1547,6 +1558,32 @@ test("admin panel: boosts, broadcasts and events, admins only", function()
 		check(string.find(fs.readFile(file), ('Boosts.Multiplier("%s")'):format(kind), 1, true) ~= nil, kind .. " boost is applied")
 	end
 	check(string.find(fs.readFile("src/server/Services/TreasureService.luau"), 'Boosts.Multiplier("Mutation")', 1, true) ~= nil, "Mutation boost is applied")
+end)
+
+test("a full vault swaps out its cheapest treasure for a better one", function()
+	local byId = {}
+	for _, def in Treasures.List do
+		byId[def.Id] = def
+	end
+	local function get(id)
+		return byId[id]
+	end
+	local sorted = table.clone(Treasures.List)
+	table.sort(sorted, function(a, b)
+		return a.Value < b.Value
+	end)
+	local cheap, mid, rich = sorted[1], sorted[math.floor(#sorted / 2)], sorted[#sorted]
+	local displays = { ["1"] = mid.Id, ["2"] = cheap.Id, Trophy = cheap.Id }
+	local slot, old = Economy.PlaceBanked({ ["1"] = mid.Id }, 2, rich, nil, get)
+	check(slot == 2 and old == nil, "a free pedestal is used first")
+	slot, old = Economy.PlaceBanked(displays, 2, rich, nil, get)
+	check(slot == 2 and old == cheap.Id, "full: the cheapest treasure makes room for a better one")
+	slot, old = Economy.PlaceBanked(displays, 2, cheap, nil, get)
+	check(slot == nil and old == nil, "full and the new one is the cheapest: it's sold instead")
+	local source = require("@lune/fs").readFile("src/server/Services/Extraction.luau")
+	local upgradeAt = string.find(source, "d.Vault.Tier += 1", 1, true)
+	local placeAt = string.find(source, "Economy.PlaceBanked(", 1, true)
+	check(upgradeAt ~= nil and placeAt ~= nil and upgradeAt < placeAt, "a full vault auto-upgrades (if affordable) before anything is sold")
 end)
 
 print(("%d passed, %d failed"):format(passed, failed))

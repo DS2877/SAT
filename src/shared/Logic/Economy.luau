@@ -96,6 +96,33 @@ function Economy.UsedSlots(displays): number
 	return used
 end
 
+-- Where a newly banked treasure goes in a vault of `capacity` pedestals. Pure.
+-- Returns (slot, replacedValue): the first free pedestal; or, when the vault is full, the
+-- pedestal of the LEAST valuable treasure if the new one earns more (replacedValue = what
+-- stood there, to be sold); or nil when the new one is the least valuable (sell it instead).
+-- `getDef(id)` resolves treasure ids. The trophy pedestal outside is never touched.
+function Economy.PlaceBanked(displays, capacity: number, def, mutation: string?, getDef): (number?, string?)
+	for index = 1, capacity do
+		if displays[tostring(index)] == nil then
+			return index, nil
+		end
+	end
+	local worstSlot, worstIncome = nil, math.huge
+	for index = 1, capacity do
+		local value = displays[tostring(index)]
+		local id, m = Economy.DecodeSlot(value)
+		local other = id and getDef(id)
+		local income = if other then Economy.Income(other, m) else 0
+		if income < worstIncome then
+			worstSlot, worstIncome = index, income
+		end
+	end
+	if worstSlot and Economy.Income(def, mutation) > worstIncome then
+		return worstSlot, displays[tostring(worstSlot)]
+	end
+	return nil, nil
+end
+
 -- Put the treasure from pedestal `slot` on the trophy pedestal: the two swap, so whatever
 -- stood outside goes back into that slot (or it simply empties). Returns false if the slot is
 -- empty. `slot` = 0: take the trophy down into the first free slot of `capacity` (false if

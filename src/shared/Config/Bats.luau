@@ -1,5 +1,5 @@
 -- Bats: the slap weapon everyone carries. Not carrying treasure? A slap sends you flying.
--- Carrying? The first slap SLOWS you (Shaken), the second THROWS you and you DROP it.
+-- Carrying? One slap THROWS you and you DROP it.
 --
 -- You start with the Wooden Bat. The Bat Shop in the District sells the rest: the first three
 -- upgrades only cost Cash, the next seven also need an Ascension level. Every tier slaps

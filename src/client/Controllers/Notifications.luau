@@ -162,6 +162,9 @@ function Notifications.Reward(payload)
 	local detail = if payload.PlacedSlot
 		then ("NOW EARNING %s/s IN YOUR VAULT"):format(Kit.shortCash(payload.Income or 0))
 		else ("VAULT FULL • SOLD FOR %s"):format(Kit.shortCash(payload.SoldFor or 0))
+	if payload.PlacedSlot and payload.Replaced then
+		detail ..= (" • OLD ONE SOLD FOR %s"):format(Kit.shortCash(payload.SoldFor or 0))
+	end
 	if payload.NewDiscovery then
 		detail = "NEW! " .. detail
 	end

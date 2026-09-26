@@ -105,21 +105,42 @@ local function complete(player: Player, session: Session)
 	local setsBefore = Economy.CompletedSets(data.Collection, Treasures.List)
 	local placedSlot: number? = nil
 	local soldFor = 0
+	local upgradedTo: number? = nil -- pedestals after an automatic Vault upgrade
+	local upgradePrice = 0
+	local replaced: string? = nil -- the encoded treasure sold to make room
 
 	-- Single synchronous mutation: no yields between consume and reward, so no duplicates.
+	-- A full Vault: first it grows by itself if you can afford the next tier (this finder's
+	-- fee included); still full? The LEAST valuable treasure is sold and the new one takes its
+	-- pedestal - unless the new one is the least valuable, then that's the one sold.
 	PlayerData.Update(player, function(d)
-		for index = 1, tier.Slots do
-			if d.Vault.Displays[tostring(index)] == nil then
-				placedSlot = index
-				d.Vault.Displays[tostring(index)] = Economy.EncodeSlot(def.Id, mutation)
-				break
+		d.Cash += reward
+		local slots = tier.Slots
+		if Economy.UsedSlots(d.Vault.Displays) >= slots then
+			local nextTier = GameConfig.Vault.Tiers[d.Vault.Tier + 1]
+			if nextTier and nextTier.Enabled and d.Cash >= nextTier.Price then
+				d.Cash -= nextTier.Price
+				d.Vault.Tier += 1
+				slots = nextTier.Slots
+				upgradedTo = nextTier.Slots
+				upgradePrice = nextTier.Price
 			end
 		end
-		if not placedSlot then
+		local slot, old = Economy.PlaceBanked(d.Vault.Displays, slots, def, mutation, Treasures.Get)
+		if slot then
+			placedSlot = slot
+			d.Vault.Displays[tostring(slot)] = Economy.EncodeSlot(def.Id, mutation)
+			if old then
+				replaced = old
+				local oldId, oldMutation = Economy.DecodeSlot(old)
+				local oldDef = oldId and Treasures.Get(oldId)
+				soldFor = if oldDef then Economy.SellPrice(oldDef, oldMutation) else 0
+			end
+		else
 			soldFor = Economy.SellPrice(def, mutation)
 		end
+		d.Cash += soldFor
 		local cash = reward + soldFor
-		d.Cash += cash
 		d.Stats.TotalEarned += cash
 		d.Stats.Extractions += 1
 		d.Strength = math.min(GameConfig.Strength.Max, d.Strength + strengthGain)
@@ -141,6 +162,12 @@ local function complete(player: Player, session: Session)
 	end)
 
 	send(player, { Active = false, Reason = "Complete" })
+	if upgradedTo then
+		if PlayerData.Milestone(player, "FirstVaultUpgrade") then
+			Analytics.Funnel(player, "FirstVaultUpgrade")
+		end
+		Analytics.Economy(player, "Sink", upgradePrice, data.Cash, "Shop", "vault_tier_auto")
+	end
 	if Economy.CompletedSets(data.Collection, Treasures.List) > setsBefore then
 		task.delay(3, function()
 			Net.Fire("Notify", player, {
@@ -165,6 +192,8 @@ local function complete(player: Player, session: Session)
 		StreakMultiplier = streakMultiplier,
 		PlacedSlot = placedSlot,
 		SoldFor = soldFor,
+		AutoUpgraded = upgradedTo,
+		Replaced = replaced,
 		Bonus = category.Bonus,
 		Multiplier = multiplier,
 		ZoneName = session.Zone.Name,
@@ -189,7 +218,7 @@ local function complete(player: Player, session: Session)
 	Analytics.Event(player, "Extracted", { Treasure = def.Id, Zone = session.Zone.Id, Reward = reward })
 	Analytics.Economy(player, "Source", reward + soldFor, data.Cash, "Gameplay", def.Id)
 	TreasureService.RefreshCarrier(player)
-	Extraction.Completed:Fire(player, def, mutation, placedSlot, soldFor, session.Zone.Category)
+	Extraction.Completed:Fire(player, def, mutation, placedSlot, soldFor, session.Zone.Category, { AutoUpgraded = upgradedTo, Replaced = replaced })
 end
 
 local function tick()

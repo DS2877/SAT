@@ -1,7 +1,8 @@
 -- Attacks (PvP bat SLAPS), Guardian hits and carrier stability (STABLE -> SHAKEN -> KNOCKED).
 -- Hit detection is server-side from server positions; the client only says "I swung".
 --   * Not carrying: a slap sends you flying (the attacker's bat decides how far).
---   * Carrying: the first slap SLOWS you (Shaken), the second THROWS you and you DROP it.
+--   * Carrying: one slap THROWS you and you DROP it (GameConfig.Stability.HitsToKnock; at 2
+--     the first slap only slows you - Shaken - and the second throws you).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -190,7 +191,7 @@ function Combat.ApplyHit(victim: Player, source)
 				end
 			end)
 		elseif result == "Knocked" then
-			-- Second slap: thrown - and the treasure stays behind.
+			-- The knocking slap: thrown - and the treasure stays behind.
 			power *= cfg.KnockThrow
 			knock(victim, st, source.Attacker)
 		end

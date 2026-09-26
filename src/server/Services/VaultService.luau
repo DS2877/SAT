@@ -714,13 +714,27 @@ local function flyHome(player: Player, def, mutation: string?)
 	end)
 end
 
-local function onExtracted(player: Player, def, mutation: string?, placedSlot: number?, soldFor: number, category: string?)
+local function onExtracted(player: Player, def, mutation: string?, placedSlot: number?, soldFor: number, category: string?, extra)
 	render(player)
-	if not placedSlot then
+	local upgraded = extra and extra.AutoUpgraded
+	local replaced = extra and extra.Replaced
+	if upgraded then
+		Net.Fire("Notify", player, { Kind = "Banner", Title = "🏛 VAULT AUTO-UPGRADED!", Text = ("Your Vault grew to %d pedestals to fit it"):format(upgraded), Tone = "Reward" })
+	elseif replaced then
+		local oldId, oldMutation = Economy.DecodeSlot(replaced)
+		local oldDef = oldId and Treasures.Get(oldId)
+		local name = if oldDef then ((if oldMutation then oldMutation .. " " else "") .. oldDef.Name) else "your cheapest treasure"
+		Net.Fire("Notify", player, {
+			Kind = "Banner",
+			Title = "VAULT FULL • SWAPPED IN",
+			Text = ("Sold %s for %s to make room"):format(name:upper(), formatShort(soldFor)),
+			Tone = "Info",
+		})
+	elseif not placedSlot then
 		Net.Fire("Notify", player, {
 			Kind = "Banner",
 			Title = "VAULT FULL",
-			Text = ("Sold for %s • Upgrade or sell to make room"):format(formatShort(soldFor)),
+			Text = ("Worth less than everything in your Vault • sold for %s"):format(formatShort(soldFor)),
 			Tone = "Warn",
 		})
 	end
