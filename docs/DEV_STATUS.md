@@ -358,3 +358,17 @@ See docs/ROADMAP.md: 1 stabilise → 2 addictive core loop → 3 first 10 minute
 - **Carrying?** The treasure drops right where you were hit (with the Knocked tumble and reclaim protection), then you fly.
 - **Not carrying?** You just fly back, with a "💥 THROWN!" line.
 - After any throw the guardian backs off for its `RetreatAfterKnock`. The unused guardian `Damage` values were removed.
+
+## Sound (SFX remake)
+- **One coherent, soft set** (`UI/Sounds.luau`, credits in `music/CREDITS.md`). It replaces the stock "electronic ping" pitched up and down for everything.
+- **Mixed under the music:** every effect plays through the `SFX` SoundGroup at 0.75, with each sound at 0.6 or below. A test enforces this.
+- **One sound per action:**
+  - Buttons whose action makes its own sound are `Silent` (SLAP = just the swoosh, gadgets, DROP, bat HIDE/DRAW).
+  - "Moments" (chimes/stingers) have priorities, so a big bank's fanfare swallows the banner ding that arrives with it.
+  - Each sound has a restart guard.
+- **Premium details:**
+  - Slight random pitch on repeating sounds (swings, reps, hits).
+  - Every sound is preloaded at start.
+  - Positional sounds roll off naturally.
+  - Warning toasts are silent; only danger ones blip.
+- A test checks that every `Sounds.Play("X")` in the client exists in the library.

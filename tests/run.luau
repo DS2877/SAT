@@ -1309,6 +1309,34 @@ test("guardians throw you back, low and long, and never hurt", function()
 	check(apex >= 2 and apex <= 6, ("a short hop, not a launch (apex %.1f studs)"):format(apex))
 end)
 
+test("sound library: every sound played exists, all licensed ids, mixed under the music", function()
+	local fs = require("@lune/fs")
+	local source = fs.readFile("src/client/UI/Sounds.luau")
+	local library = {}
+	for name, body in string.gmatch(source, "\n\t(%w+) = (%b{})") do
+		library[name] = body
+	end
+	check(next(library) ~= nil, "parsed the sound library")
+	for name, body in library do
+		local volume = tonumber(string.match(body, "Volume = ([%d%.]+)"))
+		check(volume ~= nil and volume <= 0.6, name .. " is mixed softly (<= 0.6 before the SFX group)")
+		check(string.find(body, "Id = R %.%. \"%d+\"") ~= nil or string.find(body, "rbxasset://sounds/") ~= nil, name .. " uses a library id")
+	end
+	local function scan(dir)
+		for _, entry in fs.readDir(dir) do
+			local path = dir .. "/" .. entry
+			if fs.isDir(path) then
+				scan(path)
+			elseif string.sub(entry, -5) == ".luau" then
+				for used in string.gmatch(fs.readFile(path), "Sounds%.Play%w*%(\"(%w+)\"") do
+					check(library[used] ~= nil, ("%s plays \"%s\", which is in the library"):format(entry, used))
+				end
+			end
+		end
+	end
+	scan("src/client")
+end)
+
 print(("%d passed, %d failed"):format(passed, failed))
 if failed > 0 then
 	error("tests failed")

@@ -64,7 +64,7 @@ function Notifications.Toast(text: string, tone: string?)
 		end)
 		children[1]:Destroy()
 	end
-	if tone == "Warn" or tone == "Danger" then
+	if tone == "Danger" then
 		Sounds.Play("Error")
 	end
 	task.delay(2.6, function()
@@ -261,9 +261,8 @@ function Notifications.Init(screenGui: ScreenGui, topStack: Frame)
 			Notifications.Toast(payload.Text, payload.Tone)
 		elseif payload.Kind == "Banner" then
 			Notifications.Banner(payload.Title, payload.Text, payload.Tone, tonumber(payload.Duration))
-			if payload.Tone == "Reward" then
-				Sounds.Play("ExtractSuccess")
-			end
+			-- One gentle chime per banner: rewards ding, everything else a soft notify.
+			Sounds.Play(if payload.Tone == "Reward" then "ExtractSuccess" else "Notify")
 		elseif payload.Kind == "Social" then
 			Notifications.Social(payload.Text, payload.Rarity)
 		end

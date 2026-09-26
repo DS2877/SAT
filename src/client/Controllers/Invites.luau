@@ -67,7 +67,7 @@ local function offer(reason: string, delaySeconds: number?)
 		card.Position = HIDDEN
 		card.Visible = true
 		Kit.tween(card, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Position = UDim2.new(1, -12, 0.36, 0) })
-		Sounds.Play("Click", 0.4)
+		Sounds.Play("Swipe")
 		local shownAt = lastShown
 		task.delay(SHOW_FOR, function()
 			if lastShown == shownAt then

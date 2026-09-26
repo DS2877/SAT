@@ -49,3 +49,34 @@ prints every uploaded asset's moderation status. Our upload of the Mountain King
 
 ## Night wind-down (replaces Night on Bald Mountain)
 - "Gymnopedie No. 1 (30)" (Satie), from APMOfficial in the Creator Store, rbxassetid://9045769414. It plays at 0.3 volume with a 4-second fade.
+
+## Sound effects (the SFX remake), all from the Roblox Creator Store
+- **Roblox official UI pack:**
+  - Small_Click 15675032796
+  - Paper_Swipe 15675037413
+  - Whistle_Low 15675062723
+  - Cute_Pop 15675055424
+  - Sweep 15675046931
+  - Delete 15675075163
+  - Whoosh_03 15674975792
+  - Whoosh_04 15675012262
+  - Bright_Click 15675059323
+  - Tonal_Stinger 15675043410
+- **ProSoundEffects:**
+  - Body Fall Thud 1 / 2: 9113480917 / 9113480915
+  - Body Impact 1: 9113525391
+  - Mud Puddle Splash: 9125703162
+  - Soft Suck Whoosh 4: 9119377942
+  - The bat sounds (listed above)
+- **APM:** "Space Chimes" 1839901334 (Ascension)
+- **Project 555 (UI pack):**
+  - Notification Double Ding 107978604605265
+  - Bright Plucks 83059242168617
+  - 3x Soft Bells 95469323096995
+- **CoreCraft Studio (UI pack):**
+  - UI Notification 106553517979212
+  - Orchestral Brass Error 133470439269793 (guardian aggro)
+  - Click Tap Hybrid Muffled 133196982070163
+- **Others (verified creators):**
+  - "Rewards Level Up - Next Tier" (Los Calientes Studio) 134821092416328
+  - "ui-simple-negative-error" (AmbientSorcery) 87519554692663
