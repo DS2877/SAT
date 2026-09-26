@@ -984,15 +984,22 @@ local function buildShop(district: Folder)
 		part({ Name = "ShopSide", Size = Vector3.new(1, height, depth), CFrame = base * CFrame.new(sx * width / 2, height / 2, 0), Color = brick, Material = Enum.Material.Brick, Parent = shop })
 		part({ Name = "ShopCorner", Size = Vector3.new(1.4, height + 0.4, 1.4), CFrame = base * CFrame.new(sx * width / 2, height / 2, -depth / 2), Color = C.Cream, Material = Enum.Material.SmoothPlastic, Parent = shop })
 	end
-	part({ Name = "ShopRoof", Size = Vector3.new(width + 3, 0.8, depth + 3), CFrame = base * CFrame.new(0, height + 0.9, 0.3) * CFrame.Angles(math.rad(8), 0, 0), Color = Color3.fromRGB(45, 60, 70), Material = Enum.Material.Slate, Parent = shop })
+	-- The roof slopes DOWN toward the open front (it used to rise and hide the sign).
+	part({ Name = "ShopRoof", Size = Vector3.new(width + 3, 0.8, depth + 3), CFrame = base * CFrame.new(0, height + 0.9, 0.3) * CFrame.Angles(math.rad(-6), 0, 0), Color = Color3.fromRGB(45, 60, 70), Material = Enum.Material.Slate, Parent = shop })
 	-- Teal-and-cream awning over the open front.
 	local stripes = 12
 	for i = 0, stripes - 1 do
 		part({ Name = "ShopAwning", Size = Vector3.new(width / stripes + 0.05, 0.25, 4), CFrame = base * CFrame.new(-width / 2 + (i + 0.5) * width / stripes, height - 0.6, -depth / 2 - 1.6) * CFrame.Angles(math.rad(-18), 0, 0), Color = if i % 2 == 0 then teal else C.Cream, Parent = shop })
 	end
 	-- The lit sign across the front.
-	local sign = part({ Name = "ShopSign", Size = Vector3.new(14, 2.4, 0.4), CFrame = base * CFrame.new(0, height + 2.2, -depth / 2 - 0.2), Color = Color3.fromRGB(25, 40, 50), Material = Enum.Material.SmoothPlastic, Parent = shop })
-	part({ Name = "ShopSignTrim", Size = Vector3.new(14.4, 2.8, 0.3), CFrame = base * CFrame.new(0, height + 2.2, -depth / 2 - 0.05), Color = teal, Material = Enum.Material.Neon, Parent = shop })
+	-- A marquee standing on the roof's front edge: fully above the roof, facing the plaza.
+	local signZ = -depth / 2 - 1.3
+	local signY = height + 2.9
+	local sign = part({ Name = "ShopSign", Size = Vector3.new(14, 2.6, 0.4), CFrame = base * CFrame.new(0, signY, signZ), Color = Color3.fromRGB(25, 40, 50), Material = Enum.Material.SmoothPlastic, Parent = shop })
+	part({ Name = "ShopSignTrim", Size = Vector3.new(14.5, 3.1, 0.3), CFrame = base * CFrame.new(0, signY, signZ + 0.2), Color = teal, Material = Enum.Material.Neon, Parent = shop })
+	for _, x in { -5, 5 } do
+		part({ Name = "ShopSignBracket", Size = Vector3.new(0.4, 2.4, 0.4), CFrame = base * CFrame.new(x, signY - 2.3, signZ + 0.3), Color = Color3.fromRGB(45, 60, 70), Material = Enum.Material.Metal, Parent = shop })
+	end
 	local signGui = Instance.new("SurfaceGui")
 	signGui.Face = Enum.NormalId.Front
 	signGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud

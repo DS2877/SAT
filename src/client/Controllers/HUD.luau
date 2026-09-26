@@ -650,7 +650,7 @@ end
 
 local warnedEventEnd = 0 -- EventEndsAt we already gave the 10-second heads-up for
 
-local function refreshObjective()
+local function computeObjective()
 	local data = ClientState.Data
 	if not data then
 		return
@@ -777,6 +777,14 @@ local function refreshObjective()
 	-- Past the tutorial there is no GPS target: events are announced (a banner at the start, one
 	-- alert near the end) and players discover the world instead of following a marker.
 	navTarget = nil
+end
+-- The direction pill (and Guide's path) is TUTORIAL ONLY: once the first cash is collected
+-- (the last tutorial step) it never shows again - players read the world, not a GPS.
+local function refreshObjective()
+	computeObjective()
+	if ClientState.Milestone("FirstCollect") then
+		navTarget = nil
+	end
 end
 HUD.RefreshObjective = refreshObjective
 
