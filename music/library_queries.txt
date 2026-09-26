@@ -46,3 +46,15 @@ workout
 gym
 APM hip hop
 funk
+
+# Bat slap sound effects (swing whoosh + cartoon slap/bonk hit)
+slap
+face slap
+cartoon slap
+bat hit
+bonk
+cartoon bonk
+punch
+whoosh
+swing whoosh
+swoosh
