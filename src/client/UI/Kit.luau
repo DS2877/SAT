@@ -1,0 +1,220 @@
+-- Small component kit so screens stay consistent and short.
+
+local TweenService = game:GetService("TweenService")
+
+local Theme = require(script.Parent.Theme)
+local Sounds = require(script.Parent.Sounds)
+
+local Kit = {}
+
+function Kit.new(className: string, props: { [string]: any }?, children: { Instance }?): any
+	local inst = Instance.new(className)
+	if props then
+		local parent = props.Parent
+		for key, value in props do
+			if key ~= "Parent" then
+				(inst :: any)[key] = value
+			end
+		end
+		if children then
+			for _, child in children do
+				child.Parent = inst
+			end
+		end
+		if parent then
+			inst.Parent = parent
+		end
+	elseif children then
+		for _, child in children do
+			child.Parent = inst
+		end
+	end
+	return inst
+end
+
+function Kit.corner(radius: UDim?): UICorner
+	return Kit.new("UICorner", { CornerRadius = radius or Theme.Radius.Medium })
+end
+
+function Kit.stroke(color: Color3?, thickness: number?, transparency: number?): UIStroke
+	return Kit.new("UIStroke", {
+		Color = color or Theme.Color.PanelStroke,
+		Thickness = thickness or 1.5,
+		Transparency = transparency or Theme.Transparency.Stroke,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+	})
+end
+
+-- Outline around the TEXT of a label (Kit.stroke outlines the box, which on a label draws a
+-- rectangle around it).
+function Kit.textStroke(color: Color3?, thickness: number?): UIStroke
+	return Kit.new("UIStroke", {
+		Color = color or Color3.fromRGB(40, 22, 8),
+		Thickness = thickness or 2,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+		LineJoinMode = Enum.LineJoinMode.Round,
+	})
+end
+
+function Kit.padding(all: number, horizontal: number?): UIPadding
+	local h = horizontal or all
+	return Kit.new("UIPadding", {
+		PaddingTop = UDim.new(0, all),
+		PaddingBottom = UDim.new(0, all),
+		PaddingLeft = UDim.new(0, h),
+		PaddingRight = UDim.new(0, h),
+	})
+end
+
+function Kit.list(direction: Enum.FillDirection?, spacing: number?, hAlign: Enum.HorizontalAlignment?, vAlign: Enum.VerticalAlignment?): UIListLayout
+	return Kit.new("UIListLayout", {
+		FillDirection = direction or Enum.FillDirection.Vertical,
+		Padding = UDim.new(0, spacing or Theme.Space.S),
+		HorizontalAlignment = hAlign or Enum.HorizontalAlignment.Center,
+		VerticalAlignment = vAlign or Enum.VerticalAlignment.Top,
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	})
+end
+
+function Kit.label(props): TextLabel
+	local defaults = {
+		BackgroundTransparency = 1,
+		Font = Theme.Font.Bold,
+		TextSize = Theme.TextSize.Body,
+		TextColor3 = Theme.Color.Text,
+		TextWrapped = true,
+		Size = UDim2.new(1, 0, 0, 24),
+	}
+	for k, v in props do
+		defaults[k] = v
+	end
+	return Kit.new("TextLabel", defaults)
+end
+
+function Kit.panel(props, children: { Instance }?): Frame
+	local defaults = {
+		BackgroundColor3 = Theme.Color.Panel,
+		BackgroundTransparency = Theme.Transparency.Panel,
+		BorderSizePixel = 0,
+	}
+	for k, v in props do
+		if k ~= "Radius" then
+			defaults[k] = v
+		end
+	end
+	local frame = Kit.new("Frame", defaults, children)
+	Kit.corner(props.Radius).Parent = frame
+	Kit.stroke().Parent = frame
+	return frame
+end
+
+function Kit.tween(inst: Instance, info: TweenInfo, goal: { [string]: any }): Tween
+	local tween = TweenService:Create(inst, info, goal)
+	tween:Play()
+	return tween
+end
+
+-- Chunky, touch-friendly button with press feedback. onClick receives no args.
+function Kit.button(props, onClick: (() -> ())?): TextButton
+	local defaults = {
+		BackgroundColor3 = Theme.Color.Button,
+		TextColor3 = Theme.Color.ButtonText,
+		Font = Theme.Font.Black,
+		TextSize = Theme.TextSize.Heading,
+		AutoButtonColor = false,
+		BorderSizePixel = 0,
+		Size = UDim2.fromOffset(160, 52),
+		Text = "",
+	}
+	for k, v in props do
+		if k ~= "Radius" then
+			defaults[k] = v
+		end
+	end
+	local button = Kit.new("TextButton", defaults)
+	Kit.corner(props.Radius or Theme.Radius.Medium).Parent = button
+	-- Gloss: lighter at the top, a touch darker at the bottom (works with any colour).
+	Kit.new("UIGradient", {
+		Name = "Gloss",
+		Rotation = 90,
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+			ColorSequenceKeypoint.new(0.55, Color3.fromRGB(235, 235, 235)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(190, 190, 190)),
+		}),
+		Parent = button,
+	})
+	local scale = Kit.new("UIScale", { Parent = button })
+	button.MouseButton1Down:Connect(function()
+		Kit.tween(scale, Theme.Motion.Fast, { Scale = 0.92 })
+	end)
+	local function release()
+		Kit.tween(scale, Theme.Motion.Pop, { Scale = 1 })
+	end
+	button.MouseButton1Up:Connect(release)
+	button.MouseLeave:Connect(release)
+	if onClick then
+		button.Activated:Connect(function()
+			Sounds.Play("Click")
+			onClick()
+		end)
+	end
+	return button
+end
+
+function Kit.formatCash(n: number): string
+	n = math.floor(n)
+	local s = tostring(math.abs(n))
+	local formatted = s:reverse():gsub("(%d%d%d)", "%1,"):reverse()
+	if formatted:sub(1, 1) == "," then
+		formatted = formatted:sub(2)
+	end
+	return (if n < 0 then "-$" else "$") .. formatted
+end
+
+function Kit.shortCash(n: number): string
+	if n >= 1e6 then
+		local s = ("$%.2fM"):format(n / 1e6):gsub("%.?0+M$", "M")
+		return s
+	elseif n >= 1e4 then
+		local s = ("$%.1fK"):format(n / 1e3):gsub("%.0K$", "K")
+		return s
+	end
+	return Kit.formatCash(n)
+end
+
+-- Compact big numbers for uncapped stats: 950, 12.4K, 3.1M, 2.0B
+function Kit.shortNumber(n: number): string
+	n = math.floor(n)
+	for _, unit in { { 1e12, "T" }, { 1e9, "B" }, { 1e6, "M" }, { 1e3, "K" } } do
+		if n >= unit[1] * 10 then
+			return ("%d%s"):format(math.floor(n / unit[1]), unit[2])
+		elseif n >= unit[1] then
+			return ("%.1f%s"):format(math.floor(n / unit[1] * 10) / 10, unit[2])
+		end
+	end
+	return tostring(n)
+end
+
+-- Full number with thousands separators below a million ("12,345"), short above ("3.4M"), so
+-- steadily growing stats visibly tick up on every gain.
+function Kit.bigNumber(n: number): string
+	n = math.floor(n)
+	if n >= 1e6 then
+		return Kit.shortNumber(n)
+	end
+	local s = tostring(n):reverse():gsub("(%d%d%d)", "%1,"):reverse()
+	return (s:gsub("^,", ""))
+end
+
+-- Temporarily pops an element (scale bump) to draw the eye to a change.
+function Kit.pulse(guiObject: GuiObject)
+	local scale = guiObject:FindFirstChild("PulseScale") :: UIScale?
+	if not scale then
+		scale = Kit.new("UIScale", { Name = "PulseScale", Parent = guiObject })
+	end
+	(scale :: UIScale).Scale = 1.18
+	Kit.tween(scale :: UIScale, Theme.Motion.Pop, { Scale = 1 })
+end
+
+return Kit

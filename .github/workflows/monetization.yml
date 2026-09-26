@@ -1,0 +1,32 @@
+name: Monetization setup
+
+# Creates the game passes and developer products from Config/Monetization.luau on Roblox,
+# only for entries whose Id is still 0. Runs manually, or when tools/monetization/request.txt
+# changes (its first line "create" = real run, anything else = dry run). Never on other pushes.
+on:
+  push:
+    paths:
+      - "tools/monetization/request.txt"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only print what would be created"
+        required: true
+        default: "true"
+
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create passes and products
+        env:
+          ROBLOX_API_KEY: ${{ secrets.SAT_PUBLISHING_KEY }}
+          UNIVERSE_ID: ${{ vars.ROBLOX_TEST_UNIVERSE_ID || '10767602971' }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          if [ -z "$DRY_RUN" ]; then
+            if [ "$(head -n1 tools/monetization/request.txt)" = "create" ]; then DRY_RUN=false; else DRY_RUN=true; fi
+          fi
+          export DRY_RUN
+          python3 tools/monetization/create_products.py

@@ -1,0 +1,107 @@
+# Roadmap
+
+Agreed plan (from the project owner). Work top to bottom; a later phase only starts when the
+earlier one is solid. **Fun and stability beat feature count.**
+
+## 1. Stabilise the current build  ← mobile checklist still to run
+No big new features. Mobile-test the whole core loop (see `docs/PLAYTEST_CHECKLIST.md`):
+Strength/training, treasure discovery, carry/weight, guardians, PvP/knock/drop, extraction,
+cash, Vault, gadgets, Collection, Ascension, day/night, events, respawn/death, persistence, UI.
+**Goal:** no major gameplay bugs and nothing that feels half-finished.
+
+Done in code so far (static audit):
+- Starter loot: the low-rarity spawn points near the gate refill during the day, so a player
+  who joins mid-day always finds a first treasure (loot otherwise only spawns at night).
+- Tutorial step 4 "COLLECT YOUR CASH" (the new economy was never taught).
+- Vault sell prompt moved off F (F is BONK: holding attack in your Vault could sell).
+- "Next treasure" goal says whether it is out right now or spawns tonight.
+- Funnel + time-to-step analytics (see phase 3).
+
+## 2. Make the core loop addictive  ← BUILT (awaiting playtest)
+Train → Explore → Find → Carry → Escape → Extract → Earn → Upgrade → Repeat
+
+Shipped from the analysis below:
+- Risky extraction blesses unmutated treasure: Dangerous 15% / Secret 35% (Silver 60 :
+  Gold 30 : Diamond 10). Zone label shows the chance while extracting.
+- Run streak: each extraction the same day raises the finder's fee +25% (cap x2.75), reset at
+  nightfall; shown in the HUD and the reward popup.
+- Epic+ extractions: server-wide "⚠ X IS EXTRACTING A LEGENDARY AT …" + a pulsing marker over
+  the extractor (visible 600 studs); heartbeat for the extractor that speeds up with the bar.
+- Heavy carry: camera sway + thudding footsteps scaled by burden.
+- Reveals: night-wave loot lands with a short flash column in its rarity colour; Rare+ ring
+  out nearby; Epic+ pickup = jackpot sting + camera kick.
+- Goals: "UPGRADE YOUR VAULT" when full and affordable, "UNLOCK THE <BENCH>" when affordable.
+
+Still open from the analysis: collection sets / mid-term goals (phase 4).
+
+Analysis of the current build (to validate in playtests before building):
+
+| Question | Today | Gap / proposal |
+|---|---|---|
+| Why one more run? | Every night wave refreshes the island (a "slot pull" every 5.5 min), new treasures raise income, mutations are a lottery, Collection has gaps | No short-term streak/combo for chaining runs. Proposal: "run streak" bonus for extractions in the same day. |
+| Is risk/reward clear? | Tags show $/s; guardians, PvP and nightfall are the risks | **Regression:** the Dangerous/Secret extraction bonus now only scales the small finder's fee, so the risky route barely matters. Proposal: risky extractions get a chance to ADD a mutation (e.g. 15% / 35%). |
+| Are treasures exciting? | Size, aura, mutation skins, tags | Primitive shapes; no "reveal" moment. Proposal: short flash + sound when the night wave lands, jackpot sting on Epic+ pickup, real models later (phase 4). |
+| Is carrying heavy fun? | Slower, lower jumps, visible to everyone, "OVERPOWERED" when strong | Little physical feedback. Proposal: strain animation/sway, heavy footsteps, camera bob scaled by burden. |
+| Does extraction feel tense? | 10 s stand-still, hits interrupt | Nobody knows it's happening. Proposal: server-wide "X is extracting a LEGENDARY at the Dock!" for Epic+ with a 10 s marker → chase moments; heartbeat audio for the extractor. |
+| Fast enough early? | First gadget ~2 min, first Vault upgrade ~15–20 min, Commons carried at full speed from the start | Needs real funnel data (phase 3). |
+| Always a clear next goal? | Tutorial steps 1–4, gadget, Ascension, next undiscovered treasure | Missing: "UPGRADE VAULT" when full and affordable, "SELL your weakest" when full, mid-term goals (collection sets). |
+
+## 3. First 10 minutes  ← BUILT (awaiting funnel data)
+Shipped: intro card for brand-new players (the loop in four beats), just-in-time tips
+(first time in the Wilds, first pickup, first Shaken, first night warning; new players only,
+once each, never stacked), tutorial steps 1-4 + contextual goals, starter loot by day.
+A new player must quickly understand: *I train → find something valuable → have to get it
+home → can be stopped → earn money → get stronger → want something even better.*
+
+Measurement (live): Roblox onboarding funnel, in order: Joined → FirstTraining →
+FirstTreasure → FirstExtraction → FirstCollect → FirstGadget → FirstVaultUpgrade →
+FirstTheft → FirstAscension, plus a `FunnelTime_<step>` custom event whose value is the
+seconds since joining. Creator Dashboard → Analytics → Funnels / Custom events.
+
+## 4. Treasure / content expansion  ← IN PROGRESS
+Shipped (slice 1):
+- Region collection sets (Wilds / Ruins / Coast / Falls): each completed set = +10% Vault
+  income forever; progress in the Collection menu, banner on completion.
+- 4 purposeful treasures: Wind Chime (Swift: +15% carry speed, the getaway treasure),
+  Explorer's Compass (reveals nearby treasure: chain runs), Storm Anchor (heaviest Rare: a
+  strength check), Moon Pearl (Nocturnal: x2 income at night).
+- Special effects are explained on the name tag.
+Next ideas: hidden treasure spots, more mutations, real models for the top rarities.
+More (and more visually extreme) treasures, more mutations, stronger rarity identity,
+secrets, hidden locations, better discovery moments, environmental storytelling.
+**Every new treasure needs a gameplay or economic purpose** (weight/value trade-off, special
+effect, set bonus, region identity) - not just another object.
+
+## 5. World expansion  ← SLICE 1 BUILT (awaiting playtest)
+Shipped (world overhaul):
+- Biomes: every region has its own ground, flora and mood. Wilds = sunny meadow (broadleaf
+  groves, flowers), Ruins = scorched desert (sandstone, cacti, dead trees, giant bones), Coast =
+  grey storm shore (slate cliffs, palms, driftwood, dune grass), Falls = dark jungle (towering
+  trees, ferns, glowing mushrooms), Volcano foothills = ash and charred trees. Colour grading +
+  haze shift per region on the client.
+- Progression: danger 1-4 stars + recommended strength per region (GameConfig.Regions), stone
+  gateways where the trails cross into Coast / Ruins / Falls, a cinematic title card when you
+  enter, and a one-time discovery bonus + server shout the first time you reach a region.
+- Secrets & tunnels: the Old Mine (lantern-lit tunnel through a hill = shortcut toward the Coast,
+  crystal cave with a Rare spawn), the Sky Ruins (pillar parkour to a floating island, Epic-
+  Legendary spawn), the Catacombs (stairs behind the temple to a burial hall, Legendary-Mythic
+  spawn, guarded by the Stone Golem). Each pays a one-time reward when found.
+- Guardians: 1.7-2.1x bigger with new designs (Dire Wolf, Goblin Brute, Giant Cave Spider) and a
+  new Stone Golem (slow, hits hard, throws you far). Eyes flare and a dark aura rises while they
+  hunt. Two guardians per region.
+- Extraction shrines are spotted by shape: a tethered hot-air balloon in the category colour, a
+  plume of coloured smoke and pennants (the Secret cave only gets a thin wisp). No light column.
+
+Improve existing areas first: shortcuts, verticality, hidden areas, risk/reward zones, more
+extraction choices, new landmarks, event locations. A big new region only after the current
+map is fun. No huge map before that.
+
+## 6. Social layer
+Leaderboards (exist), rare treasure showcase, Vault presentation, emotes, social moments,
+server events, global announcements, bragging/flex moments.
+**Not planned:** trading, clans, MMO systems (unless decided later).
+
+## Parked (decide later)
+- Vault raiding + Lock button (genre core in Steal a Brainrot; revisit after phase 2).
+- Monetisation pack (2x Strength pass is coded, needs a pass ID; 2x Cash, auto-collect,
+  luck boost, extra pedestals), offline earnings, daily rewards.

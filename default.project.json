@@ -1,0 +1,42 @@
+{
+  "name": "StealTheTreasure",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/shared"
+      }
+    },
+    "ServerScriptService": {
+      "Server": {
+        "$path": "src/server"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "Client": {
+          "$path": "src/client"
+        }
+      },
+      "$properties": {
+        "CharacterUseJumpPower": true
+      }
+    },
+    "Workspace": {
+      "$properties": {
+        "StreamingEnabled": false
+      },
+      "Terrain": {
+        "$className": "Terrain",
+        "$properties": {
+          "Decoration": true
+        }
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "Technology": "ShadowMap"
+      }
+    }
+  }
+}

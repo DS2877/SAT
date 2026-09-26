@@ -1,0 +1,2012 @@
+-- Builds Treasure Island at server start from WorldLayout (placeholder art: terrain + parts).
+-- Everything is deterministic so every server looks identical. Returns the gameplay anchors
+-- (spawn points, stations, vault plots, prompts) other services hook into.
+--
+-- Swap-in path for real art: replace individual build* functions with cloned prefabs that
+-- keep the same returned anchors.
+
+local CollectionService = game:GetService("CollectionService")
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage.Shared
+local GameConfig = require(Shared.Config.GameConfig)
+local WorldLayout = require(Shared.Config.WorldLayout)
+local Treasures = require(Shared.Config.Treasures)
+local TreasureVisual = require(Shared.TreasureVisual)
+
+local Regions = require(Shared.Config.Regions)
+
+local TerrainGen = require(script.Parent.World.TerrainGen)
+local Props = require(script.Parent.World.Props)
+local Secrets = require(script.Parent.World.Secrets)
+local Adventure = require(script.Parent.World.Adventure)
+local Settlements = require(script.Parent.World.Settlements)
+local MapBoard = require(script.Parent.World.MapBoard)
+local DeepSouth = require(script.Parent.World.DeepSouth)
+local Bats = require(ReplicatedStorage.Shared.Config.Bats)
+local News = require(ReplicatedStorage.Shared.Config.News)
+local BatModels = require(ReplicatedStorage.Shared.BatModels)
+local Waystones = require(script.Parent.World.Waystones)
+local Falls = require(script.Parent.World.Falls)
+
+local WorldBuilder = {}
+
+local terrain = workspace.Terrain
+local world: Folder
+local rng = Random.new(20260923)
+
+local C = {
+	Cream = Color3.fromRGB(245, 235, 210),
+	Stone = Color3.fromRGB(200, 190, 170),
+	Sandstone = Color3.fromRGB(222, 190, 130),
+	DarkStone = Color3.fromRGB(120, 115, 105),
+	Wood = Color3.fromRGB(125, 85, 50),
+	DarkWood = Color3.fromRGB(80, 52, 32),
+	Gold = Color3.fromRGB(255, 196, 50),
+	Teal = Color3.fromRGB(40, 190, 190),
+	Red = Color3.fromRGB(220, 60, 60),
+	Leaf = Color3.fromRGB(70, 160, 70),
+	LeafDark = Color3.fromRGB(45, 120, 60),
+	Safe = Color3.fromRGB(90, 230, 120),
+	Danger = Color3.fromRGB(255, 140, 40),
+	Secret = Color3.fromRGB(190, 110, 255),
+}
+
+local function part(props): BasePart
+	local p: BasePart
+	if props.Class then
+		p = Instance.new(props.Class) :: BasePart
+	else
+		p = Instance.new("Part")
+	end
+	if props.Shape then
+		(p :: Part).Shape = props.Shape
+	end
+	p.Anchored = true
+	p.Size = props.Size
+	p.CFrame = props.CFrame
+	p.Color = props.Color or C.Stone
+	p.Material = props.Material or Enum.Material.SmoothPlastic
+	p.Transparency = props.Transparency or 0
+	p.CanCollide = if props.CanCollide == nil then true else props.CanCollide
+	p.CanQuery = if props.CanQuery == nil then true else props.CanQuery
+	-- Phones: only big parts cast shadows by default (same rule as World/Props).
+	local size = props.Size :: Vector3
+	p.CastShadow = if props.CastShadow == nil then math.max(size.X, size.Y, size.Z) >= 6 else props.CastShadow
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Name = props.Name or "Part"
+	p.Parent = props.Parent or world
+	return p
+end
+
+-- Upright cylinder (Roblox cylinders run along X, so rotate onto Y).
+local function cylinder(position: Vector3, height: number, diameter: number, props)
+	props.Shape = Enum.PartType.Cylinder
+	props.Size = Vector3.new(height, diameter, diameter)
+	props.CFrame = CFrame.new(position) * CFrame.Angles(0, 0, math.rad(90))
+	return part(props)
+end
+
+local function folder(name: string, parent: Instance?): Folder
+	local f = Instance.new("Folder")
+	f.Name = name
+	f.Parent = parent or world
+	return f
+end
+
+-- studWidth given: the sign is sized in world studs and shrinks with distance (local signs).
+-- Otherwise it is a compact fixed-pixel label readable from far away (landmarks, beacons).
+-- Landmark names float LANDMARK_LIFT studs over their landmark, so they clear the District
+-- wall, the trees and the hills when you look out from the plaza.
+local LANDMARK_LIFT = 48
+
+local function billboardSign(
+	parent: BasePart,
+	title: string,
+	subtitle: string?,
+	color: Color3,
+	maxDistance: number,
+	offset: number,
+	studWidth: number?
+)
+	local gui = Instance.new("BillboardGui")
+	if studWidth then
+		gui.Size = UDim2.fromScale(studWidth, studWidth * (if subtitle then 0.26 else 0.16))
+	else
+		gui.Size = UDim2.fromOffset(170, if subtitle then 42 else 26)
+	end
+	gui.StudsOffset = Vector3.new(0, offset, 0)
+	gui.MaxDistance = maxDistance
+	gui.LightInfluence = 0
+	gui.Name = "Sign"
+	local t = Instance.new("TextLabel")
+	t.BackgroundTransparency = 1
+	t.Size = UDim2.fromScale(1, if subtitle then 0.6 else 1)
+	t.Font = Enum.Font.GothamBlack
+	t.TextScaled = true
+	t.TextColor3 = color
+	t.TextStrokeTransparency = 0.2
+	t.Text = title
+	t.Name = "Title"
+	t.Parent = gui
+	if subtitle then
+		local s = Instance.new("TextLabel")
+		s.BackgroundTransparency = 1
+		s.Position = UDim2.fromScale(0, 0.6)
+		s.Size = UDim2.fromScale(1, 0.4)
+		s.Font = Enum.Font.GothamBold
+		s.TextScaled = true
+		s.TextColor3 = Color3.new(1, 1, 1)
+		s.TextStrokeTransparency = 0.3
+		s.Text = subtitle
+		s.Name = "Subtitle"
+		s.Parent = gui
+	end
+	gui.Parent = parent
+	return gui
+end
+
+local function prompt(parent: BasePart, action: string, object: string, hold: number?): ProximityPrompt
+	local p = Instance.new("ProximityPrompt")
+	p.ActionText = action
+	p.ObjectText = object
+	p.HoldDuration = hold or 0
+	p.MaxActivationDistance = 12
+	p.RequiresLineOfSight = false
+	p.KeyboardKeyCode = Enum.KeyCode.E
+	p.GamepadKeyCode = Enum.KeyCode.ButtonX
+	p.Parent = parent
+	return p
+end
+
+local function groundAt(x: number, z: number, from: number?): Vector3
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = {}
+	params.IgnoreWater = true
+	local origin = Vector3.new(x, from or 300, z)
+	local result = workspace:Raycast(origin, Vector3.new(0, -((from or 300) + 60), 0), params)
+	return if result then result.Position else Vector3.new(x, WorldLayout.GroundY, z)
+end
+
+-- ENVIRONMENT -----------------------------------------------------------------
+
+local function buildLighting()
+	-- Early-afternoon sun: shorter shadows than late afternoon, clean colours, gentle haze.
+	Lighting.ClockTime = 13.6
+	Lighting.Brightness = 2.4
+	Lighting.ExposureCompensation = 0.1
+	Lighting.GlobalShadows = true
+	Lighting.ShadowSoftness = 0.35
+	Lighting.OutdoorAmbient = Color3.fromRGB(135, 138, 150)
+	Lighting.Ambient = Color3.fromRGB(70, 70, 82)
+	Lighting.ColorShift_Top = Color3.fromRGB(255, 244, 225)
+	Lighting.EnvironmentDiffuseScale = 0.8
+	Lighting.EnvironmentSpecularScale = 0.5
+	Lighting.GeographicLatitude = 25
+
+	local atmosphere = Instance.new("Atmosphere")
+	atmosphere.Density = 0.22
+	atmosphere.Offset = 0.1
+	atmosphere.Color = Color3.fromRGB(200, 222, 240)
+	atmosphere.Decay = Color3.fromRGB(110, 150, 195)
+	atmosphere.Glare = 0.1
+	atmosphere.Haze = 0.6
+	atmosphere.Parent = Lighting
+
+	-- High threshold: only true glows bloom, neon trim doesn't smear across the screen.
+	local bloom = Instance.new("BloomEffect")
+	bloom.Intensity = 0.35
+	bloom.Size = 20
+	bloom.Threshold = 2
+	bloom.Parent = Lighting
+
+	local color = Instance.new("ColorCorrectionEffect")
+	color.Name = "BaseGrade" -- retinted per region by the client (Controllers/Biomes)
+	color.Saturation = 0.18
+	color.Contrast = 0.1
+	color.Brightness = 0
+	color.TintColor = Color3.fromRGB(255, 252, 245)
+	color.Parent = Lighting
+
+	local rays = Instance.new("SunRaysEffect")
+	rays.Intensity = 0.04
+	rays.Spread = 0.5
+	rays.Parent = Lighting
+
+	local sky = Instance.new("Sky")
+	sky.SunAngularSize = 16
+	sky.Parent = Lighting
+
+	local clouds = Instance.new("Clouds")
+	clouds.Cover = 0.55
+	clouds.Density = 0.55
+	clouds.Color = Color3.fromRGB(255, 252, 245)
+	clouds.Parent = terrain
+end
+
+local function buildTerrain()
+	terrain.WaterColor = Color3.fromRGB(20, 170, 190)
+	terrain.WaterTransparency = 0.75
+	terrain.WaterWaveSize = 0.15
+	terrain.WaterWaveSpeed = 9
+	terrain.WaterReflectance = 0.5
+	-- Biome palette (see TerrainGen.BIOME_MATERIALS): every region reads differently.
+	terrain:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(112, 188, 70)) -- Wilds: sunny meadow
+	terrain:SetMaterialColor(Enum.Material.Ground, Color3.fromRGB(150, 116, 80))
+	terrain:SetMaterialColor(Enum.Material.Sandstone, Color3.fromRGB(226, 170, 104)) -- Ruins: scorched desert
+	terrain:SetMaterialColor(Enum.Material.Limestone, Color3.fromRGB(206, 150, 96))
+	terrain:SetMaterialColor(Enum.Material.Salt, Color3.fromRGB(240, 214, 170))
+	terrain:SetMaterialColor(Enum.Material.Sand, Color3.fromRGB(236, 218, 170)) -- Coast: pale beaches
+	terrain:SetMaterialColor(Enum.Material.Slate, Color3.fromRGB(92, 100, 112)) -- Coast: grey storm cliffs
+	terrain:SetMaterialColor(Enum.Material.LeafyGrass, Color3.fromRGB(46, 112, 58)) -- Falls: dark jungle
+	terrain:SetMaterialColor(Enum.Material.Mud, Color3.fromRGB(78, 60, 44))
+	terrain:SetMaterialColor(Enum.Material.Rock, Color3.fromRGB(128, 120, 112))
+	terrain:SetMaterialColor(Enum.Material.Basalt, Color3.fromRGB(56, 50, 52)) -- Volcano: ash fields
+	terrain:SetMaterialColor(Enum.Material.CrackedLava, Color3.fromRGB(255, 96, 36))
+	terrain:SetMaterialColor(Enum.Material.Snow, Color3.fromRGB(238, 244, 255)) -- Frostpeak
+	terrain:SetMaterialColor(Enum.Material.Glacier, Color3.fromRGB(150, 205, 235))
+	terrain:SetMaterialColor(Enum.Material.Ice, Color3.fromRGB(175, 225, 250))
+	terrain:SetMaterialColor(Enum.Material.Asphalt, Color3.fromRGB(46, 58, 60)) -- Marsh: dark bog
+	terrain:SetMaterialColor(Enum.Material.Concrete, Color3.fromRGB(78, 104, 88)) -- Marsh: moss mats
+
+	-- Ocean (sea floor + water, top at y = 0)
+	terrain:FillBlock(CFrame.new(0, -32, 0), Vector3.new(1800, 16, 1800), Enum.Material.Sand)
+	terrain:FillBlock(CFrame.new(0, -12, 0), Vector3.new(1800, 24, 1800), Enum.Material.Water)
+
+	-- Island: noise heightmap (hills, coastline, beaches); gameplay areas stay flat at y = 10.
+	TerrainGen.Generate(terrain)
+
+	-- Shipwreck cove (open to the ocean on the west)
+	local cove = WorldLayout.Shipwreck
+	terrain:FillBlock(CFrame.new(cove.CoveCenter + Vector3.new(0, 6, 0)), cove.CoveSize, Enum.Material.Air)
+	terrain:FillBlock(
+		CFrame.new(cove.CoveCenter + Vector3.new(0, -10, 0)),
+		Vector3.new(cove.CoveSize.X, 20, cove.CoveSize.Z),
+		Enum.Material.Water
+	)
+	terrain:FillBlock(CFrame.new(cove.Center + Vector3.new(30, 0, 0)), Vector3.new(40, 12, 190), Enum.Material.Sand)
+
+	-- Volcano landmark (future late-game zone): stacked basalt cylinders + lava crater
+	local v = WorldLayout.Volcano
+	local layers = 10
+	for i = 0, layers - 1 do
+		local h = v.Height / layers
+		terrain:FillCylinder(
+			CFrame.new(v.Center + Vector3.new(0, i * h + h / 2 - 10, 0)),
+			h,
+			v.BaseRadius * (1 - i / layers) + 12,
+			if i < 3 then Enum.Material.Rock else Enum.Material.Basalt
+		)
+	end
+	local top = v.Center + Vector3.new(0, v.Height - 10, 0)
+	terrain:FillCylinder(CFrame.new(top + Vector3.new(0, 4, 0)), 14, 22, Enum.Material.Air)
+	terrain:FillCylinder(CFrame.new(top + Vector3.new(0, -4, 0)), 4, 22, Enum.Material.CrackedLava)
+end
+
+local function paintPath(from: Vector3, to: Vector3, width: number)
+	local delta = Vector3.new(to.X - from.X, 0, to.Z - from.Z)
+	local steps = math.ceil(delta.Magnitude / 8)
+	for i = 0, steps do
+		local p = from + delta * (i / steps)
+		local region = Region3.new(
+			Vector3.new(p.X - width / 2, 0, p.Z - width / 2),
+			Vector3.new(p.X + width / 2, 72, p.Z + width / 2)
+		):ExpandToGrid(4)
+		terrain:ReplaceMaterial(region, 4, Enum.Material.Grass, Enum.Material.Ground)
+		terrain:ReplaceMaterial(region, 4, Enum.Material.LeafyGrass, Enum.Material.Mud)
+		terrain:ReplaceMaterial(region, 4, Enum.Material.Salt, Enum.Material.Ground)
+	end
+end
+
+-- TREASURE DISTRICT -------------------------------------------------------------
+
+-- Welcoming spawn pavilion: stepped marble dais, ring of pillars, dome with a spinning golden
+-- crown, sparkles, and a welcome arch that doubles as the how-to-play sign.
+local function buildSpawnPavilion(district: Folder)
+	local pav = folder("SpawnPavilion", district)
+	local spawnPos = WorldLayout.Spawn
+	local base = Vector3.new(spawnPos.X, WorldLayout.District.Center.Y + 1, spawnPos.Z)
+	-- Step1 is a deep plinth sunk into the ground: smooth terrain is never perfectly flat, so a
+	-- thin disc resting on it clips in and out along its edge.
+	cylinder(base + Vector3.new(0, -1.5, 0), 5, 34, { Name = "Step1", Color = Color3.fromRGB(225, 218, 200), Material = Enum.Material.Marble, Parent = pav })
+	cylinder(base + Vector3.new(0, 1.5, 0), 1, 28, { Name = "Step2", Color = Color3.fromRGB(240, 234, 220), Material = Enum.Material.Marble, Parent = pav })
+	-- Stacked discs: every top surface is at least 0.1 above the one below (no z-fighting).
+	cylinder(base + Vector3.new(0, 2.1, 0), 0.3, 24, { Name = "GoldInlay", Color = C.Gold, Material = Enum.Material.Metal, Parent = pav })
+	cylinder(base + Vector3.new(0, 2.2, 0), 0.5, 21, { Name = "InnerFloor", Color = Color3.fromRGB(70, 60, 110), Material = Enum.Material.Marble, Parent = pav })
+
+	local spawn = Instance.new("SpawnLocation")
+	spawn.Name = "DistrictSpawn"
+	spawn.Anchored = true
+	spawn.Size = Vector3.new(12, 0.2, 12)
+	spawn.CFrame = CFrame.lookAt(spawnPos - Vector3.new(0, 0.4, 0), Vector3.new(0, spawnPos.Y - 0.4, WorldLayout.District.Gate.Z))
+	spawn.Transparency = 1
+	spawn.CanCollide = false
+	spawn.Duration = GameConfig.Player.SpawnProtection
+	spawn.Neutral = true
+	spawn.Parent = pav
+	local decal = spawn:FindFirstChildOfClass("Decal")
+	if decal then
+		decal:Destroy()
+	end
+
+	-- Pillars (gap facing north so the view opens onto the plaza)
+	for i = 0, 7 do
+		local a = math.rad(22.5 + i * 45)
+		local p = base + Vector3.new(math.sin(a) * 12, 0, math.cos(a) * 12)
+		cylinder(p + Vector3.new(0, 8, 0), 12, 1.6, { Name = "Pillar", Color = Color3.fromRGB(250, 246, 236), Material = Enum.Material.Marble, Parent = pav })
+		cylinder(p + Vector3.new(0, 14.3, 0), 0.6, 2.2, { Name = "PillarCap", Color = C.Gold, Material = Enum.Material.Metal, Parent = pav })
+	end
+	cylinder(base + Vector3.new(0, 15, 0), 1.2, 27, { Name = "RoofRing", Color = C.Gold, Material = Enum.Material.Metal, Parent = pav })
+	-- Tiered roof (a full sphere would hang down inside the pavilion)
+	for tier, diameter in { 24, 18, 12, 6 } do
+		cylinder(base + Vector3.new(0, 15.6 + tier * 1.4 - 0.7, 0), 1.4, diameter, {
+			Name = "RoofTier",
+			Color = if tier % 2 == 1 then Color3.fromRGB(60, 170, 190) else Color3.fromRGB(45, 140, 165),
+			Material = Enum.Material.SmoothPlastic,
+			Parent = pav,
+		})
+	end
+	local crownDef = Treasures.Get("golden_crown")
+	if crownDef then
+		local crown = TreasureVisual.Build(crownDef, CFrame.new(base + Vector3.new(0, 24.5, 0)), 3, nil, { Display = true })
+		crown.Name = "SpawnCrown"
+		crown.Parent = pav
+		local crownHandle = crown.PrimaryPart :: BasePart
+		crownHandle:SetAttribute("Spin", 0.5)
+	end
+	local sparkle = Instance.new("ParticleEmitter")
+	sparkle.Color = ColorSequence.new(C.Gold)
+	sparkle.LightEmission = 1
+	sparkle.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.4), NumberSequenceKeypoint.new(1, 0) })
+	sparkle.Lifetime = NumberRange.new(1.5, 2.5)
+	sparkle.Rate = 12
+	sparkle.Speed = NumberRange.new(1, 3)
+	sparkle.SpreadAngle = Vector2.new(180, 180)
+	local emitterPart = part({ Name = "Sparkles", Size = Vector3.new(20, 1, 20), CFrame = CFrame.new(base + Vector3.new(0, 4, 0)), Transparency = 1, CanCollide = false, CanQuery = false, Parent = pav })
+	sparkle.Parent = emitterPart
+
+	-- Welcome arch between the pavilion and the fountain; its panel teaches the loop.
+	local archZ = base.Z - 22
+	for _, x in { -12, 12 } do
+		part({ Name = "ArchPost", Size = Vector3.new(2.4, 15, 2.4), CFrame = CFrame.new(base.X + x, base.Y + 7.5, archZ), Color = C.Sandstone, Material = Enum.Material.Sandstone, Parent = pav })
+		part({ Name = "ArchPostCap", Size = Vector3.new(3.2, 1, 3.2), CFrame = CFrame.new(base.X + x, base.Y + 15.5, archZ), Color = C.Gold, Material = Enum.Material.Metal, Parent = pav })
+	end
+	local panel = part({
+		Name = "WelcomePanel",
+		Size = Vector3.new(26, 5, 1),
+		CFrame = CFrame.lookAt(Vector3.new(base.X, base.Y + 13, archZ), Vector3.new(base.X, base.Y + 13, archZ + 1)),
+		Color = Color3.fromRGB(40, 32, 70),
+		Material = Enum.Material.SmoothPlastic,
+		Parent = pav,
+	})
+	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+		local surface = Instance.new("SurfaceGui")
+		surface.Face = face
+		surface.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		surface.PixelsPerStud = 24
+		surface.LightInfluence = 0
+		surface.Parent = panel
+		local text = Instance.new("TextLabel")
+		text.Size = UDim2.fromScale(1, 1)
+		text.BackgroundTransparency = 1
+		text.Font = Enum.Font.FredokaOne
+		text.TextScaled = true
+		text.RichText = true
+		text.TextColor3 = C.Gold
+		text.Text = if face == Enum.NormalId.Front
+			then "STEAL THE TREASURE\n<font color=\"#ffffff\" size=\"60\">TRAIN • FIND • CARRY • EXTRACT • EARN</font>"
+			else "WELCOME HOME, TREASURE HUNTER"
+		text.Parent = surface
+	end
+	for _, x in { -18, 18 } do
+		part({ Name = "Planter", Size = Vector3.new(6, 1.2, 6), CFrame = CFrame.new(base.X + x, base.Y + 0.6, base.Z + 16), Color = Color3.fromRGB(160, 90, 70), Material = Enum.Material.Brick, Parent = pav })
+		Props.Flowers(pav, Vector3.new(base.X + x, base.Y + 1.2, base.Z + 16), rng, 9)
+	end
+end
+
+-- Stone wall around the District: the north gatehouse is the ONLY way to the Wilds.
+-- An invisible barrier above the wall stops Balloons/Grapples from skipping the gate.
+local nightGate: BasePart? = nil -- set by buildWall, handed to DayCycle
+local adventureAvoid = {} -- set by buildWilds (Adventure): marsh pools, geysers, lake
+
+local function buildWall(district: Folder): BasePart
+	local walls = folder("DistrictWall", district)
+	local d = WorldLayout.District
+	local center = Vector3.new(d.Center.X, d.Center.Y, d.Center.Z)
+	local radius, height = d.WallRadius, d.WallHeight
+	local stone = Color3.fromRGB(196, 186, 168)
+	local gateGap = math.deg(d.GateHalfWidth / radius) + 1.5
+	local span = 360 - gateGap * 2
+	local segments = math.ceil(span / 6)
+	local step = span / segments
+	local function onCircle(degreesFromGate: number, y: number): (Vector3, CFrame)
+		local a = math.rad(180 + degreesFromGate)
+		local pos = center + Vector3.new(math.sin(a) * radius, y, math.cos(a) * radius)
+		return pos, CFrame.lookAt(pos, Vector3.new(center.X, pos.Y, center.Z))
+	end
+	local length = 2 * radius * math.sin(math.rad(step / 2)) + 1
+	for k = 0, segments - 1 do
+		local b = gateGap + (k + 0.5) * step
+		local _, cf = onCircle(b, height / 2)
+		part({ Name = "Wall", Size = Vector3.new(length, height, 3), CFrame = cf, Color = stone, Material = Enum.Material.Cobblestone, Parent = walls })
+		part({ Name = "WallCap", Size = Vector3.new(length, 1, 3.8), CFrame = cf * CFrame.new(0, height / 2 + 0.5, 0), Color = Color3.fromRGB(170, 160, 145), Material = Enum.Material.Slate, Parent = walls })
+		for m = -1, 1 do
+			part({ Name = "Merlon", Size = Vector3.new(2.2, 2, 1.6), CFrame = cf * CFrame.new(m * length / 3, height / 2 + 2, 1), Color = stone, Material = Enum.Material.Cobblestone, Parent = walls })
+		end
+		part({
+			Name = "Barrier",
+			Size = Vector3.new(length, 110, 3),
+			CFrame = cf * CFrame.new(0, height / 2 + 1 + 55, 0),
+			Transparency = 1,
+			CanQuery = false,
+			CastShadow = false,
+			Parent = walls,
+		})
+		if k % 5 == 2 then
+			local towerPos = onCircle(b, 0)
+			cylinder(towerPos + Vector3.new(0, (height + 6) / 2, 0), height + 6, 9, { Name = "Tower", Color = stone, Material = Enum.Material.Cobblestone, Parent = walls })
+			cylinder(towerPos + Vector3.new(0, height + 6.8, 0), 1.6, 10.5, { Name = "TowerRim", Color = Color3.fromRGB(170, 160, 145), Material = Enum.Material.Slate, Parent = walls })
+			cylinder(towerPos + Vector3.new(0, height + 9, 0), 3, 8, { Name = "Roof1", Color = C.Red, Material = Enum.Material.Slate, Parent = walls })
+			cylinder(towerPos + Vector3.new(0, height + 11.5, 0), 2, 5, { Name = "Roof2", Color = C.Red, Material = Enum.Material.Slate, Parent = walls })
+			cylinder(towerPos + Vector3.new(0, height + 13.3, 0), 1.6, 2, { Name = "Roof3", Color = C.Red, Material = Enum.Material.Slate, Parent = walls })
+		end
+	end
+
+	-- Gatehouse
+	local gate = d.Gate
+	for _, x in { -1, 1 } do
+		local towerPos = Vector3.new(gate.X + x * (d.GateHalfWidth + 5), gate.Y, gate.Z)
+		part({ Name = "GateTower", Size = Vector3.new(10, height + 12, 10), CFrame = CFrame.new(towerPos + Vector3.new(0, (height + 12) / 2, 0)), Color = stone, Material = Enum.Material.Cobblestone, Parent = walls })
+		for mx = -1, 1, 2 do
+			for mz = -1, 1, 2 do
+				part({ Name = "GateMerlon", Size = Vector3.new(2.4, 2.4, 2.4), CFrame = CFrame.new(towerPos + Vector3.new(mx * 3.8, height + 13.2, mz * 3.8)), Color = stone, Material = Enum.Material.Cobblestone, Parent = walls })
+			end
+		end
+		Props.Brazier(walls, towerPos + Vector3.new(0, 0, 7))
+		part({ Name = "Banner", Size = Vector3.new(4, 9, 0.3), CFrame = CFrame.new(towerPos + Vector3.new(0, height + 4, -5.2)), Color = C.Red, Material = Enum.Material.Fabric, CanCollide = false, Parent = walls })
+		part({ Name = "BannerEmblem", Size = Vector3.new(2, 2, 0.35), CFrame = CFrame.new(towerPos + Vector3.new(0, height + 5, -5.25)) * CFrame.Angles(0, 0, math.rad(45)), Color = C.Gold, Material = Enum.Material.Metal, CanCollide = false, Parent = walls })
+	end
+	local arch = part({ Name = "GateArch", Size = Vector3.new(d.GateHalfWidth * 2 + 2, 5, 8), CFrame = CFrame.new(gate + Vector3.new(0, height + 6.5, 0)), Color = stone, Material = Enum.Material.Cobblestone, Parent = walls })
+	part({ Name = "GateBarrier", Size = Vector3.new(d.GateHalfWidth * 2, 100, 3), CFrame = CFrame.new(gate + Vector3.new(0, height + 9 + 50, 0)), Transparency = 1, CanQuery = false, CastShadow = false, Parent = walls })
+	for _, x in { -1, 1 } do
+		part({ Name = "GateDoor", Size = Vector3.new(d.GateHalfWidth - 1, height + 2, 1), CFrame = CFrame.new(gate + Vector3.new(x * (d.GateHalfWidth + 1), (height + 2) / 2, 5)) * CFrame.Angles(0, math.rad(x * 80), 0) * CFrame.new(x * (d.GateHalfWidth - 1) / 2, 0, 0), Color = C.Wood, Material = Enum.Material.WoodPlanks, Parent = walls })
+	end
+	-- High enough that the subtitle clears the arch (it used to sit half inside the stone).
+	billboardSign(arch, "THE WILDS", "Treasure awaits. Danger too.", C.Gold, 300, 16, 16)
+	-- Night fog: fills the gate opening. DayCycle makes it solid at night (the Wilds are closed
+	-- until dawn); clients draw the fog and the "DAWN IN" countdown (Ambience, tag NightGate).
+	local fog = part({
+		Name = "NightFog",
+		Size = Vector3.new(d.GateHalfWidth * 2, height + 6, 2),
+		CFrame = CFrame.new(gate + Vector3.new(0, (height + 6) / 2, 0)),
+		Transparency = 1,
+		CanCollide = false,
+		CanQuery = false,
+		CastShadow = false,
+		Parent = walls,
+	})
+	CollectionService:AddTag(fog, "NightGate")
+	return fog
+end
+
+local function buildDistrict()
+	local d = WorldLayout.District
+	local district = folder("TreasureDistrict")
+	local center = d.Center
+
+	-- Thick slab (top at y = 11): the terrain below is sunk to y = 8 (TerrainGen.SUNKEN), so the
+	-- slab must reach down past it or the gate would show a gap under its lip.
+	cylinder(center + Vector3.new(0, -2, 0), 6, d.FloorRadius * 2, {
+		Name = "Plaza",
+		Color = Color3.fromRGB(232, 222, 196),
+		Material = Enum.Material.Pavement,
+		Parent = district,
+	})
+	cylinder(center + Vector3.new(0, 0.55, 0), 1.1, 74, {
+		Name = "InnerPlazaTrim",
+		Color = C.Gold,
+		Material = Enum.Material.Metal,
+		Parent = district,
+	})
+	cylinder(center + Vector3.new(0, 0.6, 0), 1.2, 70, {
+		Name = "InnerPlaza",
+		Color = Color3.fromRGB(210, 175, 120),
+		Material = Enum.Material.Pavement,
+		Parent = district,
+	})
+
+	-- Fountain with a giant golden coin: the District's own landmark
+	cylinder(center + Vector3.new(0, 2, 0), 3, 26, { Name = "FountainRim", Color = C.Stone, Material = Enum.Material.Marble, Parent = district })
+	cylinder(center + Vector3.new(0, 2.6, 0), 2, 22, { Name = "FountainWater", Color = Color3.fromRGB(60, 180, 220), Material = Enum.Material.Glass, Transparency = 0.3, Parent = district })
+	cylinder(center + Vector3.new(0, 6, 0), 8, 4, { Name = "FountainPillar", Color = C.Stone, Material = Enum.Material.Marble, Parent = district })
+	local coin = part({
+		Name = "GoldenCoin",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(1.6, 14, 14),
+		CFrame = CFrame.new(center + Vector3.new(0, 17, 0)) * CFrame.Angles(0, math.rad(90), 0),
+		Color = C.Gold,
+		Material = Enum.Material.Metal,
+		Parent = district,
+	})
+	coin:SetAttribute("Spin", 0.6)
+	local coinLight = Instance.new("PointLight")
+	coinLight.Color = C.Gold
+	coinLight.Range = 30
+	coinLight.Brightness = 1.5
+	coinLight.Parent = coin
+
+	buildSpawnPavilion(district)
+	nightGate = buildWall(district)
+	MapBoard.Build(district)
+
+	return district
+end
+
+-- Strength Gym: rows of bench presses, one row per tier. Players lie with their head toward
+-- the rack (-X) and their feet toward the plaza (+X).
+local function buildGym(district: Folder)
+	local gym = folder("StrengthGym", district)
+	local layout = WorldLayout.Gym
+	local machines = {}
+	local floorY = WorldLayout.District.Center.Y + 1
+	local tiers = GameConfig.Training.Benches
+	local firstX = layout.Origin.X
+	local lastX = layout.Origin.X + (#tiers - 1) * layout.RowSpacing
+	local lanes = 0
+	for _, tier in tiers do
+		lanes = math.max(lanes, tier.Count)
+	end
+	local zMin = layout.Origin.Z - 5
+	local zMax = layout.Origin.Z + (lanes - 1) * layout.LaneSpacing + 5
+	part({
+		Name = "GymFloor",
+		Size = Vector3.new(math.abs(lastX - firstX) + 16, 0.3, zMax - zMin),
+		CFrame = CFrame.new((firstX + lastX) / 2, floorY + 0.15, (zMin + zMax) / 2),
+		Color = Color3.fromRGB(55, 60, 75),
+		Material = Enum.Material.Rubber,
+		Parent = gym,
+	})
+	local steel = Color3.fromRGB(70, 72, 80)
+	for row, tier in tiers do
+		local color = Color3.fromRGB(tier.Color[1], tier.Color[2], tier.Color[3])
+		local x = layout.Origin.X + (row - 1) * layout.RowSpacing
+		for lane = 1, tier.Count do
+			local z = layout.Origin.Z + (lane - 1) * layout.LaneSpacing
+			local padTop = floorY + 2.2
+			-- Bench: legs, frame, padded top with tier-coloured trim
+			for _, lx in { -2.4, 2.4 } do
+				part({ Name = "Leg", Size = Vector3.new(0.5, 1.8, 2), CFrame = CFrame.new(x + lx, floorY + 1, z), Color = steel, Material = Enum.Material.Metal, Parent = gym })
+			end
+			part({ Name = "Frame", Size = Vector3.new(6.2, 0.4, 1.6), CFrame = CFrame.new(x, padTop - 0.6, z), Color = steel, Material = Enum.Material.Metal, Parent = gym })
+			local pad = part({ Name = "Pad", Size = Vector3.new(6, 0.6, 2.2), CFrame = CFrame.new(x, padTop - 0.3, z), Color = Color3.fromRGB(35, 35, 45), Material = Enum.Material.Fabric, Parent = gym })
+			part({ Name = "PadTrim", Size = Vector3.new(6.1, 0.15, 2.3), CFrame = CFrame.new(x, padTop - 0.62, z), Color = color, Material = Enum.Material.Neon, CanCollide = false, Parent = gym })
+			-- Rack at the head end with a resting barbell
+			local rackX = x - 3.2
+			for _, rz in { -2.6, 2.6 } do
+				part({ Name = "RackPost", Size = Vector3.new(0.5, 5, 0.5), CFrame = CFrame.new(rackX, floorY + 2.5, z + rz), Color = steel, Material = Enum.Material.Metal, Parent = gym })
+				part({ Name = "Hook", Size = Vector3.new(0.9, 0.3, 0.5), CFrame = CFrame.new(rackX + 0.35, floorY + 4.4, z + rz), Color = steel, Material = Enum.Material.Metal, Parent = gym })
+			end
+			part({ Name = "RackBar", Shape = Enum.PartType.Cylinder, Size = Vector3.new(7.4, 0.35, 0.35), CFrame = CFrame.new(rackX + 0.35, floorY + 4.8, z) * CFrame.Angles(0, math.rad(90), 0), Color = Color3.fromRGB(200, 200, 210), Material = Enum.Material.Metal, CanCollide = false, Parent = gym })
+			for _, pz in { -3.1, 3.1 } do
+				part({ Name = "Plate", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 2.2, 2.2), CFrame = CFrame.new(rackX + 0.35, floorY + 4.8, z + pz) * CFrame.Angles(0, math.rad(90), 0), Color = color, Material = Enum.Material.Metal, CanCollide = false, Parent = gym })
+			end
+			local liftPrompt = prompt(pad, if tier.Price > 0 then "Lift / Unlock" else "Lift", tier.Name, if tier.Price > 0 then 0.8 else 0)
+			liftPrompt.MaxActivationDistance = 9
+			local liePos = Vector3.new(x + 0.3, padTop + 1.05, z)
+			table.insert(machines, {
+				Tier = tier,
+				LieCFrame = CFrame.lookAt(liePos, liePos + Vector3.yAxis, -Vector3.xAxis),
+				StandCFrame = CFrame.lookAt(Vector3.new(x + 5.5, floorY + 3, z), Vector3.new(x + 10, floorY + 3, z)),
+				Prompt = liftPrompt,
+				Occupant = nil,
+			})
+		end
+		local signPost = part({
+			Name = "RowSign",
+			Size = Vector3.new(0.6, 5, 0.6),
+			CFrame = CFrame.new(x, floorY + 2.5, zMin - 1),
+			Color = steel,
+			Material = Enum.Material.Metal,
+			Parent = gym,
+		})
+		local priceText = tostring(tier.Price):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+		local gate = if tier.RequiredAscension > 0 then (" • ASC %d"):format(tier.RequiredAscension) else ""
+		local unlock = if tier.Price > 0 then ("$%s%s"):format(priceText, gate) else "FREE"
+		billboardSign(signPost, tier.Name:upper(), ("+%d 💪 per rep  •  %s"):format(tier.RepGain, unlock), color, 90, 4, 10)
+	end
+	local header = part({
+		Name = "GymHeader",
+		Size = Vector3.new(1, 1, 1),
+		CFrame = CFrame.new((firstX + lastX) / 2, floorY + 14, (zMin + zMax) / 2),
+		Transparency = 1,
+		CanCollide = false,
+		CanQuery = false,
+		Parent = gym,
+	})
+	billboardSign(header, "🏋 STRENGTH GYM", "The longer you lift, the more you gain", C.Gold, 200, 4, 18)
+	return machines
+end
+
+-- Bat Shop: a batting-cage hut across the avenue. Every bat hangs on the back wall with its
+-- name, so you can see what you're working toward; the counter opens the shop menu.
+local function priceTag(n: number): string
+	for _, unit in { { 1e12, "T" }, { 1e9, "B" }, { 1e6, "M" }, { 1e3, "K" } } do
+		if n >= unit[1] then
+			return ("$%g%s"):format(math.floor(n / unit[1] * 10) / 10, unit[2])
+		end
+	end
+	return "$" .. tostring(n)
+end
+
+local function buildBatShop(district: Folder)
+	local pos = WorldLayout.BatShop
+	local shop = folder("BatShop", district)
+	local plazaY = WorldLayout.District.Center.Y + 1
+	local base = CFrame.lookAt(Vector3.new(pos.X, plazaY, pos.Z), Vector3.new(0, plazaY, pos.Z)) -- faces the avenue
+	local width, depth, height = 30, 12, 12
+	part({ Name = "BatShopFloor", Size = Vector3.new(width + 2, 0.4, depth + 6), CFrame = base * CFrame.new(0, 0.2, 1), Color = Color3.fromRGB(90, 150, 80), Material = Enum.Material.Grass, Parent = shop })
+	-- Back wall (the display) and side walls, open at the front.
+	part({ Name = "BatWall", Size = Vector3.new(width, height, 1), CFrame = base * CFrame.new(0, height / 2, depth / 2), Color = Color3.fromRGB(70, 45, 32), Material = Enum.Material.WoodPlanks, Parent = shop })
+	for _, x in { -1, 1 } do
+		part({ Name = "BatSideWall", Size = Vector3.new(1, height, depth), CFrame = base * CFrame.new(x * width / 2, height / 2, 0), Color = Color3.fromRGB(70, 45, 32), Material = Enum.Material.WoodPlanks, Parent = shop })
+	end
+	part({ Name = "BatRoof", Size = Vector3.new(width + 3, 0.8, depth + 5), CFrame = base * CFrame.new(0, height + 0.4, -0.5) * CFrame.Angles(math.rad(-6), 0, 0), Color = Color3.fromRGB(30, 30, 36), Material = Enum.Material.Slate, Parent = shop })
+	for i = 0, 13 do
+		part({ Name = "BatAwning", Size = Vector3.new(width / 14 + 0.1, 0.3, 4), CFrame = base * CFrame.new(-width / 2 + (i + 0.5) * width / 14, height - 1, -depth / 2 - 1.8) * CFrame.Angles(math.rad(-20), 0, 0), Color = if i % 2 == 0 then C.Red else C.Cream, Parent = shop })
+	end
+	-- Every bat on the wall, cheapest on the left.
+	local count = #Bats.List
+	for i, bat in Bats.List do
+		local x = -width / 2 + 1.8 + (i - 1) * (width - 3.6) / (count - 1)
+		local grip = base * CFrame.new(x, 2.4, depth / 2 - 0.9) * CFrame.Angles(0, 0, math.rad(if i % 2 == 0 then 8 else -8))
+		local model = BatModels.Build(bat.Id, grip)
+		model.PrimaryPart.Anchored = true
+		model.Name = "Display_" .. bat.Id
+		model.Parent = shop
+		local tag = part({ Name = "BatTag", Size = Vector3.new(0.4, 0.4, 0.4), CFrame = base * CFrame.new(x, 9.2, depth / 2 - 0.9), Transparency = 1, CanCollide = false, CanQuery = false, Parent = shop })
+		local unlock = if bat.RequiredAscension > 0 then ("✨ ASC %d"):format(bat.RequiredAscension) elseif bat.Price == 0 then "FREE" else priceTag(bat.Price)
+		billboardSign(tag, bat.Name:upper(), unlock, Bats.Color(bat), 45, 0, 3.2)
+	end
+	-- The counter up front, and a giant bat on the roof.
+	local counter = part({ Name = "BatCounter", Size = Vector3.new(12, 3.6, 2.4), CFrame = base * CFrame.new(0, 1.8, -depth / 2 + 1), Color = Color3.fromRGB(150, 100, 60), Material = Enum.Material.Wood, Parent = shop })
+	part({ Name = "BatCounterTop", Size = Vector3.new(12.6, 0.3, 3), CFrame = base * CFrame.new(0, 3.75, -depth / 2 + 1), Color = C.Gold, Material = Enum.Material.Metal, Parent = shop })
+	local giant = BatModels.Build("golden_slugger", base * CFrame.new(-7, height + 1.5, -1) * CFrame.Angles(0, 0, math.rad(-70)))
+	giant:ScaleTo(3)
+	giant.PrimaryPart.Anchored = true
+	giant.Name = "BatShopSign"
+	giant.Parent = shop
+	billboardSign(counter, "🏏 BAT SHOP", "Slap people further", Color3.fromRGB(255, 130, 80), 160, 17, 10)
+	return prompt(counter, "Browse Bats", "Bat Shop", 0)
+end
+
+-- THE INFO BOARD: a big lit notice board (Config/News). The face is a SurfaceGui the server
+-- fills with the latest post, the featured event and the roadmap ticker; the client keeps the
+-- live parts ticking (Controllers/InfoBoard: countdown, sign-up count, live announcement).
+local function buildInfoBoard(district: Folder)
+	local layout = WorldLayout.InfoBoard
+	local board = folder("InfoBoard", district)
+	local y = WorldLayout.District.Center.Y + 1
+	local base = CFrame.lookAt(Vector3.new(layout.Position.X, y, layout.Position.Z), Vector3.new(layout.Facing.X, y, layout.Facing.Z))
+	local width, height, bottom = 22, 12, 3.5
+	local midY = bottom + height / 2
+	local navy = Color3.fromRGB(16, 22, 46)
+	-- Posts, footing and the panel.
+	for _, x in { -1, 1 } do
+		part({ Name = "InfoPost", Size = Vector3.new(1.4, bottom + height + 3, 1.4), CFrame = base * CFrame.new(x * (width / 2 + 0.9), (bottom + height + 3) / 2, 0.4), Color = Color3.fromRGB(45, 32, 26), Material = Enum.Material.WoodPlanks, Parent = board })
+		part({ Name = "InfoPostCap", Size = Vector3.new(2, 0.6, 2), CFrame = base * CFrame.new(x * (width / 2 + 0.9), bottom + height + 3.3, 0.4), Color = C.Gold, Material = Enum.Material.Metal, Parent = board })
+		part({ Name = "InfoFoot", Size = Vector3.new(2.6, 0.8, 2.6), CFrame = base * CFrame.new(x * (width / 2 + 0.9), 0.4, 0.4), Color = C.Stone, Material = Enum.Material.Slate, Parent = board })
+	end
+	local panel = part({ Name = "InfoPanel", Size = Vector3.new(width, height, 0.8), CFrame = base * CFrame.new(0, midY, 0.4), Color = navy, Material = Enum.Material.SmoothPlastic, Parent = board })
+	CollectionService:AddTag(panel, "InfoBoard")
+	-- Gold frame.
+	for _, sy in { -1, 1 } do
+		part({ Name = "InfoFrame", Size = Vector3.new(width + 1, 0.5, 1), CFrame = base * CFrame.new(0, midY + sy * (height / 2 + 0.25), 0.3), Color = C.Gold, Material = Enum.Material.Metal, Parent = board })
+	end
+	for _, sx in { -1, 1 } do
+		part({ Name = "InfoFrame", Size = Vector3.new(0.5, height, 1), CFrame = base * CFrame.new(sx * (width / 2 + 0.25), midY, 0.3), Color = C.Gold, Material = Enum.Material.Metal, Parent = board })
+	end
+	-- Marquee on top: a red sign ringed with bulbs, and a little slate roof over it all.
+	local marqueeY = bottom + height + 1.9
+	local marquee = part({ Name = "InfoMarquee", Size = Vector3.new(14, 2.6, 0.8), CFrame = base * CFrame.new(0, marqueeY, 0.3), Color = Color3.fromRGB(190, 40, 50), Material = Enum.Material.SmoothPlastic, Parent = board })
+	local marqueeGui = Instance.new("SurfaceGui")
+	marqueeGui.Face = Enum.NormalId.Front
+	marqueeGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	marqueeGui.PixelsPerStud = 40
+	marqueeGui.LightInfluence = 0
+	marqueeGui.Parent = marquee
+	local marqueeText = Instance.new("TextLabel")
+	marqueeText.BackgroundTransparency = 1
+	marqueeText.Size = UDim2.fromScale(1, 1)
+	marqueeText.Font = Enum.Font.FredokaOne
+	marqueeText.TextScaled = true
+	marqueeText.TextColor3 = Color3.fromRGB(255, 230, 120)
+	marqueeText.Text = "📰 ISLAND NEWS"
+	marqueeText.Parent = marqueeGui
+	local bulbs = 16
+	for i = 0, bulbs - 1 do
+		local x = -7.4 + i * 14.8 / (bulbs - 1)
+		for _, sy in { -1, 1 } do
+			local bulb = part({ Name = "InfoBulb", Shape = Enum.PartType.Ball, Size = Vector3.new(0.45, 0.45, 0.45), CFrame = base * CFrame.new(x, marqueeY + sy * 1.55, -0.15), Color = if i % 2 == 0 then Color3.fromRGB(255, 220, 120) else Color3.new(1, 1, 1), Material = Enum.Material.Neon, CanCollide = false, Parent = board })
+			CollectionService:AddTag(bulb, "InfoBulb")
+		end
+	end
+	part({ Name = "InfoRoof", Size = Vector3.new(width + 5, 0.6, 4.2), CFrame = base * CFrame.new(0, bottom + height + 4, -0.2) * CFrame.Angles(math.rad(-10), 0, 0), Color = Color3.fromRGB(34, 36, 48), Material = Enum.Material.Slate, Parent = board })
+	-- Two lanterns so it glows at night.
+	for _, x in { -1, 1 } do
+		local lantern = part({ Name = "InfoLantern", Size = Vector3.new(0.9, 1.2, 0.9), CFrame = base * CFrame.new(x * (width / 2 + 0.9), bottom + height + 1.2, -1.2), Color = Color3.fromRGB(255, 210, 120), Material = Enum.Material.Neon, CanCollide = false, Parent = board })
+		local light = Instance.new("PointLight")
+		light.Range = 18
+		light.Brightness = 1.3
+		light.Color = Color3.fromRGB(255, 210, 140)
+		light.Parent = lantern
+	end
+
+	-- The face.
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "InfoFace"
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 50 -- 1100 x 600
+	gui.LightInfluence = 0
+	gui.Parent = panel
+	local function text(name: string, props: { [string]: any }): TextLabel
+		local label = Instance.new("TextLabel")
+		label.Name = name
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.GothamBold
+		label.TextColor3 = Color3.new(1, 1, 1)
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextYAlignment = Enum.TextYAlignment.Top
+		label.TextWrapped = true
+		for key, value in props do
+			(label :: any)[key] = value
+		end
+		label.Parent = props.Parent or gui
+		return label
+	end
+	local function card(name: string, position: UDim2, size: UDim2, color: Color3): Frame
+		local frame = Instance.new("Frame")
+		frame.Name = name
+		frame.Position = position
+		frame.Size = size
+		frame.BackgroundColor3 = color
+		frame.Parent = gui
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 18)
+		corner.Parent = frame
+		return frame
+	end
+	-- Live announcement strip (hidden until "/announce").
+	local live = card("Live", UDim2.fromOffset(24, 18), UDim2.new(1, -48, 0, 70), Color3.fromRGB(230, 60, 60))
+	live.Visible = false
+	text("LiveText", { Parent = live, Position = UDim2.fromOffset(20, 10), Size = UDim2.new(1, -40, 1, -20), Font = Enum.Font.FredokaOne, TextScaled = true, TextYAlignment = Enum.TextYAlignment.Center, Text = "" })
+	-- Latest post (left).
+	local latest = News.Posts[1]
+	local postCard = card("Post", UDim2.fromOffset(24, 104), UDim2.fromOffset(640, 400), Color3.fromRGB(28, 36, 72))
+	text("PostTag", { Parent = postCard, Position = UDim2.fromOffset(28, 20), Size = UDim2.fromOffset(580, 36), TextSize = 30, TextColor3 = Color3.fromRGB(255, 200, 60), Text = if latest then ("%s • %s"):format(if latest.Kind == "Announcement" then "📌 ANNOUNCEMENT" else "📰 NEWS", latest.Date) else "" })
+	text("PostTitle", { Parent = postCard, Position = UDim2.fromOffset(28, 62), Size = UDim2.fromOffset(590, 100), Font = Enum.Font.FredokaOne, TextScaled = true, Text = if latest then ("%s %s"):format(latest.Icon, latest.Title) else "" })
+	local body = text("PostBody", { Parent = postCard, Position = UDim2.fromOffset(28, 176), Size = UDim2.fromOffset(590, 210), TextScaled = true, Font = Enum.Font.Gotham, TextColor3 = Color3.fromRGB(215, 222, 245), Text = if latest then latest.Body else "" })
+	local fit = Instance.new("UITextSizeConstraint") -- long posts shrink to fit, short ones stay readable
+	fit.MaxTextSize = 30
+	fit.Parent = body
+	-- Featured event (right).
+	local eventCard = card("Event", UDim2.fromOffset(688, 104), UDim2.fromOffset(388, 400), Color3.fromRGB(70, 30, 110))
+	text("EventTag", { Parent = eventCard, Position = UDim2.fromOffset(24, 20), Size = UDim2.fromOffset(340, 36), TextSize = 30, TextColor3 = Color3.fromRGB(255, 200, 60), Text = "📅 NEXT EVENT" })
+	text("EventTitle", { Parent = eventCard, Position = UDim2.fromOffset(24, 62), Size = UDim2.fromOffset(340, 110), Font = Enum.Font.FredokaOne, TextScaled = true, Text = "" })
+	text("EventWhen", { Parent = eventCard, Position = UDim2.fromOffset(24, 186), Size = UDim2.fromOffset(340, 80), Font = Enum.Font.FredokaOne, TextScaled = true, TextColor3 = Color3.fromRGB(120, 230, 255), Text = "" })
+	text("EventSignups", { Parent = eventCard, Position = UDim2.fromOffset(24, 280), Size = UDim2.fromOffset(340, 40), TextSize = 30, Text = "" })
+	text("EventHint", { Parent = eventCard, Position = UDim2.fromOffset(24, 336), Size = UDim2.fromOffset(340, 40), TextSize = 26, TextColor3 = Color3.fromRGB(255, 220, 120), Text = "▶ SIGN UP AT THE BOARD" })
+	-- Roadmap ticker (bottom).
+	local ticker = card("Ticker", UDim2.fromOffset(24, 524), UDim2.new(1, -48, 0, 56), Color3.fromRGB(10, 14, 30))
+	local now, nextUp = {}, {}
+	for _, item in News.Roadmap do
+		if item.Status == "Now" then
+			table.insert(now, item.Title)
+		elseif item.Status == "Next" then
+			table.insert(nextUp, item.Title)
+		end
+	end
+	text("TickerText", { Parent = ticker, Position = UDim2.fromOffset(20, 8), Size = UDim2.new(1, -40, 1, -16), TextScaled = true, TextYAlignment = Enum.TextYAlignment.Center, TextColor3 = Color3.fromRGB(200, 210, 240), Text = ("🛠 NOW: %s     ⏭ NEXT: %s"):format(table.concat(now, " • "), table.concat(nextUp, " • ")) })
+
+	billboardSign(marquee, "📰 INFO BOARD", "News • Roadmap • Events", Color3.fromRGB(255, 200, 80), 160, 6, 10)
+	-- The prompt sits at the front, at chest height.
+	local reader = part({ Name = "InfoReader", Size = Vector3.new(4, 3, 1), CFrame = base * CFrame.new(0, 2, -1.5), Transparency = 1, CanCollide = false, CanQuery = false, Parent = board })
+	local readerPrompt = prompt(reader, "Read & Sign Up", "Info Board", 0)
+	readerPrompt.MaxActivationDistance = 14
+	return readerPrompt
+end
+
+local function buildShop(district: Folder)
+	local pos = WorldLayout.Shop
+	local shop = folder("GadgetShop", district)
+	local facing = CFrame.lookAt(pos, Vector3.new(WorldLayout.District.Center.X, pos.Y, WorldLayout.District.Center.Z))
+	local counter = part({ Name = "Counter", Size = Vector3.new(16, 4, 4), CFrame = facing * CFrame.new(0, 3, 0), Color = C.Wood, Material = Enum.Material.Wood, Parent = shop })
+	for _, x in { -7.5, 7.5 } do
+		part({ Name = "Post", Size = Vector3.new(1, 12, 1), CFrame = facing * CFrame.new(x, 7, 2), Color = C.DarkWood, Parent = shop })
+	end
+	for i = 0, 7 do
+		part({ Name = "Awning", Size = Vector3.new(2, 0.4, 7), CFrame = facing * CFrame.new(-7 + i * 2, 13.2, 0) * CFrame.Angles(math.rad(-12), 0, 0), Color = if i % 2 == 0 then C.Red else C.Cream, Parent = shop })
+	end
+	for i, colorValue in { Color3.fromRGB(255, 120, 60), Color3.fromRGB(255, 70, 90), Color3.fromRGB(150, 220, 255) } do
+		part({ Name = "Display", Shape = Enum.PartType.Ball, Size = Vector3.new(2, 2, 2), CFrame = facing * CFrame.new(-5 + (i - 1) * 5, 6, 0), Color = colorValue, Material = Enum.Material.Neon, Parent = shop })
+	end
+	billboardSign(counter, "🛒 GADGET SHOP", "Buy & equip gadgets", C.Teal, 160, 18, 10)
+	return prompt(counter, "Buy & Equip", "Gadget Shop", 0)
+end
+
+local function buildAscensionAltar(district: Folder)
+	local pos = WorldLayout.AscensionAltar
+	local altar = folder("AscensionAltar", district)
+	cylinder(pos + Vector3.new(0, 1.5, 0), 2, 18, { Name = "Base", Color = C.Cream, Material = Enum.Material.Marble, Parent = altar })
+	cylinder(pos + Vector3.new(0, 2.55, 0), 0.2, 14, { Name = "Ring", Color = C.Secret, Material = Enum.Material.Neon, CanCollide = false, Parent = altar })
+	local obelisk = part({ Name = "Obelisk", Size = Vector3.new(3, 16, 3), CFrame = CFrame.new(pos + Vector3.new(0, 10.5, 0)) * CFrame.Angles(0, math.rad(45), 0), Color = Color3.fromRGB(60, 40, 90), Material = Enum.Material.Slate, Parent = altar })
+	local gem = part({ Name = "Gem", Size = Vector3.new(3, 3, 3), CFrame = CFrame.new(pos + Vector3.new(0, 21, 0)) * CFrame.Angles(math.rad(45), 0, math.rad(45)), Color = C.Secret, Material = Enum.Material.Neon, Parent = altar })
+	gem:SetAttribute("Spin", 1.2)
+	billboardSign(gem, "ASCENSION", "Faster training • More Cash", C.Secret, 160, 11, 9)
+	return prompt(obelisk, "Ascend", "Ascension Altar", 0.5)
+end
+
+-- Vault plots: an open marble gallery with one glowing arched entrance, railings and a red
+-- carpet out onto the plaza. Upper floors (and their columns) are built by VaultService as the
+-- owner upgrades.
+local function buildVaultPlots(district: Folder)
+	local d = WorldLayout.District
+	local vcfg = GameConfig.Vault
+	local plots = {}
+	local vaults = folder("Vaults", district)
+	local halfW, halfD = vcfg.PlotWidth / 2, vcfg.PlotDepth / 2
+	local half = halfD -- entrance and back wall
+	local count = GameConfig.MaxPlayers
+	for i = 1, count do
+		local t = if count == 1 then 0.5 else (i - 1) / (count - 1)
+		local angle = math.rad(-d.VaultArcDegrees / 2 + t * d.VaultArcDegrees)
+		local pos = d.Center + Vector3.new(math.sin(angle) * d.VaultArcRadius, 1, math.cos(angle) * d.VaultArcRadius)
+		local cf = CFrame.lookAt(pos, Vector3.new(d.Center.X, pos.Y, d.Center.Z))
+		local plotFolder = folder("Vault" .. i, vaults)
+		-- Floor with a gold border
+		part({ Name = "Border", Size = Vector3.new(vcfg.PlotWidth + 1, 0.5, vcfg.PlotDepth + 1), CFrame = cf * CFrame.new(0, 0.25, 0), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
+		part({ Name = "Floor", Size = Vector3.new(vcfg.PlotWidth - 1, 0.6, vcfg.PlotDepth - 1), CFrame = cf * CFrame.new(0, 0.3, 0), Color = Color3.fromRGB(62, 52, 88), Material = Enum.Material.Marble, Parent = plotFolder })
+		-- Red runner down the whole central aisle (entrance to the lift at the back).
+		part({ Name = "Carpet", Size = Vector3.new(3.6, 0.08, vcfg.PlotDepth - 2), CFrame = cf * CFrame.new(0, 0.64, 0), Color = Color3.fromRGB(180, 30, 50), Material = Enum.Material.Fabric, CanCollide = false, Parent = plotFolder })
+		-- Back wall with emblem
+		part({ Name = "BackWall", Size = Vector3.new(vcfg.PlotWidth, 10, 1), CFrame = cf * CFrame.new(0, 5, half), Color = C.Cream, Material = Enum.Material.Marble, Parent = plotFolder })
+		part({ Name = "WallTrim", Size = Vector3.new(vcfg.PlotWidth + 0.4, 0.6, 1.4), CFrame = cf * CFrame.new(0, 10.2, half), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
+		part({ Name = "Emblem", Size = Vector3.new(3.2, 3.2, 0.4), CFrame = cf * CFrame.new(0, 6.5, half - 0.6) * CFrame.Angles(0, 0, math.rad(45)), Color = C.Gold, Material = Enum.Material.Neon, CanCollide = false, Parent = plotFolder })
+		-- Low balustrades on the sides keep the gallery visible from the plaza
+		for _, x in { -halfW, halfW } do
+			part({ Name = "Balustrade", Size = Vector3.new(1, 2.4, vcfg.PlotDepth), CFrame = cf * CFrame.new(x, 1.8, 0), Color = C.Cream, Material = Enum.Material.Marble, Parent = plotFolder })
+			part({ Name = "Rail", Size = Vector3.new(1.4, 0.4, vcfg.PlotDepth), CFrame = cf * CFrame.new(x, 3.2, 0), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
+		end
+		-- Front railing: the arch is the one obvious way in.
+		for _, x in { -(halfW + 6) / 2 - 0.5, (halfW + 6) / 2 + 0.5 } do
+			part({ Name = "FrontRail", Size = Vector3.new(halfW - 6, 2.4, 1), CFrame = cf * CFrame.new(x, 1.8, -half), Color = C.Cream, Material = Enum.Material.Marble, Parent = plotFolder })
+			part({ Name = "FrontRailTop", Size = Vector3.new(halfW - 6, 0.4, 1.4), CFrame = cf * CFrame.new(x, 3.2, -half), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
+		end
+		-- Glowing entrance gateway with the owner's name painted on the plaque
+		for _, x in { -6, 6 } do
+			part({ Name = "ArchPost", Size = Vector3.new(2, 11, 2), CFrame = cf * CFrame.new(x, 6, -half), Color = C.Cream, Material = Enum.Material.Marble, Parent = plotFolder })
+			part({ Name = "ArchGlow", Size = Vector3.new(0.4, 11, 0.4), CFrame = cf * CFrame.new(x + (if x < 0 then 1.2 else -1.2), 6, -half - 0.9), Color = C.Gold, Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = plotFolder })
+		end
+		local plaque = part({ Name = "ArchTop", Size = Vector3.new(14.5, 3, 2), CFrame = cf * CFrame.new(0, 12.9, -half), Color = Color3.fromRGB(45, 36, 80), Material = Enum.Material.SmoothPlastic, Parent = plotFolder })
+		part({ Name = "ArchTrim", Size = Vector3.new(15, 0.4, 2.3), CFrame = cf * CFrame.new(0, 11.2, -half), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
+		part({ Name = "ArchTrimTop", Size = Vector3.new(15, 0.4, 2.3), CFrame = cf * CFrame.new(0, 14.6, -half), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
+		local surface = Instance.new("SurfaceGui")
+		surface.Face = Enum.NormalId.Front
+		surface.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		surface.PixelsPerStud = 30
+		surface.LightInfluence = 0
+		surface.Parent = plaque
+		local signLabel = Instance.new("TextLabel")
+		signLabel.Name = "Title"
+		signLabel.BackgroundTransparency = 1
+		signLabel.Size = UDim2.new(1, -20, 1, -8)
+		signLabel.Position = UDim2.fromOffset(10, 4)
+		signLabel.Font = Enum.Font.FredokaOne
+		signLabel.TextScaled = true
+		signLabel.TextColor3 = C.Gold
+		signLabel.Text = "EMPTY VAULT"
+		signLabel.Parent = surface
+		-- Welcome mat + carpet running out onto the plaza
+		part({ Name = "CarpetOut", Size = Vector3.new(5, 0.1, 8), CFrame = cf * CFrame.new(0, 0.05, -half - 4), Color = Color3.fromRGB(180, 30, 50), Material = Enum.Material.Fabric, CanCollide = false, Parent = plotFolder })
+		part({ Name = "EntranceGlow", Size = Vector3.new(11, 0.12, 3), CFrame = cf * CFrame.new(0, 0.8, -half + 1.5), Color = C.Gold, Material = Enum.Material.Neon, Transparency = 0.4, CanCollide = false, CanQuery = false, Parent = plotFolder })
+		plotFolder:SetAttribute("VaultCenter", (cf * CFrame.new(0, 0.6, 0)).Position)
+		local terminal = part({ Name = "Terminal", Size = Vector3.new(2.2, 3.4, 2.2), CFrame = cf * CFrame.new(-8.5, 2.3, -half + 1.5), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
+		part({ Name = "TerminalScreen", Size = Vector3.new(1.8, 1.2, 0.2), CFrame = cf * CFrame.new(-8.5, 3.6, -half + 0.35) * CFrame.Angles(math.rad(-20), 0, 0), Color = Color3.fromRGB(120, 220, 255), Material = Enum.Material.Neon, CanCollide = false, Parent = plotFolder })
+		-- Vault management (sell, upgrade) only happens here, at your own terminal.
+		billboardSign(terminal, "🏆 MANAGE VAULT", "Sell • Upgrade", C.Gold, 45, 4.5, 6)
+		local displays = folder("Displays", plotFolder)
+		table.insert(plots, {
+			Index = i,
+			CFrame = cf * CFrame.new(0, 0.6, 0), -- floor surface
+			Sign = signLabel,
+			Prompt = prompt(terminal, "Manage Vault", "Sell • Upgrade", 0),
+			Displays = displays,
+			Owner = nil,
+		})
+	end
+	return plots
+end
+
+local function buildLeaderboards(district: Folder)
+	local boardsFolder = folder("Leaderboards", district)
+	local d = WorldLayout.District
+	local layout = WorldLayout.Leaderboards
+	local defs = GameConfig.Leaderboards.Boards
+	local boards = {}
+	for i, def in defs do
+		local t = if #defs == 1 then 0.5 else (i - 1) / (#defs - 1)
+		local angle = math.rad(-layout.SpreadDegrees / 2 + t * layout.SpreadDegrees)
+		local pos = d.Center + Vector3.new(math.sin(angle) * layout.Radius, 10.5, -math.cos(angle) * layout.Radius)
+		local facing = CFrame.lookAt(pos, Vector3.new(WorldLayout.Spawn.X, pos.Y, WorldLayout.Spawn.Z))
+		local board = part({
+			Name = def.Id,
+			Size = Vector3.new(12, 15, 0.8),
+			CFrame = facing,
+			Color = Color3.fromRGB(28, 32, 52),
+			Material = Enum.Material.SmoothPlastic,
+			Parent = boardsFolder,
+		})
+		part({ Name = "Frame", Size = Vector3.new(12.8, 15.8, 0.6), CFrame = facing * CFrame.new(0, 0, 0.3), Color = C.Gold, Material = Enum.Material.Metal, Parent = boardsFolder })
+		for _, x in { -5, 5 } do
+			part({ Name = "Leg", Size = Vector3.new(0.8, 4, 0.8), CFrame = facing * CFrame.new(x, -9, 0), Color = C.DarkWood, Parent = boardsFolder })
+		end
+		local surface = Instance.new("SurfaceGui")
+		surface.Name = "Board"
+		surface.Face = Enum.NormalId.Front
+		surface.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		surface.PixelsPerStud = 30
+		surface.LightInfluence = 0
+		surface.MaxDistance = 140
+		surface.Parent = board
+		local title = Instance.new("TextLabel")
+		title.Name = "Title"
+		title.BackgroundTransparency = 1
+		title.Size = UDim2.new(1, 0, 0, 56)
+		title.Font = Enum.Font.FredokaOne
+		title.TextScaled = true
+		title.TextColor3 = C.Gold
+		title.Text = def.Icon .. " " .. def.Title
+		title.Parent = surface
+		local rows = Instance.new("Frame")
+		rows.Name = "Rows"
+		rows.BackgroundTransparency = 1
+		rows.Position = UDim2.fromOffset(14, 64)
+		rows.Size = UDim2.new(1, -28, 1, -74)
+		rows.Parent = surface
+		local list = Instance.new("UIListLayout")
+		list.SortOrder = Enum.SortOrder.LayoutOrder
+		list.Padding = UDim.new(0, 4)
+		list.Parent = rows
+		boards[def.Id] = rows
+	end
+	return boards
+end
+
+-- REGION GATES ----------------------------------------------------------------------------
+-- Where a trail crosses into a harder region, a gateway announces it: region name, danger
+-- stars and the strength we recommend. Reaching one should feel like a milestone.
+
+local GATE_STYLE = {
+	Coast = { Pillar = Color3.fromRGB(150, 120, 90), Material = Enum.Material.Wood, Trim = Color3.fromRGB(70, 90, 110) },
+	Ruins = { Pillar = Color3.fromRGB(226, 186, 126), Material = Enum.Material.Sandstone, Trim = C.Gold },
+	Falls = { Pillar = Color3.fromRGB(96, 110, 96), Material = Enum.Material.Slate, Trim = Color3.fromRGB(60, 140, 70) },
+	Frost = { Pillar = Color3.fromRGB(190, 225, 245), Material = Enum.Material.Glacier, Trim = Color3.fromRGB(90, 200, 255) },
+	Marsh = { Pillar = Color3.fromRGB(70, 60, 80), Material = Enum.Material.Wood, Trim = Color3.fromRGB(190, 110, 255) },
+}
+
+local function shortNumber(n: number): string
+	if n >= 1e6 then
+		return (("%.1fM"):format(n / 1e6):gsub("%.0M", "M"))
+	elseif n >= 1e3 then
+		return (("%.1fK"):format(n / 1e3):gsub("%.0K", "K"))
+	end
+	return tostring(n)
+end
+
+local function gateLabel(sign: BasePart, face: Enum.NormalId, lines: { { Text: string, Color: Color3, Size: number } })
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = face
+	gui.PixelsPerStud = 30
+	gui.LightInfluence = 0.2
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	local list = Instance.new("UIListLayout")
+	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	list.VerticalAlignment = Enum.VerticalAlignment.Center
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Parent = gui
+	local total = 0
+	for _, line in lines do
+		total += line.Size
+	end
+	for i, line in lines do
+		local label = Instance.new("TextLabel")
+		label.LayoutOrder = i
+		label.BackgroundTransparency = 1
+		label.Size = UDim2.fromScale(0.94, line.Size / total * 0.9)
+		label.Font = Enum.Font.FredokaOne
+		label.TextScaled = true
+		label.TextColor3 = line.Color
+		label.Text = line.Text
+		local stroke = Instance.new("UIStroke")
+		stroke.Thickness = 3
+		stroke.Color = Color3.new(0, 0, 0)
+		stroke.Parent = label
+		label.Parent = gui
+	end
+	gui.Parent = sign
+end
+
+-- `at` = ground point on the trail, `forward` = direction of travel into the region.
+local function buildRegionGate(parent: Instance, area: string, at: Vector3, forward: Vector3)
+	local info = Regions.Info[area]
+	local balance = GameConfig.Regions[area]
+	local style = GATE_STYLE[area]
+	if not info or not balance or not style then
+		return
+	end
+	local color = Color3.fromRGB(info.Color[1], info.Color[2], info.Color[3])
+	local gate = folder(area .. "Gate", parent)
+	local cf = CFrame.lookAt(at, at + Vector3.new(forward.X, 0, forward.Z))
+	local height = 17
+	for _, x in { -8, 8 } do
+		part({ Name = "GatePillar", Size = Vector3.new(3, height, 3), CFrame = cf * CFrame.new(x, height / 2 - 1, 0), Color = style.Pillar, Material = style.Material, Parent = gate })
+		part({ Name = "GateCap", Size = Vector3.new(4, 1.2, 4), CFrame = cf * CFrame.new(x, height - 0.4, 0), Color = style.Trim, Material = Enum.Material.Metal, Parent = gate })
+		part({ Name = "GateSpike", Class = "WedgePart", Size = Vector3.new(1.2, 2.4, 1.2), CFrame = cf * CFrame.new(x, height + 1.4, 0), Color = style.Trim, Material = Enum.Material.Metal, Parent = gate })
+		-- Region-coloured banner hanging on the outside of each pillar.
+		part({ Name = "Banner", Size = Vector3.new(2.4, 7, 0.15), CFrame = cf * CFrame.new(x, height - 5, -1.6), Color = color, Material = Enum.Material.Fabric, CanCollide = false, Parent = gate })
+		Props.Brazier(gate, (cf * CFrame.new(x * 1.45, -1, -3)).Position)
+	end
+	part({ Name = "GateBeam", Size = Vector3.new(20, 1.6, 2.4), CFrame = cf * CFrame.new(0, height - 2.2, 0), Color = style.Pillar, Material = style.Material, Parent = gate })
+	local sign = part({ Name = "GateSign", Size = Vector3.new(15, 5, 0.6), CFrame = cf * CFrame.new(0, height - 5.6, 0), Color = Color3.fromRGB(40, 32, 28), Material = Enum.Material.Wood, CanCollide = false, Parent = gate })
+	local danger = Color3.fromRGB(255, 90, 70)
+	gateLabel(sign, Enum.NormalId.Back, {
+		{ Text = info.Title, Color = color, Size = 5 },
+		{ Text = "DANGER " .. Regions.Stars(balance.Danger), Color = danger, Size = 3.5 },
+		{ Text = ("RECOMMENDED STRENGTH %s"):format(shortNumber(balance.RecommendedStrength)), Color = Color3.fromRGB(255, 240, 200), Size = 2.6 },
+	})
+	gateLabel(sign, Enum.NormalId.Front, {
+		{ Text = "LEAVING " .. info.Title, Color = color, Size = 4 },
+		{ Text = "GET YOUR LOOT HOME!", Color = Color3.fromRGB(255, 240, 200), Size = 3 },
+	})
+	if balance.Danger >= 3 then
+		-- Skull on the beam: this is where it stops being easy.
+		part({ Name = "Skull", Size = Vector3.new(2.4, 2.2, 2.4), CFrame = cf * CFrame.new(0, height - 0.4, 0), Color = Color3.fromRGB(236, 226, 200), Parent = gate })
+		for _, x in { -0.5, 0.5 } do
+			part({ Name = "EyeSocket", Shape = Enum.PartType.Ball, Size = Vector3.new(0.7, 0.7, 0.3), CFrame = cf * CFrame.new(x, height - 0.2, 1.2), Color = danger, Material = Enum.Material.Neon, CanCollide = false, Parent = gate })
+		end
+	end
+end
+
+-- Walks every trail and drops a gate where it first enters a new region.
+local function buildRegionGates(parent: Instance, trails)
+	local built = {}
+	for _, trail in trails do
+		local delta = trail[2] - trail[1]
+		local unit = Vector3.new(delta.X, 0, delta.Z).Unit
+		local last = TerrainGen.Biome(trail[1].X, trail[1].Z)
+		for d = 0, delta.Magnitude, 2 do
+			local p = trail[1] + unit * d
+			local biome = TerrainGen.Biome(p.X, p.Z)
+			if biome ~= last and not built[biome] and GameConfig.Regions[biome] and biome ~= "Wilds" then
+				built[biome] = true
+				local at = p + unit * 6 -- just inside, so the sign reads as "you are entering"
+				buildRegionGate(parent, biome, groundAt(at.X, at.Z), unit)
+			end
+			last = biome
+		end
+	end
+end
+
+-- WILDS -------------------------------------------------------------------------
+
+local function tooClose(x: number, z: number, avoid): boolean
+	for _, a in avoid do
+		if (Vector2.new(x, z) - a[1]).Magnitude < a[2] then
+			return true
+		end
+	end
+	return false
+end
+
+local function buildWilds(extraAvoid)
+	local wilds = folder("Wilds")
+	local avoid = {
+		{ Vector2.new(WorldLayout.District.Center.X, WorldLayout.District.Center.Z), WorldLayout.District.FloorRadius + 8 },
+		-- Temple + courtyard stay clear; the desert around them gets cacti and bones.
+		{ Vector2.new(WorldLayout.Temple.Center.X, WorldLayout.Temple.Center.Z), 62 },
+		{ Vector2.new(WorldLayout.Temple.Courtyard.X, WorldLayout.Temple.Courtyard.Z), 46 },
+		{ Vector2.new(0, -330), 70 },
+		{ Vector2.new(WorldLayout.Shipwreck.CoveCenter.X, WorldLayout.Shipwreck.CoveCenter.Z), 120 },
+		{ Vector2.new(0, 70), 25 }, -- camp
+		{ Vector2.new(WorldLayout.Volcano.Center.X, WorldLayout.Volcano.Center.Z), WorldLayout.Volcano.BaseRadius + 20 },
+	}
+	for _, spawnInfo in WorldLayout.TreasureSpawns do
+		table.insert(avoid, { Vector2.new(spawnInfo.Position.X, spawnInfo.Position.Z), 8 })
+	end
+	for _, a in extraAvoid do
+		table.insert(avoid, a)
+	end
+	for _, zone in WorldLayout.ExtractionZones do
+		table.insert(avoid, { Vector2.new(zone.Position.X, zone.Position.Z), zone.Radius + 8 })
+	end
+
+	-- Keep the trails clear of vegetation.
+	local gate = WorldLayout.District.Gate
+	local trails = {
+		{ gate, Vector3.new(0, 10, -270) },
+		{ gate + Vector3.new(0, 0, -45), WorldLayout.Temple.Courtyard + Vector3.new(0, 0, 15) },
+		{ gate + Vector3.new(0, 0, -45), WorldLayout.Shipwreck.Center + Vector3.new(60, 0, 0) },
+		{ gate + Vector3.new(0, 0, -45), WorldLayout.Frostpeak.Center + Vector3.new(50, 0, -40) },
+		{ gate + Vector3.new(0, 0, -45), WorldLayout.Marsh.Center + Vector3.new(-60, 0, -40) },
+	}
+	for _, trail in trails do
+		local delta = trail[2] - trail[1]
+		for d = 0, delta.Magnitude, 10 do
+			local p = trail[1] + delta.Unit * d
+			table.insert(avoid, { Vector2.new(p.X, p.Z), 8 })
+		end
+	end
+
+	-- Scatter helper: tries random points on the island, calls place(ground, x, z, coast) when the
+	-- spot is clear. Spacing keeps props from overlapping each other.
+	local function scatter(count: number, spacing: number, accept: (Vector3, number) -> boolean, place)
+		local placed, attempts = 0, 0
+		while placed < count and attempts < count * 12 do
+			attempts += 1
+			local r = math.sqrt(rng:NextNumber()) * 540
+			local a = rng:NextNumber(0, math.pi * 2)
+			local x, z = math.cos(a) * r, math.sin(a) * r
+			if not tooClose(x, z, avoid) then
+				local ground = groundAt(x, z)
+				local _, coast = TerrainGen.Height(x, z)
+				if accept(ground, coast) then
+					place(ground, coast)
+					placed += 1
+					table.insert(avoid, { Vector2.new(x, z), spacing })
+				end
+			end
+		end
+	end
+
+	-- New regions' dressing and the launch geysers (boost rings come last, see Build).
+	local adventure = Adventure.Build(terrain, wilds, rng, groundAt)
+	adventureAvoid = adventure.Avoid
+	for _, a in adventure.Avoid do
+		table.insert(avoid, a)
+	end
+	-- Farms, villages, cabins, towers... (World/Settlements).
+	local settlements = Settlements.Build(wilds, rng, groundAt)
+	for _, a in settlements.Avoid do
+		table.insert(avoid, a)
+		table.insert(adventureAvoid, a)
+	end
+
+	-- Region gates first so the vegetation keeps clear of them.
+	buildRegionGates(wilds, trails)
+	for _, regionGate in wilds:GetChildren() do
+		if regionGate:IsA("Folder") and regionGate.Name:match("Gate$") then
+			local pivot = regionGate:GetChildren()[1] :: BasePart
+			table.insert(avoid, { Vector2.new(pivot.Position.X, pivot.Position.Z), 18 })
+		end
+	end
+
+	-- Every region has its own flora (TerrainGen.Biome matches the ground colours).
+	local function biomeOf(ground: Vector3): string
+		return TerrainGen.Biome(ground.X, ground.Z, 14)
+	end
+	local trees = folder("Trees", wilds)
+	local undergrowth = folder("Undergrowth", wilds)
+	-- Coast + beaches: palms, driftwood and dune grass.
+	scatter(60, 9, function(ground, coast)
+		return ground.Y > 2.5 and ground.Y < 12 and (coast > 0.08 or biomeOf(ground) == "Coast")
+	end, function(ground)
+		Props.Palm(trees, ground, rng)
+	end)
+	scatter(35, 8, function(ground, coast)
+		return ground.Y > 1 and ground.Y < 9 and (coast > 0.05 or biomeOf(ground) == "Coast")
+	end, function(ground)
+		Props.Driftwood(undergrowth, ground, rng)
+	end)
+	scatter(70, 5, function(ground)
+		return ground.Y > 3 and biomeOf(ground) == "Coast"
+	end, function(ground)
+		Props.DuneGrass(undergrowth, ground, rng)
+	end)
+	-- Wilds: sunny meadow with groves of broadleaf trees, bushes and flowers.
+	scatter(150, 9, function(ground, coast)
+		local grove = math.noise(ground.X / 90, ground.Z / 90, 3.7)
+		return ground.Y > 8 and coast < 0.15 and grove > -0.15 and biomeOf(ground) == "Wilds"
+	end, function(ground)
+		Props.Broadleaf(trees, ground, rng)
+	end)
+	scatter(110, 5, function(ground, coast)
+		return ground.Y > 8 and coast < 0.2 and biomeOf(ground) == "Wilds"
+	end, function(ground)
+		Props.Bush(undergrowth, ground, rng)
+	end)
+	scatter(90, 6, function(ground, coast)
+		return ground.Y > 8.5 and coast < 0.1 and biomeOf(ground) == "Wilds"
+	end, function(ground)
+		Props.Flowers(undergrowth, ground, rng)
+	end)
+	-- Ruins: scorched desert - cacti, dead trees and the bones of something enormous.
+	scatter(45, 9, function(ground)
+		return ground.Y > 8 and biomeOf(ground) == "Ruins"
+	end, function(ground)
+		Props.Cactus(trees, ground, rng)
+	end)
+	scatter(16, 14, function(ground)
+		return ground.Y > 8 and biomeOf(ground) == "Ruins"
+	end, function(ground)
+		Props.DeadTree(trees, ground, rng)
+	end)
+	scatter(6, 30, function(ground)
+		return ground.Y > 8 and biomeOf(ground) == "Ruins"
+	end, function(ground)
+		Props.Bones(undergrowth, ground, rng)
+	end)
+	-- Falls: dark jungle - towering trees, ferns and glowing mushrooms.
+	scatter(55, 11, function(ground, coast)
+		return ground.Y > 8 and coast < 0.2 and biomeOf(ground) == "Falls"
+	end, function(ground)
+		Props.JungleTree(trees, ground, rng)
+	end)
+	scatter(90, 5, function(ground, coast)
+		return ground.Y > 8 and coast < 0.25 and biomeOf(ground) == "Falls"
+	end, function(ground)
+		Props.Fern(undergrowth, ground, rng)
+	end)
+	scatter(24, 12, function(ground)
+		return ground.Y > 8 and biomeOf(ground) == "Falls"
+	end, function(ground)
+		Props.GiantMushroom(undergrowth, ground, rng)
+	end)
+	-- Frostpeak: snowy pines, ice crystal clusters.
+	scatter(70, 10, function(ground)
+		return ground.Y > 8 and biomeOf(ground) == "Frost"
+	end, function(ground)
+		Props.Pine(trees, ground, rng)
+	end)
+	scatter(28, 12, function(ground)
+		return ground.Y > 8 and biomeOf(ground) == "Frost"
+	end, function(ground)
+		Props.IceCrystals(undergrowth, ground, rng)
+	end)
+	-- Glowshroom Marsh: giant glowing mushrooms, reeds, mossy dead trees.
+	scatter(34, 11, function(ground)
+		return ground.Y > 8 and biomeOf(ground) == "Marsh"
+	end, function(ground)
+		Props.GiantMushroom(undergrowth, ground, rng)
+	end)
+	scatter(50, 6, function(ground)
+		return ground.Y > 8 and biomeOf(ground) == "Marsh"
+	end, function(ground)
+		Props.Reeds(undergrowth, ground, rng)
+	end)
+	scatter(12, 16, function(ground)
+		return ground.Y > 8 and biomeOf(ground) == "Marsh"
+	end, function(ground)
+		Props.DeadTree(trees, ground, rng, Color3.fromRGB(70, 84, 64))
+	end)
+	-- Volcano foothills: charred trees.
+	scatter(14, 14, function(ground)
+		return ground.Y > 6 and biomeOf(ground) == "Volcano"
+	end, function(ground)
+		Props.DeadTree(trees, ground, rng, Color3.fromRGB(40, 34, 32))
+	end)
+	scatter(45, 12, function(ground)
+		return ground.Y > 4
+	end, function(ground)
+		Props.Rocks(undergrowth, ground, rng)
+	end)
+
+	-- Dirt trails from the gate toward each landmark
+	for _, trail in trails do
+		paintPath(trail[1], trail[2], 9)
+	end
+	-- Bridge rails
+	local railCf = CFrame.new(Vector3.new(120, 10, 10) + Vector3.new(0, 0.3, 0)) * CFrame.Angles(0, math.rad(20), 0)
+	for _, side in { -4.2, 4.2 } do
+		part({ Name = "Rope", Size = Vector3.new(26, 0.3, 0.3), CFrame = railCf * CFrame.new(0, 3, side), Color = Color3.fromRGB(190, 160, 110), Material = Enum.Material.Fabric, CanCollide = false, Parent = wilds })
+		for i = -2, 2 do
+			part({ Name = "Post", Size = Vector3.new(0.5, 3.5, 0.5), CFrame = railCf * CFrame.new(i * 6, 1.6, side), Color = C.DarkWood, Material = Enum.Material.Wood, Parent = wilds })
+		end
+	end
+
+	-- A rope bridge over a small ravine on the ruins trail
+	local ravine = Vector3.new(120, 10, 10)
+	-- Shallow water at the bottom lets anyone who falls in swim back out.
+	terrain:FillBlock(CFrame.new(ravine + Vector3.new(0, -2, 0)) * CFrame.Angles(0, math.rad(20), 0), Vector3.new(14, 8, 60), Enum.Material.Air)
+	terrain:FillBlock(CFrame.new(ravine + Vector3.new(0, -4, 0)) * CFrame.Angles(0, math.rad(20), 0), Vector3.new(14, 4, 60), Enum.Material.Water)
+	local bridgeCf = CFrame.new(ravine + Vector3.new(0, 0.3, 0)) * CFrame.Angles(0, math.rad(20), 0)
+	for i = -4, 4 do
+		part({ Name = "Plank", Size = Vector3.new(2.6, 0.5, 8), CFrame = bridgeCf * CFrame.new(i * 2.8, 0, 0), Color = C.Wood, Material = Enum.Material.WoodPlanks, Parent = wilds })
+	end
+end
+
+-- LANDMARKS ---------------------------------------------------------------------
+
+-- Dress the Waterfall Mountain (TerrainGen.MOUNTAIN): pines up the slopes, jungle on the
+-- terrace, rocks on the mid-ledges and vines hanging over the lip, so no face is bare rock.
+local function dressMountain(parent: Instance)
+	local M = TerrainGen.MOUNTAIN
+	local f = folder("MountainDressing", parent)
+	local keepClear = {
+		{ -40, -345, 14 }, -- lookout
+		{ -70, -350, 18 }, -- hermit's hut
+		{ -40, -332, 12 }, -- geyser landing
+		{ 50, -380, 18 }, -- the Ashen Pass
+		{ 95, -300, 16 }, -- ramp landing
+	}
+	local function clear(x: number, z: number): boolean
+		if math.abs(x) < M.FallsHalfWidth then
+			return false -- the river and the falls
+		end
+		for _, c in keepClear do
+			if (x - c[1]) ^ 2 + (z - c[2]) ^ 2 < c[3] ^ 2 then
+				return false
+			end
+		end
+		return true
+	end
+	local function slopeAt(x: number, z: number): number
+		local dx = TerrainGen.Height(x + 4, z) - TerrainGen.Height(x - 4, z)
+		local dz = TerrainGen.Height(x, z + 4) - TerrainGen.Height(x, z - 4)
+		return math.max(math.abs(dx), math.abs(dz)) / 8
+	end
+	local placed = 0
+	for _ = 1, 900 do
+		if placed >= 150 then
+			break
+		end
+		local x, z = rng:NextNumber(-300, 330), rng:NextNumber(-520, -280)
+		local h = TerrainGen.Height(x, z)
+		if h > 22 and clear(x, z) then
+			local slope = slopeAt(x, z)
+			local ground = groundAt(x, z, 220)
+			if math.abs(ground.Y - h) < 3 then
+				local onTerrace = math.abs(h - M.Top) < 2
+				local onLedge = math.abs(h - M.LedgeTop) < 3 and slope < 0.35
+				if onTerrace and slope < 0.3 then
+					if rng:NextNumber() < 0.55 then
+						Props.JungleTree(f, ground, rng)
+					else
+						Props.Fern(f, ground, rng)
+					end
+					placed += 1
+				elseif onLedge then
+					if rng:NextNumber() < 0.5 then
+						Props.Rocks(f, ground, rng)
+					else
+						Props.Bush(f, ground, rng)
+					end
+					placed += 1
+				elseif slope < 0.8 and h > 40 then
+					Props.Pine(f, ground, rng)
+					placed += 1
+				end
+			end
+		end
+	end
+	-- Vines over the terrace lip, either side of the falls.
+	for _ = 1, 16 do
+		local side = if rng:NextNumber() < 0.5 then -1 else 1
+		local x = side * rng:NextNumber(M.FallsHalfWidth + 4, if side < 0 then 80 else 72)
+		local lip = groundAt(x, M.Terrace.Front - 1, 220)
+		if lip.Y > M.Top - 4 then
+			Props.Vine(f, lip + Vector3.new(0, 0.5, 3), rng:NextNumber(10, 24), rng)
+		end
+	end
+end
+
+local function buildWaterfall()
+	local w = WorldLayout.Waterfall
+	local falls = folder("GiantWaterfall")
+	-- The mountain itself is sculpted by TerrainGen (TerrainGen.MOUNTAIN).
+	local topY = w.CliffCenter.Y + w.CliffSize.Y / 2
+	-- River across the top, running right to the lip of the falls: a rocky bed, then water.
+	local faceLip = w.CliffCenter.Z + w.CliffSize.Z / 2 - 1
+	terrain:FillBlock(CFrame.new(0, topY - 3, (faceLip - 390) / 2), Vector3.new(w.FallWidth + 8, 6, faceLip + 390), Enum.Material.Slate)
+	terrain:FillBlock(CFrame.new(0, topY - 2, (faceLip - 388) / 2), Vector3.new(w.FallWidth, 4, faceLip + 388), Enum.Material.Water)
+	-- Hidden cave behind the falls (secret extraction)
+	terrain:FillBlock(CFrame.new(w.CaveCenter), w.CaveSize, Enum.Material.Air)
+	-- Plunge pool
+	terrain:FillCylinder(CFrame.new(w.PoolCenter + Vector3.new(0, -3, 0)), 8, w.PoolRadius, Enum.Material.Air)
+	terrain:FillCylinder(CFrame.new(w.PoolCenter + Vector3.new(0, -5.5, 0)), 3, w.PoolRadius, Enum.Material.Water)
+
+	local faceZ = w.CliffCenter.Z + w.CliffSize.Z / 2
+	local sheet = part({
+		Name = "FallingWater",
+		Size = Vector3.new(w.FallWidth, topY - 6, 1.5),
+		CFrame = CFrame.new(0, (topY + 6) / 2, faceZ + 1.5),
+		Color = Color3.fromRGB(150, 220, 245),
+		Material = Enum.Material.Glass,
+		Transparency = 0.35,
+		CanCollide = false,
+		CanQuery = false,
+		CastShadow = false,
+		Parent = falls,
+	})
+	local mistAttachment = Instance.new("Attachment")
+	mistAttachment.Position = Vector3.new(0, -sheet.Size.Y / 2 + 2, 2)
+	mistAttachment.Parent = sheet
+	local mist = Instance.new("ParticleEmitter")
+	mist.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	mist.Color = ColorSequence.new(Color3.new(1, 1, 1))
+	mist.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 1) })
+	mist.Size = NumberSequence.new(8, 18)
+	mist.Lifetime = NumberRange.new(2, 3)
+	mist.Rate = 14
+	mist.Speed = NumberRange.new(4, 8)
+	mist.SpreadAngle = Vector2.new(60, 20)
+	mist.Parent = mistAttachment
+
+	-- Ramp up the terrace's east flank to the cliff top (lands on TerrainGen.MOUNTAIN.RampLanding)
+	local bottom = Vector3.new(225, 10, faceZ + 9)
+	local topPos = Vector3.new(95, topY, faceZ + 9)
+	local delta = topPos - bottom
+	local angle = math.atan2(delta.Y, delta.X)
+	part({
+		Name = "CliffRamp",
+		Size = Vector3.new(delta.Magnitude, 3, 22),
+		CFrame = CFrame.new((bottom + topPos) / 2 + Vector3.new(0, -1.4, 0)) * CFrame.Angles(0, 0, angle),
+		Color = Color3.fromRGB(150, 130, 110),
+		Material = Enum.Material.Slate,
+		Parent = falls,
+	})
+	local lookout = part({ Name = "Lookout", Size = Vector3.new(16, 1, 16), CFrame = CFrame.new(-40, topY + 0.5, w.CliffCenter.Z), Color = C.Wood, Material = Enum.Material.WoodPlanks, Parent = falls })
+	dressMountain(falls)
+	billboardSign(sheet, "GIANT WATERFALL", nil, Color3.fromRGB(170, 235, 255), 650, sheet.Size.Y / 2 + LANDMARK_LIFT + 10)
+	return lookout
+end
+
+local function buildTemple()
+	local t = WorldLayout.Temple
+	local temple = folder("AncientRuins")
+	local center = t.Center
+	for i = 0, t.Tiers - 1 do
+		local size = t.BaseSize - i * 14
+		part({
+			Name = "Tier" .. i,
+			Size = Vector3.new(size, t.TierHeight, size),
+			CFrame = CFrame.new(center + Vector3.new(0, t.TierHeight / 2 + i * t.TierHeight, 0)),
+			Color = if i % 2 == 0 then C.Sandstone else Color3.fromRGB(205, 170, 110),
+			Material = Enum.Material.Sandstone,
+			Parent = temple,
+		})
+	end
+	local topY = center.Y + t.Tiers * t.TierHeight
+	-- Front stairs (ramp) facing the courtyard (+Z)
+	local topEdge = center + Vector3.new(0, t.Tiers * t.TierHeight, (t.BaseSize - (t.Tiers - 1) * 14) / 2)
+	local foot = center + Vector3.new(0, 0, t.BaseSize / 2 + 34)
+	local delta = topEdge - foot
+	local length = delta.Magnitude
+	local pitch = math.atan2(delta.Y, -delta.Z)
+	part({
+		Name = "GrandStairs",
+		Size = Vector3.new(12, 2, length),
+		CFrame = CFrame.new((topEdge + foot) / 2) * CFrame.Angles(pitch, 0, 0),
+		Color = Color3.fromRGB(235, 205, 150),
+		Material = Enum.Material.Sandstone,
+		Parent = temple,
+	})
+	-- Roofless shrine pillars on top
+	for _, off in { { -6, -6 }, { 6, -6 }, { -6, 6 }, { 6, 6 } } do
+		cylinder(Vector3.new(center.X + off[1], topY + 5, center.Z + off[2]), 10, 1.6, { Name = "ShrinePillar", Color = C.Cream, Material = Enum.Material.Marble, Parent = temple })
+	end
+	local beacon = part({
+		Name = "TempleGlow",
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(3, 3, 3),
+		CFrame = CFrame.new(center.X, topY + 14, center.Z),
+		Color = C.Gold,
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+		CanQuery = false,
+		Parent = temple,
+	})
+	billboardSign(beacon, "ANCIENT TEMPLE", nil, C.Gold, 650, LANDMARK_LIFT)
+
+	-- Giant statues guarding the courtyard
+	for _, x in { -35, 35 } do
+		local base = Vector3.new(center.X + x, 10, t.Courtyard.Z - 20)
+		part({ Name = "StatueBase", Size = Vector3.new(10, 4, 10), CFrame = CFrame.new(base + Vector3.new(0, 2, 0)), Color = C.DarkStone, Material = Enum.Material.Slate, Parent = temple })
+		part({ Name = "StatueBody", Size = Vector3.new(8, 16, 6), CFrame = CFrame.new(base + Vector3.new(0, 12, 0)), Color = Color3.fromRGB(150, 160, 130), Material = Enum.Material.Slate, Parent = temple })
+		part({ Name = "StatueHead", Size = Vector3.new(7, 7, 7), CFrame = CFrame.new(base + Vector3.new(0, 23.5, 0)), Color = Color3.fromRGB(150, 160, 130), Material = Enum.Material.Slate, Parent = temple })
+		for _, ex in { -1.5, 1.5 } do
+			part({ Name = "StatueEye", Size = Vector3.new(1.2, 0.8, 0.4), CFrame = CFrame.new(base + Vector3.new(ex, 24.5, 3.6)), Color = Color3.fromRGB(90, 255, 200), Material = Enum.Material.Neon, CanCollide = false, Parent = temple })
+		end
+	end
+
+	-- Courtyard floor + pillars (cover around the Dangerous extraction)
+	part({ Name = "Courtyard", Size = Vector3.new(76, 1, 56), CFrame = CFrame.new(t.Courtyard + Vector3.new(0, 0.3, 0)), Color = Color3.fromRGB(215, 190, 140), Material = Enum.Material.Sandstone, Parent = temple })
+	for i = 0, 7 do
+		local a = i / 8 * math.pi * 2
+		local pos = t.Courtyard + Vector3.new(math.cos(a) * 24, 0, math.sin(a) * 19)
+		local h = if i % 3 == 0 then 5 else 14
+		cylinder(pos + Vector3.new(0, h / 2, 0), h, 3, { Name = "Pillar", Color = C.Cream, Material = Enum.Material.Marble, Parent = temple })
+	end
+end
+
+local function buildShipwreck()
+	local s = WorldLayout.Shipwreck
+	local ship = folder("Shipwreck")
+	local cf = CFrame.new(s.Center) * CFrame.Angles(0, math.rad(20), math.rad(6))
+	part({ Name = "Hull", Size = Vector3.new(64, 13, 18), CFrame = cf * CFrame.new(0, 0, 0), Color = C.DarkWood, Material = Enum.Material.WoodPlanks, Parent = ship })
+	part({ Name = "Keel", Size = Vector3.new(58, 4, 10), CFrame = cf * CFrame.new(0, -8, 0), Color = C.DarkWood, Material = Enum.Material.Wood, Parent = ship })
+	part({ Name = "Deck", Size = Vector3.new(60, 1, 16), CFrame = cf * CFrame.new(0, 7, 0), Color = C.Wood, Material = Enum.Material.WoodPlanks, Parent = ship })
+	part({ Name = "Bow", Class = "WedgePart", Size = Vector3.new(18, 13, 14), CFrame = cf * CFrame.new(-39, 0, 0) * CFrame.Angles(0, math.rad(-90), 0), Color = C.DarkWood, Material = Enum.Material.WoodPlanks, Parent = ship })
+	part({ Name = "Cabin", Size = Vector3.new(14, 8, 16), CFrame = cf * CFrame.new(24, 11.5, 0), Color = Color3.fromRGB(110, 70, 40), Material = Enum.Material.WoodPlanks, Parent = ship })
+	local mastCf = cf * CFrame.new(-6, 26, 0) * CFrame.Angles(math.rad(14), 0, math.rad(-8))
+	part({ Name = "Mast", Shape = Enum.PartType.Cylinder, Size = Vector3.new(38, 2, 2), CFrame = mastCf * CFrame.Angles(0, 0, math.rad(90)), Color = C.Wood, Material = Enum.Material.Wood, Parent = ship })
+	part({ Name = "Sail", Size = Vector3.new(0.4, 14, 20), CFrame = mastCf * CFrame.new(0, 6, 0) * CFrame.Angles(0, math.rad(90), math.rad(8)), Color = Color3.fromRGB(235, 225, 200), Material = Enum.Material.Fabric, Parent = ship })
+	local flag = part({ Name = "Flag", Size = Vector3.new(0.2, 4, 6), CFrame = mastCf * CFrame.new(0, 20, 3), Color = Color3.fromRGB(25, 25, 30), Material = Enum.Material.Fabric, CanCollide = false, Parent = ship })
+	billboardSign(flag, "SHIPWRECK COAST", nil, Color3.fromRGB(255, 240, 200), 650, LANDMARK_LIFT)
+	-- Crates as steps onto the deck
+	for i, off in { Vector3.new(22, -3, 12), Vector3.new(16, -1, 14), Vector3.new(10, 1, 13) } do
+		local size = 6 - i
+		part({ Name = "Crate", Size = Vector3.new(size + 2, size + 2, size + 2), CFrame = cf * CFrame.new(off), Color = C.Wood, Material = Enum.Material.WoodPlanks, Parent = ship })
+	end
+end
+
+local function buildLighthouse()
+	local pos = Vector3.new(360, 8, 300)
+	local ground = groundAt(pos.X, pos.Z)
+	local lh = folder("Lighthouse")
+	for i = 0, 5 do
+		cylinder(ground + Vector3.new(0, 4 + i * 8, 0), 8, 12 - i, {
+			Name = "Tower",
+			Color = if i % 2 == 0 then Color3.new(1, 1, 1) else C.Red,
+			Material = Enum.Material.SmoothPlastic,
+			Parent = lh,
+		})
+	end
+	local lamp = part({ Name = "Lamp", Shape = Enum.PartType.Ball, Size = Vector3.new(6, 6, 6), CFrame = CFrame.new(ground + Vector3.new(0, 52, 0)), Color = Color3.fromRGB(255, 240, 180), Material = Enum.Material.Neon, Parent = lh })
+	local light = Instance.new("PointLight")
+	light.Range = 60
+	light.Brightness = 3
+	light.Color = Color3.fromRGB(255, 240, 180)
+	light.Parent = lamp
+end
+
+-- EXTRACTION ZONES --------------------------------------------------------------
+
+local function buildExtractionZones()
+	local zonesFolder = folder("ExtractionZones")
+	local colors = { Safe = C.Safe, Dangerous = C.Danger, Secret = C.Secret }
+	for _, zone in WorldLayout.ExtractionZones do
+		local ground = groundAt(zone.Position.X, zone.Position.Z, zone.RayFrom)
+		zone.ResolvedPosition = ground
+		local color = colors[zone.Category]
+		local zf = folder(zone.Id, zonesFolder)
+		local category = GameConfig.Extraction.Categories[zone.Category]
+		local secret = zone.Category == "Secret"
+		local stone = Color3.fromRGB(88, 84, 96)
+		-- Shrine platform: dark stone dais (sunk into the ground so it never floats) with a
+		-- glowing ring in the category colour and a bright emblem in the middle.
+		local top = ground + Vector3.new(0, 0.9, 0)
+		cylinder(ground + Vector3.new(0, -1.1, 0), 4, zone.Radius * 2 + 2, { Name = "Dais", Color = stone, Material = Enum.Material.Slate, Parent = zf })
+		cylinder(top + Vector3.new(0, 0.05, 0), 0.1, zone.Radius * 2 - 0.5, { Name = "Ring", Color = color, Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = zf })
+		cylinder(top + Vector3.new(0, 0.15, 0), 0.1, zone.Radius * 2 - 2.5, { Name = "InnerFloor", Color = Color3.fromRGB(52, 50, 62), Material = Enum.Material.Slate, CanCollide = false, CanQuery = false, Parent = zf })
+		cylinder(top + Vector3.new(0, 0.25, 0), 0.1, 5, { Name = "Emblem", Color = color, Material = Enum.Material.Neon, Transparency = 0.15, CanCollide = false, CanQuery = false, Parent = zf })
+		-- Four obelisks with a rune strip and a floating crystal.
+		for i = 0, 3 do
+			local a = math.rad(45 + i * 90)
+			local r = zone.Radius - 0.2
+			local base = top + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)
+			local facing = CFrame.lookAt(base, Vector3.new(top.X, base.Y, top.Z))
+			part({ Name = "Obelisk", Size = Vector3.new(1.6, 7, 1.6), CFrame = facing * CFrame.new(0, 3.5, 0), Color = stone, Material = Enum.Material.Slate, Parent = zf })
+			part({ Name = "Runes", Size = Vector3.new(0.35, 5, 0.1), CFrame = facing * CFrame.new(0, 3.6, -0.82), Color = color, Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = zf })
+			local crystal = part({ Name = "Crystal", Size = Vector3.new(0.9, 0.9, 0.9), CFrame = facing * CFrame.new(0, 8.2, 0) * CFrame.Angles(math.rad(45), 0, math.rad(45)), Color = color, Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = zf })
+			crystal:SetAttribute("Spin", 1)
+		end
+		-- Seen from afar by SHAPE, not by glow: a tethered hot-air balloon in the category colour
+		-- and a plume of coloured smoke (the Secret cave only gets a thin wisp - it's secret).
+		local anchor = part({ Name = "BeamAnchor", Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(top), Transparency = 1, CanCollide = false, CanQuery = false, CastShadow = false, Parent = zf })
+		local signal = Instance.new("ParticleEmitter")
+		signal.Name = "SignalSmoke"
+		signal.Texture = "rbxasset://textures/particles/smoke_main.dds"
+		signal.Color = ColorSequence.new(color, color:Lerp(Color3.new(1, 1, 1), 0.5))
+		signal.LightInfluence = 0.4
+		signal.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 3), NumberSequenceKeypoint.new(1, if secret then 5 else 14) })
+		signal.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.35), NumberSequenceKeypoint.new(0.7, 0.6), NumberSequenceKeypoint.new(1, 1) })
+		signal.Lifetime = NumberRange.new(if secret then 2.5 else 6, if secret then 3.5 else 9)
+		signal.Rate = if secret then 3 else 7
+		signal.Speed = NumberRange.new(if secret then 3 else 7, if secret then 4 else 10)
+		signal.SpreadAngle = Vector2.new(6, 6)
+		signal.Acceleration = Vector3.new(1.5, 0, 0.8) -- drifts with the wind
+		signal.RotSpeed = NumberRange.new(-20, 20)
+		signal.Rotation = NumberRange.new(0, 360)
+		signal.EmissionDirection = Enum.NormalId.Top
+		signal.Parent = anchor
+		if not secret then
+			local balloonAt = top + Vector3.new(0, 38, 0)
+			part({ Name = "Balloon", Shape = Enum.PartType.Ball, Size = Vector3.new(15, 17, 15), CFrame = CFrame.new(balloonAt), Color = color, Material = Enum.Material.Fabric, CanCollide = false, CanQuery = false, Parent = zf })
+			for _, y in { -2.5, 2.5 } do
+				cylinder(balloonAt + Vector3.new(0, y, 0), 1.2, 15.2 - math.abs(y) * 0.4, { Name = "BalloonStripe", Color = Color3.fromRGB(255, 250, 235), Material = Enum.Material.Fabric, CanCollide = false, CanQuery = false, Parent = zf })
+			end
+			cylinder(balloonAt + Vector3.new(0, -8.2, 0), 2.4, 5, { Name = "BalloonMouth", Color = color:Lerp(Color3.new(0, 0, 0), 0.35), Material = Enum.Material.Fabric, CanCollide = false, CanQuery = false, Parent = zf })
+			local basketAt = balloonAt + Vector3.new(0, -13, 0)
+			local basket = part({ Name = "Basket", Size = Vector3.new(3.6, 2.6, 3.6), CFrame = CFrame.new(basketAt), Color = Color3.fromRGB(150, 105, 60), Material = Enum.Material.Wood, CanCollide = false, CanQuery = false, Parent = zf })
+			local flame = Instance.new("Fire")
+			flame.Size = 3
+			flame.Heat = 12
+			flame.Color = Color3.fromRGB(255, 170, 60)
+			flame.Parent = basket
+			for _, corner in { Vector3.new(1, 0, 1), Vector3.new(-1, 0, 1), Vector3.new(1, 0, -1), Vector3.new(-1, 0, -1) } do
+				local from = basketAt + corner * 1.6 + Vector3.new(0, 1.3, 0)
+				local to = balloonAt + corner * 2.4 + Vector3.new(0, -8, 0)
+				part({ Name = "BalloonRope", Size = Vector3.new(0.15, 0.15, (to - from).Magnitude), CFrame = CFrame.lookAt((from + to) / 2, to), Color = Color3.fromRGB(90, 70, 50), CanCollide = false, CanQuery = false, CastShadow = false, Parent = zf })
+			end
+			-- Tether rope down to the shrine.
+			local tetherTop = basketAt - Vector3.new(0, 1.3, 0)
+			local tetherBottom = top + Vector3.new(zone.Radius * 0.7, 0, 0)
+			part({ Name = "Tether", Size = Vector3.new(0.2, 0.2, (tetherTop - tetherBottom).Magnitude), CFrame = CFrame.lookAt((tetherTop + tetherBottom) / 2, tetherTop), Color = Color3.fromRGB(110, 90, 66), CanCollide = false, CanQuery = false, CastShadow = false, Parent = zf })
+		end
+		-- Two pennant poles at the shrine entrance.
+		for _, side in { -1, 1 } do
+			local poleAt = top + Vector3.new(side * (zone.Radius + 2.5), 0, zone.Radius * 0.4)
+			cylinder(poleAt + Vector3.new(0, 7, 0), 14, 0.5, { Name = "FlagPole", Color = C.DarkWood, Material = Enum.Material.Wood, Parent = zf })
+			part({ Name = "Pennant", Class = "WedgePart", Size = Vector3.new(0.1, 3, 4.5), CFrame = CFrame.new(poleAt + Vector3.new(0, 12, -2.25)), Color = color, Material = Enum.Material.Fabric, CanCollide = false, CanQuery = false, Parent = zf })
+		end
+		local motes = Instance.new("ParticleEmitter")
+		motes.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		motes.Color = ColorSequence.new(color)
+		motes.LightEmission = 1
+		motes.LightInfluence = 0
+		motes.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 0) })
+		motes.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
+		motes.Lifetime = NumberRange.new(2, 3.5)
+		motes.Rate = 6
+		motes.Speed = NumberRange.new(3, 6)
+		motes.SpreadAngle = Vector2.new(8, 8)
+		motes.Shape = Enum.ParticleEmitterShape.Cylinder
+		motes.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+		motes.EmissionDirection = Enum.NormalId.Top
+		motes.Parent = anchor
+		anchor.Size = Vector3.new(zone.Radius * 1.4, 0.2, zone.Radius * 1.4)
+		local light = Instance.new("PointLight")
+		light.Color = color
+		light.Range = zone.Radius * 1.4
+		light.Brightness = 0.8
+		light.Shadows = false
+		light.Parent = anchor
+		-- Sign above the shrine: what you get for extracting here.
+		local blessing = if (category.MutationChance or 0) > 0 then (" • %d%% MUTATION"):format(math.floor(category.MutationChance * 100 + 0.5)) else ""
+		-- High, world-sized (shrinks with distance) and only nearby: the balloon and smoke
+		-- column are what you spot from afar.
+		local signAnchor = part({ Name = "SignAnchor", Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(top + Vector3.new(0, 19, 0)), Transparency = 1, CanCollide = false, CanQuery = false, CastShadow = false, Parent = zf })
+		billboardSign(signAnchor, ("⬆ %s"):format(zone.Name:upper()), ("%s EXIT • x%.1f%s"):format(category.Label, category.Bonus, blessing), color, if secret then 60 else 220, 0, 11)
+
+		if zone.Id == "expedition_camp" then
+			for i, off in { Vector3.new(-24, 0, -9), Vector3.new(24, 0, -6), Vector3.new(-18, 0, 21) } do
+				local tentCf = CFrame.new(ground + off + Vector3.new(0, 3, 0)) * CFrame.Angles(0, math.rad(i * 70), 0)
+				part({ Name = "TentL", Class = "WedgePart", Size = Vector3.new(8, 6, 4), CFrame = tentCf * CFrame.new(0, 0, -2), Color = Color3.fromRGB(230, 200, 140), Material = Enum.Material.Fabric, Parent = zf })
+				part({ Name = "TentR", Class = "WedgePart", Size = Vector3.new(8, 6, 4), CFrame = tentCf * CFrame.new(0, 0, 2) * CFrame.Angles(0, math.rad(180), 0), Color = Color3.fromRGB(210, 180, 120), Material = Enum.Material.Fabric, Parent = zf })
+			end
+			local fire = part({ Name = "Campfire", Size = Vector3.new(3, 1, 3), CFrame = CFrame.new(ground + Vector3.new(21, 0.5, 18)), Color = C.DarkWood, Material = Enum.Material.Wood, Parent = zf })
+			Instance.new("Fire").Parent = fire
+			local smoke = Instance.new("Smoke")
+			smoke.Color = Color3.fromRGB(190, 190, 190)
+			smoke.Opacity = 0.12
+			smoke.RiseVelocity = 4
+			smoke.Size = 2.5
+			smoke.Parent = fire
+			for _, off in { Vector3.new(15, 1.5, -21), Vector3.new(18, 1.5, -18), Vector3.new(-26, 1.5, 9) } do
+				part({ Name = "Crate", Size = Vector3.new(3, 3, 3), CFrame = CFrame.new(ground + off), Color = C.Wood, Material = Enum.Material.WoodPlanks, Parent = zf })
+			end
+		elseif zone.Id == "temple_courtyard" then
+			part({ Name = "Altar", Size = Vector3.new(4, 3, 2), CFrame = CFrame.new(ground + Vector3.new(0, 1.5, -zone.Radius - 3)), Color = C.Cream, Material = Enum.Material.Marble, Parent = zf })
+		end
+	end
+end
+
+-- DRESSING ----------------------------------------------------------------------
+-- Pure decoration layered on top of the gameplay layout. Nothing here affects anchors.
+
+local function dressDistrict()
+	local d = WorldLayout.District
+	local center = d.Center
+	local dressing = folder("DistrictDressing")
+	local plazaY = center.Y + 1
+
+	-- Cobbled avenue from the fountain to the north gate
+	local avenueStart, avenueEnd = center.Z - 36, d.Gate.Z
+	part({
+		Name = "Avenue",
+		Size = Vector3.new(12, 0.2, avenueStart - avenueEnd),
+		CFrame = CFrame.new(center.X, plazaY + 0.15, (avenueStart + avenueEnd) / 2),
+		Color = Color3.fromRGB(170, 160, 150),
+		Material = Enum.Material.Cobblestone,
+		CanCollide = false,
+		CanQuery = false,
+		Parent = dressing,
+	})
+	-- Bunting over the avenue
+	for _, z in { 125, 160, 195 } do
+		for _, x in { -9, 9 } do
+			cylinder(Vector3.new(x, plazaY + 6, z), 12, 0.5, { Name = "BuntingPole", Color = C.DarkWood, Material = Enum.Material.Wood, Parent = dressing })
+		end
+		Props.Bunting(dressing, Vector3.new(-9, plazaY + 11.5, z), Vector3.new(9, plazaY + 11.5, z), rng)
+	end
+
+	-- Houses around the edge, facing the plaza
+	for _, degrees in { 100, 125, 150, 210, 235 } do -- 260° would clip the Strength Gym
+		local a = math.rad(degrees)
+		local pos = Vector3.new(center.X + math.sin(a) * 135, plazaY - 1, center.Z + math.cos(a) * 135)
+		Props.House(dressing, CFrame.lookAt(pos, Vector3.new(center.X, pos.Y, center.Z)), rng)
+	end
+
+	-- Benches + flower beds around the fountain
+	for i = 0, 5 do
+		local a = math.rad(30 + i * 60)
+		local pos = Vector3.new(center.X + math.sin(a) * 22, plazaY, center.Z + math.cos(a) * 22)
+		local facing = CFrame.lookAt(pos, Vector3.new(center.X, plazaY, center.Z)) * CFrame.Angles(0, math.rad(180), 0)
+		if i % 2 == 0 then
+			Props.Bench(dressing, facing)
+		else
+			part({ Name = "Planter", Size = Vector3.new(7, 1.2, 3), CFrame = facing * CFrame.new(0, 0.6, 0), Color = Color3.fromRGB(160, 90, 70), Material = Enum.Material.Brick, Parent = dressing })
+			Props.Flowers(dressing, (facing * CFrame.new(0, 1.2, 0)).Position, rng, 8)
+		end
+	end
+	-- Palms for a holiday-town feel
+	for _, pos in { Vector3.new(-48, 0, 300), Vector3.new(48, 0, 300), Vector3.new(-96, 0, 250), Vector3.new(96, 0, 250), Vector3.new(-30, 0, 140), Vector3.new(30, 0, 140) } do
+		local ground = Vector3.new(pos.X, plazaY, pos.Z)
+		cylinder(ground + Vector3.new(0, 0.4, 0), 0.8, 6, { Name = "PalmBed", Color = Color3.fromRGB(150, 110, 70), Material = Enum.Material.Ground, Parent = dressing })
+		Props.Palm(dressing, ground + Vector3.new(0, 0.8, 0), rng)
+	end
+	-- Street lamps along the avenue
+	for _, z in { 110, 142, 178, 212 } do
+		Props.Lamp(dressing, Vector3.new(-12, plazaY, z))
+		Props.Lamp(dressing, Vector3.new(12, plazaY, z))
+	end
+
+	-- Fountain jets
+	local pillar = dressing.Parent and dressing.Parent:FindFirstChild("TreasureDistrict")
+	local jetBase = Instance.new("Part")
+	jetBase.Name = "FountainJets"
+	jetBase.Anchored = true
+	jetBase.CanCollide = false
+	jetBase.CanQuery = false
+	jetBase.Transparency = 1
+	jetBase.Size = Vector3.new(1, 1, 1)
+	jetBase.CFrame = CFrame.new(center + Vector3.new(0, 10.5, 0))
+	jetBase.Parent = pillar or dressing
+	local jets = Instance.new("ParticleEmitter")
+	jets.Color = ColorSequence.new(Color3.fromRGB(190, 235, 255))
+	jets.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
+	jets.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(1, 1.4) })
+	jets.Lifetime = NumberRange.new(1.2, 1.6)
+	jets.Rate = 45
+	jets.Speed = NumberRange.new(14, 18)
+	jets.SpreadAngle = Vector2.new(22, 22)
+	jets.Acceleration = Vector3.new(0, -30, 0)
+	jets.EmissionDirection = Enum.NormalId.Top
+	jets.Parent = jetBase
+end
+
+local function dressLandmarks()
+	local dressing = folder("LandmarkDressing")
+
+	-- Temple: vines down each tier, braziers at the stairs, broken pillar pieces
+	local t = WorldLayout.Temple
+	for tier = 0, t.Tiers - 2 do
+		local size = t.BaseSize - tier * 14
+		local topY = t.Center.Y + (tier + 1) * t.TierHeight
+		for _ = 1, 3 do
+			local x = t.Center.X + rng:NextNumber(-size / 2 + 2, size / 2 - 2)
+			if math.abs(x - t.Center.X) > 8 then -- keep the stairs clear
+				Props.Vine(dressing, Vector3.new(x, topY, t.Center.Z + size / 2 + 0.4), rng:NextNumber(4, 7), rng)
+			end
+			local side = if rng:NextNumber() < 0.5 then -1 else 1
+			Props.Vine(dressing, Vector3.new(t.Center.X + side * (size / 2 + 0.4), topY, t.Center.Z + rng:NextNumber(-size / 2, size / 2)), rng:NextNumber(4, 7), rng)
+		end
+	end
+	local stairFoot = t.Center + Vector3.new(0, 0, t.BaseSize / 2 + 34)
+	for _, x in { -9, 9 } do
+		Props.Brazier(dressing, stairFoot + Vector3.new(x, 1, 4))
+		-- Between the shrine pillars (at +-6, +-6) and clear of the stair landing.
+		Props.Brazier(dressing, Vector3.new(t.Center.X + x * 0.72, t.Center.Y + t.Tiers * t.TierHeight, t.Center.Z))
+	end
+	for _ = 1, 8 do
+		local a = rng:NextNumber(0, math.pi * 2)
+		local ground = groundAt(t.Center.X + math.cos(a) * rng:NextNumber(50, 75), t.Center.Z + math.sin(a) * rng:NextNumber(50, 75))
+		part({
+			Name = "FallenPillar",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(rng:NextNumber(4, 9), 3, 3),
+			CFrame = CFrame.new(ground + Vector3.new(0, 1.3, 0)) * CFrame.Angles(0, rng:NextNumber(0, 6.28), math.rad(rng:NextNumber(-10, 10))),
+			Color = Color3.fromRGB(225, 215, 190),
+			Material = Enum.Material.Marble,
+			Parent = dressing,
+		})
+	end
+
+	-- Waterfall: second translucent layer, foam, rocks around the pool
+	local w = WorldLayout.Waterfall
+	local topY = w.CliffCenter.Y + w.CliffSize.Y / 2
+	local faceZ = w.CliffCenter.Z + w.CliffSize.Z / 2
+	local veil = part({
+		Name = "FallingWaterVeil",
+		Size = Vector3.new(w.FallWidth + 6, topY - 6, 1),
+		CFrame = CFrame.new(0, (topY + 6) / 2, faceZ + 3.2),
+		Color = Color3.fromRGB(215, 245, 255),
+		Material = Enum.Material.Glass,
+		Transparency = 0.7,
+		CanCollide = false,
+		CanQuery = false,
+		CastShadow = false,
+		Parent = dressing,
+	})
+	local streaks = Instance.new("ParticleEmitter")
+	streaks.Color = ColorSequence.new(Color3.new(1, 1, 1))
+	streaks.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.4), NumberSequenceKeypoint.new(1, 0.9) })
+	streaks.Size = NumberSequence.new(2.5)
+	streaks.Lifetime = NumberRange.new(1.5, 2)
+	streaks.Rate = 40
+	streaks.Speed = NumberRange.new(40, 50)
+	streaks.EmissionDirection = Enum.NormalId.Bottom
+	streaks.SpreadAngle = Vector2.new(4, 4)
+	local streakAttachment = Instance.new("Attachment")
+	streakAttachment.Position = Vector3.new(0, veil.Size.Y / 2 - 2, 0)
+	streakAttachment.Parent = veil
+	streaks.Parent = streakAttachment
+	local foam = Instance.new("ParticleEmitter")
+	foam.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	foam.Color = ColorSequence.new(Color3.new(1, 1, 1))
+	foam.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1) })
+	foam.Size = NumberSequence.new(5, 12)
+	foam.Lifetime = NumberRange.new(1.2, 2)
+	foam.Rate = 30
+	foam.Speed = NumberRange.new(3, 7)
+	foam.SpreadAngle = Vector2.new(80, 80)
+	foam.EmissionDirection = Enum.NormalId.Top
+	local foamAttachment = Instance.new("Attachment")
+	foamAttachment.Position = Vector3.new(0, -veil.Size.Y / 2 + 1, 2)
+	foamAttachment.Parent = veil
+	foam.Parent = foamAttachment
+	for i = 0, 9 do
+		local a = math.rad(i * 36 + rng:NextNumber(-8, 8))
+		local ground = groundAt(w.PoolCenter.X + math.cos(a) * (w.PoolRadius + 3), w.PoolCenter.Z + math.sin(a) * (w.PoolRadius + 3))
+		if ground.Z > faceZ + 8 and not (math.abs(ground.X) < 14 and ground.Z < faceZ + 30) then
+			Props.Rocks(dressing, ground, rng)
+		end
+	end
+
+	-- Shipwreck beach: cargo spilled from the wreck
+	local ship = WorldLayout.Shipwreck.Center
+	for _ = 1, 10 do
+		local ground = groundAt(ship.X + rng:NextNumber(18, 48), ship.Z + rng:NextNumber(-45, 45))
+		if ground.Y > 1 then
+			local cf = CFrame.new(ground) * CFrame.Angles(0, rng:NextNumber(0, 6.28), 0)
+			if rng:NextNumber() < 0.5 then
+				Props.Barrel(dressing, cf)
+			else
+				Props.Crate(dressing, cf, rng:NextNumber(2.5, 3.5))
+			end
+		end
+	end
+	for _ = 1, 6 do
+		local ground = groundAt(ship.X + rng:NextNumber(15, 50), ship.Z + rng:NextNumber(-50, 50))
+		part({
+			Name = "Driftwood",
+			Size = Vector3.new(rng:NextNumber(4, 8), 0.5, 1.2),
+			CFrame = CFrame.new(ground + Vector3.new(0, 0.2, 0)) * CFrame.Angles(0, rng:NextNumber(0, 6.28), math.rad(rng:NextNumber(-8, 8))),
+			Color = Color3.fromRGB(150, 120, 90),
+			Material = Enum.Material.WoodPlanks,
+			CanCollide = false,
+			Parent = dressing,
+		})
+	end
+
+	-- Expedition camp: logs around the fire, lanterns, a map table
+	local camp = WorldLayout.ExtractionZones[1]
+	local campGround = camp.ResolvedPosition or camp.Position
+	local fire = campGround + Vector3.new(14, 0, 12)
+	for i = 0, 2 do
+		local a = math.rad(i * 120 + 30)
+		part({
+			Name = "LogSeat",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(5, 1.4, 1.4),
+			CFrame = CFrame.new(fire + Vector3.new(math.cos(a) * 4, 0.7, math.sin(a) * 4)) * CFrame.Angles(0, -a + math.rad(90), 0),
+			Color = Color3.fromRGB(110, 75, 45),
+			Material = Enum.Material.Wood,
+			Parent = dressing,
+		})
+	end
+	for _, offset in { Vector3.new(-20, 0, -16), Vector3.new(20, 0, -16), Vector3.new(-22, 0, 18) } do
+		Props.Lamp(dressing, campGround + offset)
+	end
+	part({ Name = "MapTable", Size = Vector3.new(5, 0.4, 3), CFrame = CFrame.new(campGround + Vector3.new(-6, 3, -16)), Color = C.Wood, Material = Enum.Material.WoodPlanks, Parent = dressing })
+	part({ Name = "Map", Size = Vector3.new(3.6, 0.05, 2.2), CFrame = CFrame.new(campGround + Vector3.new(-6, 3.23, -16)) * CFrame.Angles(0, 0.2, 0), Color = Color3.fromRGB(230, 205, 150), Material = Enum.Material.Fabric, CanCollide = false, Parent = dressing })
+	for _, x in { -8, -4 } do
+		part({ Name = "TableLeg", Size = Vector3.new(0.4, 2.8, 2.6), CFrame = CFrame.new(campGround + Vector3.new(x, 1.4, -16)), Color = C.DarkWood, Material = Enum.Material.Wood, Parent = dressing })
+	end
+end
+
+-- PUBLIC ------------------------------------------------------------------------
+
+function WorldBuilder.Build()
+	world = folder("World", workspace)
+	Props.DefaultParent = world
+	buildLighting()
+	buildTerrain()
+	local district = buildDistrict()
+	local machines = buildGym(district)
+	local shopPrompt = buildShop(district)
+	local batShopPrompt = buildBatShop(district)
+	local infoBoardPrompt = buildInfoBoard(district)
+	local altarPrompt = buildAscensionAltar(district)
+	local plots = buildVaultPlots(district)
+	local leaderboards = buildLeaderboards(district)
+	buildWaterfall()
+	buildTemple()
+	buildShipwreck()
+	buildLighthouse()
+	local secrets = Secrets.Build(terrain, world, rng)
+	-- The Falls: a jungle river valley at the foot of the mountain (river, lagoon, idol, cascades).
+	local falls = Falls.Build(terrain, world, rng, groundAt)
+	for _, a in falls.Avoid do
+		table.insert(secrets.Avoid, a)
+	end
+	-- The Deep South: Emberfall, Rimeheart and the Starfall Isles beyond the Waterfall Mountain.
+	local south = DeepSouth.Build(terrain, world, rng, groundAt)
+	for _, info in south.Spawns do
+		table.insert(secrets.Spawns, info)
+	end
+	buildWilds(secrets.Avoid)
+	buildExtractionZones()
+	dressDistrict()
+	dressLandmarks()
+	Waystones.Build(world, groundAt)
+
+	-- Resolve treasure spawn heights against the finished world
+	local spawns = {}
+	for _, info in WorldLayout.TreasureSpawns do
+		local ground = groundAt(info.Position.X, info.Position.Z, info.RayFrom or (if info.Position.Y > 20 then info.Position.Y + 20 else nil))
+		table.insert(spawns, {
+			Area = info.Area,
+			Position = ground,
+			MinRarity = info.MinRarity,
+			MaxRarity = info.MaxRarity,
+		})
+	end
+	-- Secret spawn points are already exact (inside a hill / on a floating island / underground).
+	for _, info in secrets.Spawns do
+		table.insert(spawns, info)
+	end
+	local guardians = {}
+	for _, info in WorldLayout.GuardianSpawns do
+		table.insert(guardians, {
+			Type = info.Type,
+			Position = groundAt(info.Position.X, info.Position.Z, info.RayFrom or 40),
+			PatrolRadius = info.PatrolRadius,
+		})
+	end
+
+	-- Boost rings last: random open clearings, clear of everything built above.
+	local boostPads = Adventure.BuildBoostRings(world, adventureAvoid)
+	for _, pad in south.BoostPads do
+		table.insert(boostPads, pad)
+	end
+
+	return {
+		TreasureSpawns = spawns,
+		GuardianSpawns = guardians,
+		Benches = machines,
+		ShopPrompt = shopPrompt,
+		BatShopPrompt = batShopPrompt,
+		InfoBoardPrompt = infoBoardPrompt,
+		AltarPrompt = altarPrompt,
+		VaultPlots = plots,
+		Leaderboards = leaderboards,
+		NightGate = nightGate,
+		BoostPads = boostPads,
+	}
+end
+
+return WorldBuilder

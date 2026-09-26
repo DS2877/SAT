@@ -1,0 +1,108 @@
+name: CI + Publish
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ROJO_VERSION: 7.7.0
+  SELENE_VERSION: 0.31.0
+  STYLUA_VERSION: 2.5.2
+  LUNE_VERSION: 0.10.5
+  LUAU_LSP_VERSION: 1.70.0
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache tools
+        id: tools-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin
+          key: tools-${{ runner.os }}-rojo${{ env.ROJO_VERSION }}-selene${{ env.SELENE_VERSION }}-stylua${{ env.STYLUA_VERSION }}-lune${{ env.LUNE_VERSION }}
+
+      - name: Install tools
+        if: steps.tools-cache.outputs.cache-hit != 'true'
+        run: |
+          cargo install --locked rojo --version "$ROJO_VERSION"
+          cargo install --locked selene --version "$SELENE_VERSION"
+          cargo install --locked stylua --version "$STYLUA_VERSION"
+          cargo install --locked lune --version "$LUNE_VERSION"
+
+      - name: Format check
+        run: stylua --check src tests
+
+      - name: Lint
+        run: selene src
+
+      - name: Type check (luau-lsp + Roblox definitions)
+        run: |
+          base="https://github.com/JohnnyMorganz/luau-lsp/releases/download/${LUAU_LSP_VERSION}"
+          for asset in luau-lsp-linux-x86_64.zip luau-lsp-linux.zip; do
+            if curl -fsSL -o luau-lsp.zip "${base}/${asset}"; then break; fi
+          done
+          unzip -o -q luau-lsp.zip -d .luau-lsp
+          chmod +x .luau-lsp/luau-lsp
+          curl -fsSL -o globalTypes.d.luau \
+            "https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/${LUAU_LSP_VERSION}/scripts/globalTypes.d.luau" \
+            || curl -fsSL -o globalTypes.d.luau \
+            "https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/main/scripts/globalTypes.d.luau"
+          rojo sourcemap default.project.json -o sourcemap.json
+          .luau-lsp/luau-lsp analyze --definitions=globalTypes.d.luau --sourcemap=sourcemap.json --no-strict-dm-types src
+
+      - name: Compile all sources
+        run: lune run tests/compile
+
+      - name: Unit tests
+        run: lune run tests/run
+
+      - name: Build place
+        run: |
+          mkdir -p build
+          rojo build default.project.json -o build/game.rbxl
+          lune run tests/place build/game.rbxl
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: game-rbxl
+          path: build/game.rbxl
+          retention-days: 7
+
+  publish-test-place:
+    # Publishes the validated build to the TEST place only.
+    needs: validate
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: game-rbxl
+          path: build
+
+      - name: Publish via Open Cloud
+        env:
+          API_KEY: ${{ secrets.SAT_PUBLISHING_KEY }}
+          UNIVERSE_ID: ${{ vars.ROBLOX_TEST_UNIVERSE_ID || '10767602971' }}
+          PLACE_ID: ${{ vars.ROBLOX_TEST_PLACE_ID || '75735389926017' }}
+        run: |
+          if [ -z "$API_KEY" ]; then
+            echo "::error::SAT_PUBLISHING_KEY secret is not available to this workflow"
+            exit 1
+          fi
+          status=$(curl -sS -o response.json -w "%{http_code}" -X POST \
+            "https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=Published" \
+            -H "x-api-key: ${API_KEY}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @build/game.rbxl)
+          echo "HTTP ${status}"
+          cat response.json; echo
+          test "$status" = "200"
