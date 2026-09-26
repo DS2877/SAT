@@ -193,7 +193,10 @@ function handlers.Swing(payload)
 end
 
 function handlers.HitConfirm(payload)
-	Sounds.Play("Hit", 0.8)
+	-- Slaps on players are heard at the impact (BatFx); guardians get the old thump.
+	if payload.Result == "Guardian" then
+		Sounds.Play("Hit", 0.8)
+	end
 	if payload.Result == "Knocked" then
 		HUD.ShowStatus("SENT FLYING - THEY DROPPED IT!", "Grab it when protection ends", Theme.Color.Gold, 1.8)
 	elseif payload.Result == "Shaken" then

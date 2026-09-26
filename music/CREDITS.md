@@ -41,3 +41,8 @@ prints every uploaded asset's moderation status. Our upload of the Mountain King
   our own synthesised stings / public-domain uploads.
 - Training alternatives (all licensed the same way): APM "Luxe Life" 73069288137237 (boom bap),
   "Boom Bap Funkshake" 94154386895952, "Hallo Effect (gym type beat)" 121346459467899.
+
+## Bat sound effects (Roblox Creator Store, ProSoundEffects: licensed for use in Roblox)
+- Swing: "Wood Whoosh Slicing Air Quick Swings 1 (SFX)", rbxassetid://9120972444
+- Hit: "Baseball Wood Bat Hits Hard Ball Power Whack (SFX)", rbxassetid://9125380872
+- Slap: "Hand Slap Claps 3 (SFX)", rbxassetid://9114771792

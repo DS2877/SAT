@@ -9,7 +9,11 @@ local LIBRARY = {
 	Click = { Id = "rbxasset://sounds/clickfast.wav", Volume = 0.5, Speed = 1.1 },
 	Pickup = { Id = "rbxasset://sounds/electronicpingshort.wav", Volume = 0.7, Speed = 0.8 },
 	Drop = { Id = "rbxasset://sounds/action_falling.mp3", Volume = 0.6, Speed = 1.3 },
-	Swing = { Id = "rbxasset://sounds/swordlunge.wav", Volume = 0.5, Speed = 1.2 },
+	-- Bat slaps (ProSoundEffects, Roblox's licensed SFX library): a wooden whoosh on every
+	-- swing, and a bat WHACK layered with a hand SLAP where it lands.
+	Swing = { Id = "rbxassetid://9120972444", Volume = 0.6, Speed = 1.05 },
+	BatHit = { Id = "rbxassetid://9125380872", Volume = 0.75, Speed = 1.1 },
+	Slap = { Id = "rbxassetid://9114771792", Volume = 0.9, Speed = 1 },
 	Hit = { Id = "rbxasset://sounds/swordslash.wav", Volume = 0.7, Speed = 0.9 },
 	Shaken = { Id = "rbxasset://sounds/electronicpingshort.wav", Volume = 0.8, Speed = 0.5 },
 	Knocked = { Id = "rbxasset://sounds/uuhhh.mp3", Volume = 0.7, Speed = 1.1 },

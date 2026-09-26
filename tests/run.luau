@@ -892,8 +892,20 @@ test("bats: a free starter, 3 cash upgrades, 7 more behind Ascension, each slapp
 		check(bat.Tier == i, bat.Id .. " tier in order")
 		check(bat.Price > prev.Price, bat.Id .. " costs more than the last")
 		check(bat.Knockback > prev.Knockback, bat.Id .. " slaps further than the last")
-		check(bat.Range >= prev.Range and bat.Range <= 12.5, bat.Id .. " reach grows a little")
+		check(bat.Range >= prev.Range and bat.Range <= 10, bat.Id .. " reach grows a little (melee, like every Roblox bat)")
 	end
+	check(Bats.List[1].Range >= 6 and Bats.List[1].Range <= 8, "starter bat is short-range melee")
+	-- Held like a Roblox tool: with the arm held out, hand -Y is forward and -Z is up.
+	local function aim(c)
+		local axis = c:VectorToWorldSpace(roblox.Vector3.new(0, 1, 0))
+		return axis.X, -axis.Y, -axis.Z -- right, forward, up
+	end
+	local _, forward, up = aim(Bats.Grip.Rest)
+	check(forward > 0.7 and up > 0.3 and up < 0.7, ("at rest the bat leans FORWARD (fwd %.2f up %.2f)"):format(forward, up))
+	local windRight, _, windUp = aim(Bats.Grip.WindUp)
+	check(windUp > up and windRight > 0.1, "wind-up lifts it and draws it to the right")
+	local swingRight, swingForward, swingUp = aim(Bats.Grip.Swing)
+	check(swingRight < -0.3 and swingForward > 0.3 and swingUp < 0.1, "the swing chops down across the front")
 	-- Each Ascension-gated bat is affordable within that Ascension's run (Cash resets on Ascending).
 	for _, bat in Bats.List do
 		if bat.RequiredAscension > 0 then

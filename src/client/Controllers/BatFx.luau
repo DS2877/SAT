@@ -1,6 +1,9 @@
 -- Bats on the client (Config/Bats, Services/BatService): the swing animation on everyone's
 -- bat, the slap impact burst, and hiding a bat while its owner carries treasure (both hands
 -- are busy holding the loot).
+-- The LOCAL character also plays Roblox's stock tool animations - arm held out while the bat
+-- is in hand, the slash on each swing - exactly how a Tool looks in any Roblox game. Your own
+-- character's animations replicate, so everyone sees everyone holding their bat this way.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,6 +19,52 @@ local Sounds = require(UI.Sounds)
 local BatFx = {}
 
 local swinging: { [Weld]: boolean } = {}
+local localPlayer = Players.LocalPlayer
+
+-- The local character's hold / slash tracks (reloaded per character).
+local tracks: { Humanoid: Humanoid?, Hold: AnimationTrack?, Slash: AnimationTrack? } = {}
+
+local function loadTracks(): (AnimationTrack?, AnimationTrack?)
+	local character = localPlayer.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		return nil, nil
+	end
+	if tracks.Humanoid ~= humanoid then
+		tracks.Humanoid, tracks.Hold, tracks.Slash = humanoid, nil, nil
+		local animator = humanoid:FindFirstChildOfClass("Animator")
+		if not animator then
+			return nil, nil
+		end
+		local ids = if humanoid.RigType == Enum.HumanoidRigType.R6 then Bats.Animations.R6 else Bats.Animations.R15
+		local ok = pcall(function()
+			local hold = Instance.new("Animation")
+			hold.AnimationId = ids.Hold
+			tracks.Hold = animator:LoadAnimation(hold)
+			local slash = Instance.new("Animation")
+			slash.AnimationId = ids.Slash
+			tracks.Slash = animator:LoadAnimation(slash)
+		end)
+		if ok and tracks.Hold and tracks.Slash then
+			tracks.Hold.Looped = true
+			tracks.Hold.Priority = Enum.AnimationPriority.Action
+			tracks.Slash.Priority = Enum.AnimationPriority.Action2
+		end
+	end
+	return tracks.Hold, tracks.Slash
+end
+
+-- Arm out while the bat is visible in the local player's hand.
+local function refreshHold(showing: boolean)
+	local hold = loadTracks()
+	if hold then
+		if showing and not hold.IsPlaying then
+			hold:Play(0.15)
+		elseif not showing and hold.IsPlaying then
+			hold:Stop(0.15)
+		end
+	end
+end
 
 local function batOf(player: Player): Model?
 	local character = player.Character
@@ -31,6 +80,12 @@ local function swing(player: Player)
 		return
 	end
 	swinging[weld] = true
+	if player == localPlayer then
+		local _, slash = loadTracks()
+		if slash then
+			slash:Play(0.05, 1, 1.3)
+		end
+	end
 	local trail = grip and grip:FindFirstChild("SwingTrail")
 	TweenService:Create(weld, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { C0 = Bats.Grip.WindUp }):Play()
 	task.delay(0.08, function()
@@ -103,7 +158,8 @@ local function impact(position: Vector3, batId: string?, result: string?)
 	gui.Parent = ring
 	TweenService:Create(gui, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { StudsOffsetWorldSpace = Vector3.new(0, 6, 0) }):Play()
 	TweenService:Create(label, TweenInfo.new(0.6), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
-	Sounds.PlayAt("Hit", position)
+	Sounds.PlayAt("BatHit", position)
+	Sounds.PlayAt("Slap", position)
 	task.delay(0.7, function()
 		ring:Destroy()
 	end)
@@ -113,8 +169,11 @@ end
 local function refreshVisibility()
 	for _, player in Players:GetPlayers() do
 		local model = batOf(player)
+		local hidden = (player:GetAttribute("CarryingUid") or 0) ~= 0
+		if player == localPlayer then
+			refreshHold(model ~= nil and not hidden)
+		end
 		if model then
-			local hidden = (player:GetAttribute("CarryingUid") or 0) ~= 0
 			if model:GetAttribute("Hidden") ~= hidden then
 				model:SetAttribute("Hidden", hidden)
 				for _, d in model:GetDescendants() do
@@ -148,7 +207,7 @@ function BatFx.Init()
 	task.spawn(function()
 		while true do
 			refreshVisibility()
-			task.wait(0.25)
+			task.wait(0.2)
 		end
 	end)
 end

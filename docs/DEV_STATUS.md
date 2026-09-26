@@ -327,3 +327,9 @@ See docs/ROADMAP.md: 1 stabilise → 2 addictive core loop → 3 first 10 minute
 - A server with an event already running waits up to 45s. Broadcasts older than 60s are ignored. In Studio the command runs locally.
 - The parser lives in `Shared/Logic/AdminCommand` and is unit-tested.
 - The full event strategy, the 12 answers and the backlog are in `docs/LIVE_OPS_PLAN.md`.
+
+## Bat hold, reach and sound (standard Roblox melee feel)
+- The local character plays Roblox's stock tool animations, and they replicate: arm held out while the bat is in hand (`toolnone`), and a `toolslash` on each swing.
+- The bat leans forward about 35° above level (`Bats.Grip`). It is still hidden while you carry.
+- Reach is short melee: 7 studs for the Wooden Bat, up to 9.5 for The Big Bang.
+- Sounds: a wooden whoosh when you swing, and a bat whack plus a hand slap where it lands (ProSoundEffects, see `music/CREDITS.md`).
