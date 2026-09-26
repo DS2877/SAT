@@ -179,6 +179,7 @@ end
 -- spotlight - a flex for everyone walking the plaza. It's an extra pedestal: the treasure
 -- moves OUT of the vault (Displays.Trophy, Logic/Economy) and keeps earning exactly as before.
 local TROPHY_SCALE = 1.5
+local TROPHY_MAX_SIZE = 7 -- studs, longest side
 
 -- The numbered slot holding the highest-earning treasure (for the one-time move to the
 -- pedestal when the feature arrives).
@@ -268,31 +269,31 @@ local function buildTrophy(plot, player: Player, data, incomeMultiplier: number)
 	local info = Rarities.Info[def.Rarity]
 	local model = TreasureVisual.Build(def, base * CFrame.new(0, 4.7, 0), nil, mutation, { Display = true })
 	model.Name = "Trophy"
-	model:ScaleTo(TROPHY_SCALE)
+	-- Bigger than life, but never a monster: up to 1.5x, capped at TROPHY_MAX_SIZE studs.
+	local _, raw = model:GetBoundingBox()
+	local longest = math.max(raw.X, raw.Y, raw.Z)
+	model:ScaleTo(math.clamp(TROPHY_MAX_SIZE / math.max(longest, 0.1), 0.6, TROPHY_SCALE))
 	-- Stand it on the plinth, whatever its size.
 	local _, size = model:GetBoundingBox()
 	model:PivotTo(base * CFrame.new(0, 4.7 + size.Y / 2 + 0.3, 0))
 	model.Parent = plot.Displays
-	-- A soft spotlight column in the treasure's rarity colour.
-	local beam = newPart(plot.Displays, {
+	-- A soft spotlight from above in the treasure's rarity colour (no glowing column).
+	local lamp = newPart(plot.Displays, {
 		Name = "TrophyLight",
-		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(18, 6, 6),
-		CFrame = base * CFrame.new(0, 13.7, 0) * CFrame.Angles(0, 0, math.rad(90)),
-		Color = info.Color,
-		Material = Enum.Material.Neon,
-		Transparency = 0.9,
+		Size = Vector3.new(0.5, 0.5, 0.5),
+		CFrame = base * CFrame.new(0, 16, 0),
+		Transparency = 1,
 		CanCollide = false,
 		CanQuery = false,
 		CastShadow = false,
 	})
 	local spot = Instance.new("SpotLight")
-	spot.Face = Enum.NormalId.Left -- the cylinder's -X points down
-	spot.Color = info.Color
-	spot.Brightness = 3
-	spot.Range = 20
-	spot.Angle = 50
-	spot.Parent = beam
+	spot.Face = Enum.NormalId.Bottom
+	spot.Color = info.Color:Lerp(Color3.new(1, 1, 1), 0.4)
+	spot.Brightness = 1.6
+	spot.Range = 18
+	spot.Angle = 35
+	spot.Parent = lamp
 	trophySign(plot, base, player, def, mutation, math.floor(income * incomeMultiplier + 0.5))
 end
 

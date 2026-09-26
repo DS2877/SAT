@@ -205,11 +205,11 @@ function TreasureVisual.Scale(def): number
 	return base * (1 + TreasureVisual.RARITY_GROWTH * (Rarities.Rank(def.Rarity) - 1))
 end
 
-function TreasureVisual.RarityAura(handle: BasePart, def)
+function TreasureVisual.RarityAura(handle: BasePart, def): ParticleEmitter?
 	local aura = AURA[def.Rarity]
 	local info = Rarities.Info[def.Rarity]
 	if not aura or not info then
-		return
+		return nil
 	end
 	local s = handle.Size.X
 	local emitter = Instance.new("ParticleEmitter")
@@ -226,6 +226,7 @@ function TreasureVisual.RarityAura(handle: BasePart, def)
 	emitter.SpreadAngle = Vector2.new(180, 180)
 	emitter.Shape = Enum.ParticleEmitterShape.Sphere
 	emitter.Parent = handle
+	return emitter
 end
 
 -- RARITY FLAIR ------------------------------------------------------------------------------
@@ -243,15 +244,18 @@ local function flair(k: TreasureModels.Kit, handle: BasePart, def, display: bool
 			k.box(0.2, 0.2, 0.2, k.at(math.cos(a) * 1.3, 0.25 + (i % 2) * 0.3, math.sin(a) * 1.3, 45, 0, 45), info.Color, Enum.Material.Glass)
 		end
 	end
+	-- Showcase copies (vault pedestals, trophies) don't glow: a vault full of neon halos and
+	-- rings turns into glare. Same shapes, just no light.
+	local glow = if display then Enum.Material.Glass else neon
 	-- Legendary and up: a golden halo.
 	if rank >= 5 and rank ~= 8 then
-		k.torus(0.5, 0.07, 14, k.at(0, 1.55, 0, 90, 0, 0), if rank == 7 then Color3.new(1, 1, 1) else GOLD, neon)
+		k.torus(0.5, 0.07, 14, k.at(0, 1.55, 0, 90, 0, 0), if rank == 7 then Color3.new(1, 1, 1) else GOLD, glow)
 	end
 	-- Mythic: dark shards circling, and flames.
 	if rank == 6 then
 		for i = 1, 5 do
 			local a = i / 5 * 2 * math.pi
-			k.wedge(0.16, 0.45, 0.16, k.at(math.cos(a) * 1.35, 0.1 + (i % 2) * 0.35, math.sin(a) * 1.35, 0, 0, (i % 2) * 180), Color3.fromRGB(40, 0, 10), neon)
+			k.wedge(0.16, 0.45, 0.16, k.at(math.cos(a) * 1.35, 0.1 + (i % 2) * 0.35, math.sin(a) * 1.35, 0, 0, (i % 2) * 180), Color3.fromRGB(40, 0, 10), glow)
 		end
 		if not display then
 			local fire = Instance.new("Fire")
@@ -266,14 +270,14 @@ local function flair(k: TreasureModels.Kit, handle: BasePart, def, display: bool
 	if rank == 7 then
 		for _, x in { -1, 1 } do
 			for j = 0, 2 do
-				k.ball(0.9 - j * 0.2, 0.3, 0.06, k.at(x * (0.75 + j * 0.3), 0.55 + j * 0.2, 0.35, 0, 0, x * (-25 - j * 12)), Color3.new(1, 1, 1), neon, { T = 0.25 + j * 0.15 })
+				k.ball(0.9 - j * 0.2, 0.3, 0.06, k.at(x * (0.75 + j * 0.3), 0.55 + j * 0.2, 0.35, 0, 0, x * (-25 - j * 12)), Color3.new(1, 1, 1), glow, { T = 0.25 + j * 0.15 })
 			end
 		end
 	end
 	-- Secret: black and white orbit rings.
 	if rank == 8 then
 		k.torus(1.4, 0.07, 18, k.at(0, 0.2, 0, 75, 0, 25), Color3.fromRGB(17, 17, 17), Enum.Material.SmoothPlastic)
-		k.torus(1.5, 0.07, 18, k.at(0, 0.2, 0, 75, 0, -35), Color3.new(1, 1, 1), neon)
+		k.torus(1.5, 0.07, 18, k.at(0, 0.2, 0, 75, 0, -35), Color3.new(1, 1, 1), glow)
 	end
 	-- OG: a floating crown and a ring of gold coins.
 	if rank >= 9 then
@@ -375,8 +379,8 @@ local function applyMutation(model: Model, handle: BasePart, mutation: string?, 
 	local light = Instance.new("PointLight")
 	light.Name = "MutationLight"
 	light.Color = if info.Rainbow then Color3.new(1, 1, 1) else sparkColor
-	light.Range = s * 3.5
-	light.Brightness = 2.2
+	light.Range = s * (if display then 1.8 else 3.5)
+	light.Brightness = if display then 0.7 else 2.2
 	light.Shadows = false
 	light.Parent = handle
 	if not display then
@@ -431,12 +435,15 @@ function TreasureVisual.Build(def, cframe: CFrame?, maxScale: number?, mutation:
 	if info and info.Glow then
 		local light = Instance.new("PointLight")
 		light.Color = info.Color
-		light.Range = 8 + info.Rank * 2.5
-		light.Brightness = 1.2 + info.Rank * 0.25
+		light.Range = if display then 5 + info.Rank else 8 + info.Rank * 2.5
+		light.Brightness = if display then 0.5 + info.Rank * 0.06 else 1.2 + info.Rank * 0.25
 		light.Shadows = false
 		light.Parent = handle
 	end
-	TreasureVisual.RarityAura(handle, def)
+	local aura = TreasureVisual.RarityAura(handle, def)
+	if aura and display then
+		aura.Rate *= 0.3 -- a gentle shimmer on a pedestal, not a snow globe
+	end
 	applyMutation(model, handle, mutation, display)
 	return model
 end
