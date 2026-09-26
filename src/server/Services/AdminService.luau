@@ -41,8 +41,9 @@ end
 
 -- APPLY (runs on every server that hears about it) -------------------------------------
 
-local function applyBroadcast(text: string, from: string)
-	Net.FireAll("Notify", { Kind = "Banner", Title = "📢 " .. from, Text = text, Tone = "Info", Duration = 8 })
+-- Shown as the speaker talking: their head + a big speech bubble (Notifications.Announce).
+local function applyBroadcast(text: string, name: string, userId: number)
+	Net.FireAll("Notify", { Kind = "Announcement", Text = text, Name = name, UserId = userId })
 	Net.FireAll("Feedback", { Type = "AdminBroadcast" })
 end
 
@@ -78,7 +79,7 @@ end
 
 local function apply(data)
 	if data.Kind == "Broadcast" and type(data.Text) == "string" then
-		applyBroadcast(data.Text, tostring(data.From or "ANNOUNCEMENT"))
+		applyBroadcast(data.Text, tostring(data.From or "ANNOUNCEMENT"), tonumber(data.UserId) or 0)
 	elseif data.Kind == "Boost" and type(data.Boost) == "string" and type(data.EndsAt) == "number" then
 		applyBoost(data.Boost, data.EndsAt, if type(data.Reason) == "string" then data.Reason else nil)
 	elseif data.Kind == "EndBoosts" then
@@ -160,7 +161,7 @@ local function onAction(player: Player, action: any)
 			toast(player, "Type a message first (or the text filter is busy - try again)", false)
 			return
 		end
-		local ok = send({ Kind = "Broadcast", Text = text, From = "ANNOUNCEMENT" }, global)
+		local ok = send({ Kind = "Broadcast", Text = text, From = player.DisplayName, UserId = player.UserId }, global)
 		if action.Pin == true then
 			NewsService.Announce(player, text)
 		end

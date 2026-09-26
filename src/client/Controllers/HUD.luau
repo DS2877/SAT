@@ -266,11 +266,11 @@ local function buildObjective()
 		Name = "TopCenter",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 8),
-		Size = UDim2.fromOffset(330, 0),
+		Size = UDim2.fromScale(0.94, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
 		Parent = gui,
-	}, { Kit.list(Enum.FillDirection.Vertical, 6) })
+	}, { Kit.list(Enum.FillDirection.Vertical, 6, Enum.HorizontalAlignment.Center), Kit.new("UISizeConstraint", { MaxSize = Vector2.new(480, math.huge) }) })
 	HUD.TopStack = topStack
 	-- Objective tracker: slim card under the stats (left), out of the player's line of sight.
 	-- Expands for a few seconds when the goal changes, then collapses to one line; tap to toggle.

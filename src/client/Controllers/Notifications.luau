@@ -1,6 +1,7 @@
--- Rare, meaningful notifications. Three channels:
---   Toast  – short hint in the top stack under the objective (max 3 visible)
---   Banner – headline in the top stack (danger/reward), priority-aware
+-- Rare, meaningful notifications. Channels, top to bottom of the top-centre stack:
+--   Announcement – an admin speaking (🛡 panel): their head + big speech bubble, always on top
+--   Banner – headline card: small coloured title, BIG message; priority-aware
+--   Toast  – short line with a coloured dot (max 3 visible)
 --   Social – small server feed on the left ("X STOLE THE GOLDEN CROWN")
 -- Plus the extraction reward popup, scaled by how big the reward is.
 
@@ -25,6 +26,13 @@ local feed: Frame
 local banner: Frame
 local bannerTitle: TextLabel
 local bannerText: TextLabel
+local bannerStroke: UIStroke
+local bannerScale: UIScale
+local announcement: Frame
+local announceScale: UIScale
+local speakerHead: ImageLabel
+local speakerName: TextLabel
+local speech: TextLabel
 local bannerPriority = 0
 local bannerToken = nil
 local toastOrder = 0
@@ -32,24 +40,34 @@ local feedOrder = 0
 
 local TONE_PRIORITY = { Danger = 3, Reward = 2, Warn = 1, Info = 1 }
 
+-- TOASTS: a short line with a coloured dot, readable on a phone (max 3, newest last).
 function Notifications.Toast(text: string, tone: string?)
 	local color = Theme.ToneColor[tone or "Info"] or Theme.Color.Info
 	toastOrder += 1
 	local toast = Kit.panel({
-		Size = UDim2.fromOffset(0, 28),
+		Size = UDim2.fromOffset(0, 34),
 		AutomaticSize = Enum.AutomaticSize.X,
 		Radius = Theme.Radius.Round,
 		LayoutOrder = toastOrder,
+		BackgroundTransparency = 0.15,
 		Parent = toastStack,
-	}, { Kit.padding(0, 16) })
+	}, { Kit.padding(0, 14), Kit.list(Enum.FillDirection.Horizontal, 8, Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Center) })
+	local toastStroke = toast:FindFirstChildOfClass("UIStroke")
+	if toastStroke then
+		toastStroke.Color = color
+		toastStroke.Transparency = 0.35
+	end
+	local dot = Kit.new("Frame", { LayoutOrder = 1, Size = UDim2.fromOffset(10, 10), BackgroundColor3 = color, BorderSizePixel = 0, Parent = toast })
+	Kit.corner(UDim.new(1, 0)).Parent = dot
 	Kit.label({
 		Text = text,
-		Size = UDim2.fromOffset(0, 28),
+		LayoutOrder = 2,
+		Size = UDim2.fromOffset(0, 34),
 		AutomaticSize = Enum.AutomaticSize.X,
 		TextWrapped = false,
-		Font = Theme.Font.Black,
-		TextSize = Theme.TextSize.Tiny,
-		TextColor3 = color,
+		Font = Theme.Font.Bold,
+		TextSize = 17,
+		TextColor3 = Color3.new(1, 1, 1),
 		Parent = toast,
 	})
 	local children = {}
@@ -59,15 +77,15 @@ function Notifications.Toast(text: string, tone: string?)
 		end
 	end
 	if #children > 3 then
-		table.sort(children, function(a, b)
-			return a.LayoutOrder < b.LayoutOrder
+		table.sort(children, function(x, y)
+			return x.LayoutOrder < y.LayoutOrder
 		end)
 		children[1]:Destroy()
 	end
 	if tone == "Danger" then
 		Sounds.Play("Error")
 	end
-	task.delay(2.6, function()
+	task.delay(3, function()
 		if toast.Parent then
 			Kit.tween(toast, Theme.Motion.Normal, { BackgroundTransparency = 1 })
 			task.wait(0.22)
@@ -76,24 +94,61 @@ function Notifications.Toast(text: string, tone: string?)
 	end)
 end
 
-function Notifications.Banner(title: string, text: string?, tone: string?, duration: number?)
+-- BANNERS: a headline card. A small coloured title (what kind of news) over the MESSAGE in
+-- big type - the message is what you read. Priority-aware: danger is never buried.
+local function showBanner(title: string, text: string?, tone: string?, duration: number?)
 	local priority = TONE_PRIORITY[tone or "Info"] or 1
 	if banner.Visible and priority < bannerPriority then
-		return -- never bury danger under a lower-priority message
+		return
 	end
 	bannerPriority = priority
 	local color = Theme.ToneColor[tone or "Info"] or Theme.Color.Info
+	bannerStroke.Color = color
 	bannerTitle.Text = title
 	bannerTitle.TextColor3 = color
 	bannerText.Text = text or ""
+	bannerText.Visible = text ~= nil and text ~= ""
 	banner.Visible = true
-	Kit.pulse(banner)
+	bannerScale.Scale = 0.85
+	Kit.tween(bannerScale, Theme.Motion.Pop, { Scale = 1 })
 	local token = {}
 	bannerToken = token
-	task.delay(duration or 3, function()
+	task.delay(duration or 3.5, function()
 		if bannerToken == token then
 			banner.Visible = false
 			bannerPriority = 0
+		end
+	end)
+end
+
+function Notifications.Banner(title: string, text: string?, tone: string?, duration: number?)
+	showBanner(title, text, tone, duration)
+end
+
+-- ANNOUNCEMENTS (the 🛡 Admin panel): the speaker's head on the left and what they say in big
+-- type on the right, like a speech bubble. Always on top of every other notification (they
+-- sit below it), and a new announcement replaces the old one.
+local announceToken = nil
+function Notifications.Announce(payload)
+	local text = tostring(payload.Text or "")
+	if text == "" then
+		return
+	end
+	announcement.Visible = true
+	speakerHead.Image = if tonumber(payload.UserId) and tonumber(payload.UserId) > 0
+		then ("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150"):format(tonumber(payload.UserId) :: number)
+		else ""
+	speakerName.Text = ("📢 %s"):format(tostring(payload.Name or "ANNOUNCEMENT"):upper())
+	speech.Text = text
+	announceScale.Scale = 0.7
+	Kit.tween(announceScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+	Sounds.Play("Notify")
+	local token = {}
+	announceToken = token
+	local duration = math.clamp(6 + #text / 14, 7, 16)
+	task.delay(duration, function()
+		if announceToken == token then
+			announcement.Visible = false
 		end
 	end)
 end
@@ -237,26 +292,112 @@ function Notifications.Init(screenGui: ScreenGui, topStack: Frame)
 		BackgroundTransparency = 1,
 		Parent = gui,
 	}, { Kit.list(Enum.FillDirection.Vertical, 4, Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Bottom) })
-	banner = Kit.panel({
-		Name = "Banner",
-		LayoutOrder = 4,
-		Size = UDim2.fromOffset(330, 54),
+	-- The announcement card: head left, speech right. Top of the stack, above everything.
+	announcement = Kit.new("Frame", {
+		Name = "Announcement",
+		LayoutOrder = -2,
+		Size = UDim2.fromScale(1, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
 		Visible = false,
 		Parent = topStack,
 	})
-	bannerTitle = Kit.label({
-		Size = UDim2.new(1, -16, 0, 26),
-		Position = UDim2.fromOffset(8, 5),
+	announceScale = Kit.new("UIScale", { Parent = announcement })
+	local headRing = Kit.new("Frame", {
+		Name = "Head",
+		Size = UDim2.fromOffset(84, 84),
+		BackgroundColor3 = Color3.fromRGB(255, 205, 80),
+		BorderSizePixel = 0,
+		Parent = announcement,
+	})
+	Kit.corner(UDim.new(1, 0)).Parent = headRing
+	speakerHead = Kit.new("ImageLabel", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.new(1, -8, 1, -8),
+		BackgroundColor3 = Color3.fromRGB(40, 46, 80),
+		BorderSizePixel = 0,
+		Image = "",
+		Parent = headRing,
+	})
+	Kit.corner(UDim.new(1, 0)).Parent = speakerHead
+	-- The speech bubble, with a little tail pointing at the head.
+	local bubble = Kit.new("Frame", {
+		Name = "Bubble",
+		Position = UDim2.fromOffset(100, 0),
+		Size = UDim2.new(1, -100, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundColor3 = Color3.fromRGB(255, 252, 240),
+		BorderSizePixel = 0,
+		ZIndex = 2,
+		Parent = announcement,
+	}, { Kit.padding(10, 14), Kit.list(Enum.FillDirection.Vertical, 2, Enum.HorizontalAlignment.Left) })
+	Kit.corner(Theme.Radius.Medium).Parent = bubble
+	Kit.stroke(Color3.fromRGB(255, 205, 80), 3, 0).Parent = bubble
+	local tail = Kit.new("Frame", {
+		Name = "Tail",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromOffset(100, 42),
+		Size = UDim2.fromOffset(18, 18),
+		Rotation = 45,
+		BackgroundColor3 = Color3.fromRGB(255, 252, 240),
+		BorderSizePixel = 0,
+		ZIndex = 1,
+		Parent = announcement,
+	})
+	Kit.stroke(Color3.fromRGB(255, 205, 80), 3, 0).Parent = tail
+	speakerName = Kit.label({
+		LayoutOrder = 1,
+		Size = UDim2.new(1, 0, 0, 20),
+		Font = Theme.Font.Black,
+		TextSize = 15,
+		TextColor3 = Color3.fromRGB(200, 120, 20),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = bubble,
+	})
+	speech = Kit.label({
+		LayoutOrder = 2,
+		Size = UDim2.fromScale(1, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
 		Font = Theme.Font.Display,
-		TextScaled = true,
+		TextSize = 26,
+		TextWrapped = true,
+		TextColor3 = Color3.fromRGB(30, 30, 50),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = bubble,
+	})
+
+	-- The banner card: tone-coloured frame and title, big message.
+	banner = Kit.panel({
+		Name = "Banner",
+		LayoutOrder = 4,
+		Size = UDim2.fromScale(1, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 0.08,
+		Visible = false,
+		Parent = topStack,
+	}, { Kit.padding(8, 16), Kit.list(Enum.FillDirection.Vertical, 2, Enum.HorizontalAlignment.Left) })
+	bannerScale = Kit.new("UIScale", { Parent = banner })
+	bannerStroke = banner:FindFirstChildOfClass("UIStroke") :: UIStroke
+	bannerStroke.Thickness = 2
+	bannerStroke.Transparency = 0.2
+	bannerTitle = Kit.label({
+		LayoutOrder = 1,
+		Size = UDim2.new(1, 0, 0, 20),
+		Font = Theme.Font.Black,
+		TextSize = 15,
+		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = banner,
 	})
-	Kit.new("UITextSizeConstraint", { MaxTextSize = 22, Parent = bannerTitle })
 	bannerText = Kit.label({
-		Size = UDim2.new(1, -16, 0, 16),
-		Position = UDim2.fromOffset(8, 32),
-		Font = Theme.Font.Black,
-		TextSize = Theme.TextSize.Small,
+		LayoutOrder = 2,
+		Size = UDim2.fromScale(1, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		Font = Theme.Font.Display,
+		TextSize = 22,
+		TextWrapped = true,
+		TextColor3 = Color3.new(1, 1, 1),
+		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = banner,
 	})
 
@@ -264,7 +405,9 @@ function Notifications.Init(screenGui: ScreenGui, topStack: Frame)
 		if type(payload) ~= "table" then
 			return
 		end
-		if payload.Kind == "Toast" then
+		if payload.Kind == "Announcement" then
+			Notifications.Announce(payload)
+		elseif payload.Kind == "Toast" then
 			Notifications.Toast(payload.Text, payload.Tone)
 		elseif payload.Kind == "Banner" then
 			Notifications.Banner(payload.Title, payload.Text, payload.Tone, tonumber(payload.Duration))
