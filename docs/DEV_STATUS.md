@@ -332,7 +332,7 @@ See docs/ROADMAP.md: 1 stabilise → 2 addictive core loop → 3 first 10 minute
 - The bat is a real Roblox **Tool**: Roblox handles the hand grip and the arm-out hold pose. The swing is our own fast horizontal swat (`Bats.Swing`, `Controllers/BatFx`): the arm and waist wind up right and whip across left. Every client animates it for every player, and your own swing starts on the button press.
 - `Bats.Grip` is the Tool.Grip: held just above the knob, standing up and tipped 20° forward (70° above level) (`Bats.GripElevation`).
 - The Backpack hotbar is turned off. While you carry treasure the bat moves to your Backpack, then comes back to your hand.
-- Reach is short melee: 7 studs for the Wooden Bat, up to 9.5 for The Big Bang.
+- Reach is a generous melee hitbox: 11 studs for the Wooden Bat, up to 13.5 for The Big Bang, in a wide arc (about 100° either side of where you face).
 - Sounds: a wooden whoosh when you swing, and a bat whack plus a hand slap where it lands (ProSoundEffects, see `music/CREDITS.md`).
 
 ## Info Board (news, roadmap, announcements, event sign-ups)
