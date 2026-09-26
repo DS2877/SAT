@@ -1,9 +1,13 @@
 -- Bats (Config/Bats, Shared/BatModels): the slap weapon in everyone's hand.
---   * Puts the equipped bat in the right hand of every character (visible to all). The weld's
---     C0 is the resting pose; clients animate it for the swing (Controllers/BatFx).
+--   * Gives every character the equipped bat as a real Roblox TOOL, held in hand: Roblox does
+--     the grip (Config/Bats Grip) and the arm-out hold pose, like every Roblox melee game.
+--     Swings play the stock "Slash" tool animation (PlaySwing). No hotbar: the Backpack UI is
+--     off (Controllers/BatFx), and while you carry treasure the bat goes to your back pocket
+--     (Backpack) - both hands are on the loot - and comes back when you're done.
 --   * Buying (Cash, plus an Ascension level from tier 5) and equipping, from the Bat Shop.
 --   * Combat asks Get(player) for the equipped bat's Knockback and Range.
 
+local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -21,42 +25,83 @@ function BatService.Get(player: Player): Bats.Bat
 	return Bats.Equipped(PlayerData.Get(player))
 end
 
-local function handOf(character: Model): BasePart?
-	local hand = character:FindFirstChild("RightHand") or character:FindFirstChild("Right Arm")
-	return if hand and hand:IsA("BasePart") then hand else nil
+local function toolOf(player: Player): Tool?
+	for _, container in { player.Character, player:FindFirstChildOfClass("Backpack") } do
+		local tool = container and container:FindFirstChild("Bat")
+		if tool and tool:IsA("Tool") then
+			return tool
+		end
+	end
+	return nil
+end
+
+-- In hand unless carrying treasure (then in the Backpack).
+local function place(player: Player)
+	local tool = toolOf(player)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	if not tool or not humanoid or humanoid.Health <= 0 or not backpack then
+		return
+	end
+	local carrying = (player:GetAttribute("CarryingUid") or 0) ~= 0
+	if carrying and tool.Parent ~= backpack then
+		tool.Parent = backpack
+	elseif not carrying and tool.Parent ~= character then
+		humanoid:EquipTool(tool)
+	end
 end
 
 local function attach(player: Player)
 	local character = player.Character
-	if not character then
+	if not character or not character:FindFirstChildOfClass("Humanoid") then
 		return
 	end
-	local hand = handOf(character) or (character:WaitForChild("RightHand", 5) :: BasePart?)
-	if not hand or not hand:IsA("BasePart") or not player.Character then
-		return
-	end
-	local old = character:FindFirstChild("Bat")
+	local old = toolOf(player)
 	if old then
 		old:Destroy()
 	end
 	local bat = BatService.Get(player)
-	local model = BatModels.Build(bat.Id, hand.CFrame)
-	for _, d in model:GetDescendants() do
+	local model = BatModels.Build(bat.Id, CFrame.new())
+	local tool = Instance.new("Tool")
+	tool.Name = "Bat"
+	tool.CanBeDropped = false
+	tool.ManualActivationOnly = true -- the SLAP button / click goes through Combat
+	tool.RequiresHandle = true
+	tool.Grip = Bats.Grip
+	tool:SetAttribute("BatId", bat.Id)
+	local grip = model.PrimaryPart :: BasePart
+	grip.Name = "Handle"
+	for _, child in model:GetChildren() do
+		child.Parent = tool
+	end
+	model:Destroy()
+	for _, d in tool:GetDescendants() do
 		if d:IsA("BasePart") then
+			d.Anchored = false
 			d.CanCollide = false
 			d.CanQuery = false
 			d.CanTouch = false
 			d.Massless = true
 		end
 	end
-	local weld = Instance.new("Weld")
-	weld.Name = "BatGrip"
-	weld.Part0 = hand
-	weld.Part1 = model.PrimaryPart
-	weld.C0 = Bats.Grip.Rest
-	weld.Parent = model.PrimaryPart
-	model.Parent = character
+	tool.Parent = player:FindFirstChildOfClass("Backpack") or player:WaitForChild("Backpack", 5)
 	player:SetAttribute("BatId", bat.Id)
+	place(player)
+end
+
+-- The stock "Slash" tool animation: each player's Animate script plays it when a "toolanim"
+-- StringValue appears in their equipped tool (Roblox's standard mechanism).
+function BatService.PlaySwing(player: Player)
+	local character = player.Character
+	local tool = character and character:FindFirstChild("Bat")
+	if tool and tool:IsA("Tool") then
+		local anim = Instance.new("StringValue")
+		anim.Name = "toolanim"
+		anim.Value = "Slash"
+		anim.Parent = tool
+		Debris:AddItem(anim, 1)
+	end
 end
 
 local function onBuy(player: Player, id: any)
@@ -114,6 +159,9 @@ function BatService.Init()
 	local function watch(player: Player)
 		player.CharacterAdded:Connect(function()
 			task.defer(attach, player)
+		end)
+		player:GetAttributeChangedSignal("CarryingUid"):Connect(function()
+			place(player)
 		end)
 		if player.Character then
 			task.defer(attach, player)

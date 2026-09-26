@@ -23,26 +23,12 @@ local Bats = {}
 
 Bats.StarterId = "wooden_bat"
 
--- The bat's weld in the right hand, posed like every Roblox melee tool (the Steal-a-* games
--- included): the arm is held out in front (BatFx plays Roblox's own "toolnone" hold
--- animation) and the bat leans FORWARD from the fist, about 35 degrees above level. With the
--- arm held out, the hand's -Y points forward and -Z points up; the bat grows along its +Y.
--- The swing chops it down across the front (with Roblox's "toolslash" arm animation).
--- `sweep` swings it sideways around the (level) arm: + to the right, - across the body.
-local function lean(degrees: number, sweep: number?): CFrame
-	return CFrame.new(0, -0.35, 0) * CFrame.Angles(0, 0, math.rad(sweep or 0)) * CFrame.Angles(math.rad(-180 + degrees), 0, 0)
-end
-Bats.Grip = {
-	Rest = lean(35),
-	WindUp = lean(70, 25),
-	Swing = lean(-10, -35),
-}
-
--- Roblox's stock tool animations (the ones the default Animate script uses for Tools).
-Bats.Animations = {
-	R15 = { Hold = "rbxassetid://507768375", Slash = "rbxassetid://522635514" },
-	R6 = { Hold = "rbxassetid://182393478", Slash = "rbxassetid://129967390" },
-}
+-- Tool.Grip: how the bat sits in the hand, the way every Roblox melee tool is held. Roblox's
+-- grip frame (arm held out by the stock tool pose) has +Y up and -Z forward; the bat grows
+-- along its own +Y from the knob. Held a little up the handle and leaning FORWARD, 30 degrees
+-- above level (not straight up like a torch).
+Bats.GripElevation = 30
+Bats.Grip = CFrame.new(0, 0.4, 0) * CFrame.Angles(math.rad(90 - Bats.GripElevation), 0, 0)
 
 Bats.List = {
 	{ Id = "wooden_bat", Name = "Wooden Bat", Tier = 1, Price = 0, RequiredAscension = 0, Knockback = 45, Range = 7, Color = { 170, 120, 70 }, Trail = { 255, 255, 255 }, Tagline = "Trusty. Splintery. Yours." },

@@ -183,6 +183,7 @@ local function onAttack(attacker: Player)
 
 	-- Everyone sees the swing (animation + sound are client-side).
 	Net.FireAll("Feedback", { Type = "Swing", UserId = attacker.UserId, BatId = bat.Id })
+	BatService.PlaySwing(attacker)
 
 	local range = bat.Range
 	local look = root.CFrame.LookVector

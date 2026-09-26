@@ -1,12 +1,12 @@
--- Bats on the client (Config/Bats, Services/BatService): the swing animation on everyone's
--- bat, the slap impact burst, and hiding a bat while its owner carries treasure (both hands
--- are busy holding the loot).
--- The LOCAL character also plays Roblox's stock tool animations - arm held out while the bat
--- is in hand, the slash on each swing - exactly how a Tool looks in any Roblox game. Your own
--- character's animations replicate, so everyone sees everyone holding their bat this way.
+-- Bats on the client (Config/Bats, Services/BatService): the swing trail on everyone's bat and
+-- the slap impact burst. The bat itself is a real Roblox Tool (BatService), so Roblox does the
+-- hand grip, the arm-out hold and the "Slash" swing animation - the standard look of every
+-- Roblox melee game. There's no hotbar (the Backpack UI is off): the SLAP button swings, and
+-- the server tucks the bat away while you carry treasure.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage.Shared
@@ -18,90 +18,27 @@ local Sounds = require(UI.Sounds)
 
 local BatFx = {}
 
-local swinging: { [Weld]: boolean } = {}
-local localPlayer = Players.LocalPlayer
+local swinging: { [Trail]: boolean } = {}
 
--- The local character's hold / slash tracks (reloaded per character).
-local tracks: { Humanoid: Humanoid?, Hold: AnimationTrack?, Slash: AnimationTrack? } = {}
-
-local function loadTracks(): (AnimationTrack?, AnimationTrack?)
-	local character = localPlayer.Character
-	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	if not humanoid then
-		return nil, nil
-	end
-	if tracks.Humanoid ~= humanoid then
-		tracks.Humanoid, tracks.Hold, tracks.Slash = humanoid, nil, nil
-		local animator = humanoid:FindFirstChildOfClass("Animator")
-		if not animator then
-			return nil, nil
-		end
-		local ids = if humanoid.RigType == Enum.HumanoidRigType.R6 then Bats.Animations.R6 else Bats.Animations.R15
-		local ok = pcall(function()
-			local hold = Instance.new("Animation")
-			hold.AnimationId = ids.Hold
-			tracks.Hold = animator:LoadAnimation(hold)
-			local slash = Instance.new("Animation")
-			slash.AnimationId = ids.Slash
-			tracks.Slash = animator:LoadAnimation(slash)
-		end)
-		if ok and tracks.Hold and tracks.Slash then
-			tracks.Hold.Looped = true
-			tracks.Hold.Priority = Enum.AnimationPriority.Action
-			tracks.Slash.Priority = Enum.AnimationPriority.Action2
-		end
-	end
-	return tracks.Hold, tracks.Slash
-end
-
--- Arm out while the bat is visible in the local player's hand.
-local function refreshHold(showing: boolean)
-	local hold = loadTracks()
-	if hold then
-		if showing and not hold.IsPlaying then
-			hold:Play(0.15)
-		elseif not showing and hold.IsPlaying then
-			hold:Stop(0.15)
-		end
-	end
-end
-
-local function batOf(player: Player): Model?
+local function trailOf(player: Player): Trail?
 	local character = player.Character
-	local model = character and character:FindFirstChild("Bat")
-	return if model and model:IsA("Model") then model else nil
+	local tool = character and character:FindFirstChild("Bat")
+	local handle = tool and tool:IsA("Tool") and tool:FindFirstChild("Handle")
+	local trail = handle and handle:FindFirstChild("SwingTrail")
+	return if trail and trail:IsA("Trail") then trail else nil
 end
 
+-- The swoosh behind the bat while the Slash animation plays.
 local function swing(player: Player)
-	local model = batOf(player)
-	local grip = model and model.PrimaryPart
-	local weld = grip and grip:FindFirstChild("BatGrip")
-	if not weld or not weld:IsA("Weld") or swinging[weld] then
+	local trail = trailOf(player)
+	if not trail or swinging[trail] then
 		return
 	end
-	swinging[weld] = true
-	if player == localPlayer then
-		local _, slash = loadTracks()
-		if slash then
-			slash:Play(0.05, 1, 1.3)
-		end
-	end
-	local trail = grip and grip:FindFirstChild("SwingTrail")
-	TweenService:Create(weld, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { C0 = Bats.Grip.WindUp }):Play()
-	task.delay(0.08, function()
-		if trail and trail:IsA("Trail") then
-			trail.Enabled = true
-		end
-		TweenService:Create(weld, TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { C0 = Bats.Grip.Swing }):Play()
-		task.delay(0.22, function()
-			if trail and trail:IsA("Trail") then
-				trail.Enabled = false
-			end
-			TweenService:Create(weld, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), { C0 = Bats.Grip.Rest }):Play()
-			task.delay(0.26, function()
-				swinging[weld] = nil
-			end)
-		end)
+	swinging[trail] = true
+	trail.Enabled = true
+	task.delay(0.35, function()
+		trail.Enabled = false
+		swinging[trail] = nil
 	end)
 end
 
@@ -165,29 +102,6 @@ local function impact(position: Vector3, batId: string?, result: string?)
 	end)
 end
 
--- Carriers hold their loot with both hands: hide their bat (and its particles) meanwhile.
-local function refreshVisibility()
-	for _, player in Players:GetPlayers() do
-		local model = batOf(player)
-		local hidden = (player:GetAttribute("CarryingUid") or 0) ~= 0
-		if player == localPlayer then
-			refreshHold(model ~= nil and not hidden)
-		end
-		if model then
-			if model:GetAttribute("Hidden") ~= hidden then
-				model:SetAttribute("Hidden", hidden)
-				for _, d in model:GetDescendants() do
-					if d:IsA("BasePart") then
-						d.LocalTransparencyModifier = if hidden then 1 else 0
-					elseif d:IsA("ParticleEmitter") then
-						d.Enabled = not hidden
-					end
-				end
-			end
-		end
-	end
-end
-
 function BatFx.Init()
 	Net.Get("Feedback").OnClientEvent:Connect(function(payload)
 		if type(payload) ~= "table" then
@@ -204,10 +118,13 @@ function BatFx.Init()
 			Sounds.Play("BigReward")
 		end
 	end)
+	-- No hotbar: the bat is always in hand (or tucked away while carrying).
 	task.spawn(function()
-		while true do
-			refreshVisibility()
-			task.wait(0.2)
+		for _ = 1, 10 do
+			if pcall(StarterGui.SetCoreGuiEnabled, StarterGui, Enum.CoreGuiType.Backpack, false) then
+				return
+			end
+			task.wait(1)
 		end
 	end)
 end
