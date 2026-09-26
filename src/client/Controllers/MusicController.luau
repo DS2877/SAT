@@ -3,9 +3,10 @@
 -- up exactly where it left off when it's on top again).
 --
 --   1. CARRY THEME   - while you carry a treasure (never interrupted by anything below)
---   2. PHASE CUE     - the final minute before night (Music.FinalMinute) and the night itself
+--   2. TRAINING      - while you lift at the bench (Music.Training): lifting is a choice you
+--                      just made, so it wins over the night cues
+--   3. PHASE CUE     - the final minute before night (Music.FinalMinute) and the night itself
 --                      (Music.Night): recognition music - you learn to feel night coming
---   3. TRAINING      - while you lift at the bench (Music.Training)
 --   4. PLAYLIST      - shuffled, looping, crossfading. Every session opens with
 --                      Music.FirstTrack (Für Elise); the rest is shuffled after it.
 --
@@ -83,7 +84,7 @@ end
 -- How long a change to the mix takes: the layer on top can ask for a slower fade (the night
 -- melts in and out instead of cutting).
 local function fadeTime(): number
-	local top = carrySound or phaseSound or trainingSound
+	local top = carrySound or trainingSound or phaseSound
 	return (top and tonumber(top:GetAttribute("FadeSeconds"))) or Music.CrossfadeSeconds
 end
 
@@ -101,7 +102,7 @@ end
 
 -- The layer that should be heard right now (nil = the playlist).
 local function topLayer(): Sound?
-	return carrySound or phaseSound or trainingSound
+	return carrySound or trainingSound or phaseSound
 end
 
 -- Bring `sound` up (resuming where it paused) or take it down (pausing once silent).
@@ -131,7 +132,7 @@ local playNext
 -- Applies the priority rule to every layer.
 local function mix()
 	local top = topLayer()
-	for _, sound in { carrySound, phaseSound, trainingSound } do
+	for _, sound in { carrySound, trainingSound, phaseSound } do
 		if sound and sound ~= top then
 			takeDown(sound)
 		end

@@ -64,11 +64,11 @@ Music.FinalMinute = { Name = "Toccata and Fugue in D (Trailer Mix)", Id = "rbxas
 Music.Night = { Name = "Gymnopedie No. 1 (30)", Id = "rbxassetid://9045769414", Volume = 0.3, FadeSeconds = 4 }
 Music.FinalMinuteSeconds = 60
 
--- TRAINING: hype gym music while you lift at the bench (under the phase cues and the carry
--- theme). Roblox Creator Store tracks from the DistroKid catalog / APM are licensed for use in
+-- TRAINING: hype gym music while you lift at the bench (over the night cues, under the carry
+-- theme). Volume is level with the day playlist (phonk is mastered loud; 0.9 stood out). Roblox Creator Store tracks from the DistroKid catalog / APM are licensed for use in
 -- any experience. Alternatives from the search: APM "Luxe Life" (boom bap) 73069288137237,
 -- "Boom Bap Funkshake" 94154386895952, "Hallo Effect (gym type beat)" 121346459467899.
-Music.Training = { Name = "Trap Phonk Power Training Beat", Id = "rbxassetid://126438335141122", Volume = 0.9 }
+Music.Training = { Name = "Trap Phonk Power Training Beat", Id = "rbxassetid://126438335141122", Volume = 0.4 }
 
 Music.CarryByRarity = {
 	-- Legendary = { Name = "Legendary Heist", Id = "rbxassetid://0000000000" },
