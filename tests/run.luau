@@ -1455,6 +1455,50 @@ test("south guardians can't fall off their ground", function()
 	check(select(2, string.gsub(source, "Humanoid:MoveTo%(", "")) == 1, "every walk goes through moveTo (the Range clamp)")
 end)
 
+test("every region's heart always has treasure to find", function()
+	local roblox = require("@lune/roblox") :: any
+	Vector3 = roblox.Vector3
+	local W = require("../src/shared/Config/WorldLayout")
+	local cfg = require("../src/shared/Config/GameConfig")
+	check(cfg.Treasure.HeartMin >= 2 and cfg.Treasure.HeartPoints > cfg.Treasure.HeartMin, "a few treasures, with spare points")
+	for area in cfg.Regions do
+		if area ~= "District" then
+			local heart = W.RegionHearts[area]
+			check(heart ~= nil, "a heart for " .. area)
+			if heart then
+				local near = 0
+				for _, point in W.TreasureSpawns do
+					if point.Area == area and not point.MinRarity and not point.MaxRarity and (point.Position - heart).Magnitude < 150 then
+						near += 1
+					end
+				end
+				check(near >= cfg.Treasure.HeartPoints, ("%s has %d spawn points around its heart"):format(area, near))
+			end
+		end
+	end
+end)
+
+test("sealed regions send you back to the start of the way in", function()
+	local roblox = require("@lune/roblox") :: any
+	Vector3 = roblox.Vector3
+	local W = require("../src/shared/Config/WorldLayout")
+	local cfg = require("../src/shared/Config/GameConfig")
+	local TerrainGen = require("../src/server/World/TerrainGen")
+	for area, balance in cfg.Regions do
+		if (balance.RequiredAscension or 0) > 0 then
+			local point = W.DeepSouth.Returns[area]
+			check(point ~= nil, "a way back for " .. area)
+			if point then
+				local there = TerrainGen.Biome(point.X, point.Z)
+				local need = cfg.Regions[there] and cfg.Regions[there].RequiredAscension or 0
+				check(need < balance.RequiredAscension, ("%s's way back (%s) is open before %s unlocks"):format(area, there, area))
+			end
+		end
+	end
+	local source = require("@lune/fs").readFile("src/server/Services/RegionGates.luau")
+	check(string.find(source, "TreasureService.Drop(player, \"Sealed\", nil, at)", 1, true) ~= nil, "carried treasure drops on the near side")
+end)
+
 print(("%d passed, %d failed"):format(passed, failed))
 if failed > 0 then
 	error("tests failed")

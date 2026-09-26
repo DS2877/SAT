@@ -181,6 +181,14 @@ WorldLayout.DeepSouth = {
 	StarStart = -1045, -- Starfall Isles: floating islands beyond the glacier tip (Ascension 3)
 	PlateauHeight = 40, -- Rimeheart's ice plateau
 	StarShore = Vector3.new(0, 42, -1012), -- where you wash up after falling from the isles
+	-- Where RegionGates sends you back to when you try to get into a region you haven't
+	-- unlocked, any way at all (walking, swimming, climbing): the start of the way in, on the
+	-- side you're allowed on.
+	Returns = {
+		Ember = Vector3.new(52, 90, -368), -- the top of the Ashen Pass (on the mountain terrace)
+		Rime = Vector3.new(16, 14, -772), -- the foot of the glacier climb (Emberfall side)
+		Star = Vector3.new(0, 42, -1010), -- the glacier tip, before the Starfall Rune Gate
+	},
 }
 
 -- SETTLEMENTS (World/Settlements): lived-in places in every region, most with loot inside.
@@ -199,6 +207,20 @@ WorldLayout.Settlements = {
 }
 WorldLayout.AqueductDeck = 16 -- deck height above the ground
 WorldLayout.WatchtowerDeck = 22
+
+-- THE HEART of every region: the spawn points nearest it always hold a few treasures, day or
+-- night (GameConfig.Treasure.HeartMin, TreasureService), rolled at the region's own odds.
+WorldLayout.RegionHearts = {
+	Wilds = Vector3.new(0, 10, -60),
+	Coast = Vector3.new(-300, 10, 0),
+	Marsh = Vector3.new(265, 10, 160),
+	Ruins = Vector3.new(230, 10, -110),
+	Frost = Vector3.new(-290, 10, 250),
+	Falls = Vector3.new(20, 10, -270),
+	Ember = Vector3.new(60, 12, -650),
+	Rime = Vector3.new(0, 40, -915),
+	Star = Vector3.new(0, 60, -1085),
+}
 
 -- Treasure spawn points. WHAT spawns follows the region's danger (GameConfig.Treasure
 -- RarityByDanger; Mythic+ can appear anywhere). Optional MinRarity/MaxRarity clamp a point:

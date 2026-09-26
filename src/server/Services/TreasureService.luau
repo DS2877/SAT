@@ -2,8 +2,9 @@
 -- The server alone decides which treasure spawns, who holds it and where it is.
 -- Loot only spawns during the NIGHT (one wave per night, see GameConfig.DayNight); nightfall
 -- wipes whatever is left, carried or not (ClearAll). A fresh server gets one initial fill so
--- the first day isn't empty. Daytime exceptions: Treasure Rain (SpawnFalling) and the starter
--- spawn points near the gate (Commons/Uncommons) so newcomers always find a first treasure.
+-- the first day isn't empty. Daytime exceptions: Treasure Rain (SpawnFalling), the starter
+-- spawn points near the gate (Commons/Uncommons) so newcomers always find a first treasure,
+-- and every region's HEART, which always has a few treasures lying out (fillHearts).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -284,6 +285,41 @@ local function trySpawnOne(starterOnly: boolean?): boolean
 	return false
 end
 
+-- THE HEARTS: keep at least HeartMin treasures lying out in each region's heart points, rolled
+-- at that region's odds.
+local function fillHearts()
+	local now = os.clock()
+	local counts = nil
+	for area in WorldLayout.RegionHearts do
+		local lying, free = 0, {}
+		for _, point in spawnPoints do
+			if point.Heart == area then
+				if point.Occupied and point.Occupied.State == "World" then
+					lying += 1
+				elseif not point.Occupied and now >= point.NextSpawnAt then
+					table.insert(free, point)
+				end
+			end
+		end
+		while lying < cfg.HeartMin and #free > 0 do
+			local point = table.remove(free, rng:NextInteger(1, #free))
+			counts = counts or activeByRarity()
+			local weights, anywhere = weightsFor(area)
+			local candidates = TreasureRoll.Candidates(Treasures.List, point, Rarities.Order, weights, cfg.RarityCaps, counts, anywhere)
+			local def = TreasureRoll.Pick(candidates, function()
+				return rng:NextNumber()
+			end)
+			if def then
+				spawnAt(point, def, nil, rollMutation(area))
+				counts[def.Rarity] = (counts[def.Rarity] or 0) + 1
+				lying += 1
+			else
+				point.NextSpawnAt = now + 5
+			end
+		end
+	end
+end
+
 local function freeSpawnPoint(record: Record)
 	local point = record.SpawnPoint
 	if point and point.Occupied == record then
@@ -469,15 +505,16 @@ local function groundBelow(position: Vector3, exclude: { Instance }): Vector3
 	return position
 end
 
--- Drops the carried treasure where the player stands. reason: "Knocked" | "Died" | "Left" | "Manual"
-function TreasureService.Drop(player: Player, reason: string, knockedBy: Player?): Record?
+-- Drops the carried treasure where the player stands (or at `at`, e.g. the near side of a
+-- sealed region's border). reason: "Knocked" | "Died" | "Left" | "Manual" | ...
+function TreasureService.Drop(player: Player, reason: string, knockedBy: Player?, at: Vector3?): Record?
 	local record = carrying[player]
 	if not record then
 		return nil
 	end
 	carrying[player] = nil
 	local handle = record.Handle
-	local fromPosition = handle.Position
+	local fromPosition = at or handle.Position
 	if record.Weld then
 		record.Weld:Destroy()
 		record.Weld = nil
@@ -626,7 +663,24 @@ function TreasureService.Init(points)
 			MaxRarity = point.MaxRarity,
 			Occupied = nil,
 			NextSpawnAt = 0,
+			Heart = nil :: string?,
 		})
+	end
+	-- Each region's heart points: its ordinary spawn points (no starter/secret clamps) nearest
+	-- its heart.
+	for area, heart in WorldLayout.RegionHearts do
+		local ordinary = {}
+		for _, point in spawnPoints do
+			if point.Area == area and not point.MinRarity and not point.MaxRarity then
+				table.insert(ordinary, point)
+			end
+		end
+		table.sort(ordinary, function(a, b)
+			return (a.Position - heart).Magnitude < (b.Position - heart).Magnitude
+		end)
+		for i = 1, math.min(cfg.HeartPoints, #ordinary) do
+			ordinary[i].Heart = area
+		end
 	end
 
 	Players.PlayerRemoving:Connect(function(player)
@@ -661,6 +715,7 @@ function TreasureService.Start()
 			break
 		end
 	end
+	fillHearts()
 	task.spawn(function()
 		local dayNight = GameConfig.DayNight
 		while true do
@@ -677,6 +732,7 @@ function TreasureService.Start()
 			elseif activeCount() < cfg.MaxActive then
 				trySpawnOne(true)
 			end
+			fillHearts()
 			-- Safety net: treasure that fell out of the world goes back to the spawn system.
 			for _, record in records do
 				if record.State ~= "Carried" and record.Handle.Position.Y < workspace.FallenPartsDestroyHeight + 20 then

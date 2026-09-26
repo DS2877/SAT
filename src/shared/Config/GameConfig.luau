@@ -173,6 +173,10 @@ GameConfig.Treasure = {
 	RespawnDelayMin = 15,
 	RespawnDelayMax = 40,
 	InitialFillFraction = 0.75, -- fraction of MaxActive spawned immediately at server start
+	-- Every region's HEART (WorldLayout.RegionHearts) always has at least HeartMin treasures
+	-- lying out, day or night, on its HeartPoints nearest spawn points (on top of MaxActive).
+	HeartMin = 3,
+	HeartPoints = 5,
 	-- WHAT SPAWNS WHERE. Common..Legendary follow the region's Danger (weights per ~100 rolls):
 	-- easy regions are mostly Common/Uncommon with the odd Epic, hard regions are mostly
 	-- Rare/Epic but still drop some Uncommons. Mythic and above ignore the region: they can
