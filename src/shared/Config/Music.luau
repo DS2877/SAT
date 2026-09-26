@@ -59,7 +59,8 @@ Music.FailSting = { Name = "Lost It", Id = "rbxassetid://97318551187594", Volume
 --     players breathe out and plan their next run. Alternatives from the library search:
 --     Clair de Lune 30 s 140096334967406, Gymnopedie No. 2 (30) 1842165088, full-length
 --     Gymnopedie No. 1 9045766377. (The old Night on Bald Mountain, 9042354001, was too much.)
-Music.FinalMinute = { Name = "Toccata and Fugue in D (Trailer Mix)", Id = "rbxassetid://9043771726", Volume = 1.1 }
+-- Volume: level with the day playlist (it was 1.1 - over twice as loud, far too much).
+Music.FinalMinute = { Name = "Toccata and Fugue in D (Trailer Mix)", Id = "rbxassetid://9043771726", Volume = 0.45, FadeSeconds = 3 }
 Music.Night = { Name = "Gymnopedie No. 1 (30)", Id = "rbxassetid://9045769414", Volume = 0.3, FadeSeconds = 4 }
 Music.FinalMinuteSeconds = 60
 

@@ -26,6 +26,7 @@ type Guardian = {
 	Home: Vector3,
 	PatrolRadius: number,
 	State: string, -- "Patrol" | "Chase" | "Return" | "Stunned"
+	SlowUntil: number?, -- os.clock(): slowed by a bat hit until then
 	Target: Player?,
 	NextPatrolAt: number,
 	LastAttack: number,
@@ -399,6 +400,13 @@ local function findTarget(g: Guardian): (Player?, BasePart?)
 	return best, bestRoot
 end
 
+-- A bat hit SLOWS a guardian for a moment (it never stops it cold): every walk speed goes
+-- through here.
+local function setSpeed(g: Guardian, speed: number)
+	local slowed = os.clock() < (g.SlowUntil or 0)
+	setSpeed(g, speed * (if slowed then GameConfig.Combat.GuardianSlow else 1))
+end
+
 local function setState(g: Guardian, state: string, target: Player?)
 	if g.State ~= state or g.Target ~= target then
 		if state == "Chase" and target and g.Target ~= target then
@@ -433,7 +441,7 @@ local function step(g: Guardian, now: number)
 		setState(g, "Return", nil)
 	end
 	if g.State == "Return" and now < g.StateUntil then
-		g.Humanoid.WalkSpeed = g.Def.PatrolSpeed * 1.4
+		setSpeed(g, g.Def.PatrolSpeed * 1.4)
 		g.Humanoid:MoveTo(g.Home)
 		return
 	end
@@ -442,7 +450,7 @@ local function step(g: Guardian, now: number)
 	local decoy = Decoys.Nearest(g.Root.Position, Gadgets.Get("decoy_duck").GuardianLureRange)
 	if decoy and (decoy.Root.Position - g.Home).Magnitude <= g.Def.LeashRange then
 		setState(g, "Chase", nil)
-		g.Humanoid.WalkSpeed = g.Def.ChaseSpeed
+		setSpeed(g, g.Def.ChaseSpeed)
 		g.Humanoid:MoveTo(decoy.Root.Position)
 		if (decoy.Root.Position - g.Root.Position).Magnitude <= g.Def.AttackRange + g.Root.Size.Z / 2 then
 			decoy:Pop(nil)
@@ -455,13 +463,13 @@ local function step(g: Guardian, now: number)
 	local target, targetRoot = findTarget(g)
 	if target and targetRoot then
 		setState(g, "Chase", target)
-		g.Humanoid.WalkSpeed = g.Def.ChaseSpeed * rage(g)
+		setSpeed(g, g.Def.ChaseSpeed * rage(g))
 		g.Humanoid:MoveTo(targetRoot.Position)
 		local reach = g.Def.AttackRange + g.Root.Size.Z / 2
 		if (targetRoot.Position - g.Root.Position).Magnitude <= reach and now - g.LastAttack >= g.Def.AttackCooldown then
 			g.LastAttack = now
 			-- Guardians throw, they don't hurt (Combat.ApplyHit); rage makes them throw harder.
-			local result = Combat.ApplyHit(target, { Guardian = g.Type, From = g.Root.Position, Knockback = (g.Def.Knockback or 1) * rage(g) })
+			local result = Combat.ApplyHit(target, { Guardian = g.Type, Area = Zones.AreaId(g.Home), From = g.Root.Position, Knockback = (g.Def.Knockback or 1) * rage(g) })
 			Net.FireAll("Feedback", { Type = "GuardianAttack", Position = g.Root.Position })
 			if result ~= "Ignored" then
 				-- Back off after a throw: the victim gets a fair chance to get up / reclaim.
@@ -476,12 +484,12 @@ local function step(g: Guardian, now: number)
 	if fromHome > g.PatrolRadius + 10 then
 		setState(g, "Return", nil)
 		g.StateUntil = now + 1
-		g.Humanoid.WalkSpeed = g.Def.PatrolSpeed * 1.4
+		setSpeed(g, g.Def.PatrolSpeed * 1.4)
 		g.Humanoid:MoveTo(g.Home)
 		return
 	end
 	setState(g, "Patrol", nil)
-	g.Humanoid.WalkSpeed = g.Def.PatrolSpeed
+	setSpeed(g, g.Def.PatrolSpeed)
 	if now >= g.NextPatrolAt then
 		g.NextPatrolAt = now + rng:NextNumber(3, 7)
 		local angle = rng:NextNumber(0, math.pi * 2)
@@ -497,8 +505,10 @@ local function tryHitGuardian(attacker: Player, attackerRoot: BasePart): boolean
 		local reach = GameConfig.Combat.AttackRange + g.Root.Size.Z / 2
 		local flat = Vector3.new(offset.X, 0, offset.Z)
 		if offset.Magnitude <= reach and (flat.Magnitude < 0.1 or look:Dot(flat.Unit) >= GameConfig.Combat.AttackArcDot) then
-			setState(g, "Stunned", nil)
-			g.StateUntil = os.clock() + GameConfig.Combat.GuardianStunDuration
+			-- Slowed, not stunned: it keeps coming, just at a crawl for a moment.
+			g.SlowUntil = os.clock() + GameConfig.Combat.GuardianSlowDuration
+			g.Model:SetAttribute("SlowedUntil", workspace:GetServerTimeNow() + GameConfig.Combat.GuardianSlowDuration)
+			setSpeed(g, g.Humanoid.WalkSpeed)
 			Net.Fire("Feedback", attacker, { Type = "HitConfirm", Result = "Guardian" })
 			return true
 		end

@@ -190,7 +190,7 @@ function handlers.HitConfirm(payload)
 	elseif payload.Result == "Shaken" then
 		Notifications.Toast("SLOWED! Slap them again!", "Reward")
 	elseif payload.Result == "Guardian" then
-		Notifications.Toast("GUARDIAN STUNNED", "Info")
+		Notifications.Toast("GUARDIAN SLOWED - RUN!", "Info")
 	end
 end
 

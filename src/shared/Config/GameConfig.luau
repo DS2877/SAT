@@ -174,13 +174,15 @@ GameConfig.Treasure = {
 	-- turn up ANYWHERE on the island (AnywhereWeights, same odds everywhere).
 	-- A spawn point's optional MinRarity/MaxRarity still clamps it (starter spots, secrets).
 	RarityByDanger = {
-		[1] = { Common = 58, Uncommon = 30, Rare = 10, Epic = 1.7, Legendary = 0.3 },
-		[2] = { Common = 30, Uncommon = 36, Rare = 25, Epic = 7.5, Legendary = 1.5 },
-		[3] = { Common = 8, Uncommon = 22, Rare = 38, Epic = 25, Legendary = 7 },
-		[4] = { Common = 0, Uncommon = 12, Rare = 33, Epic = 40, Legendary = 15 },
-		[5] = { Common = 0, Uncommon = 8, Rare = 30, Epic = 42, Legendary = 20 },
-		[6] = { Common = 0, Uncommon = 6, Rare = 24, Epic = 44, Legendary = 26 },
-		[7] = { Common = 0, Uncommon = 4, Rare = 18, Epic = 45, Legendary = 33 },
+		-- Legendaries are a real event near home (~1 in 80 in Ruins/Frost) and only become a
+		-- regular sight in the Deep South.
+		[1] = { Common = 60, Uncommon = 30, Rare = 9, Epic = 1, Legendary = 0 },
+		[2] = { Common = 32, Uncommon = 38, Rare = 24, Epic = 5.7, Legendary = 0.3 },
+		[3] = { Common = 10, Uncommon = 30, Rare = 42, Epic = 16.8, Legendary = 1.2 },
+		[4] = { Common = 2, Uncommon = 20, Rare = 45, Epic = 30, Legendary = 3 },
+		[5] = { Common = 0, Uncommon = 14, Rare = 40, Epic = 40, Legendary = 6 },
+		[6] = { Common = 0, Uncommon = 10, Rare = 34, Epic = 47, Legendary = 9 },
+		[7] = { Common = 0, Uncommon = 7, Rare = 28, Epic = 53, Legendary = 12 },
 	},
 	AnywhereWeights = {
 		Mythic = 0.2,
@@ -258,12 +260,17 @@ GameConfig.Combat = {
 	KnockThrow = 1.4, -- ...their second: thrown this much further than a normal slap
 	-- GUARDIANS (PvE) never hurt or kill: one hit THROWS you back, low and long. Carrying?
 	-- The treasure drops right where you were hit, then you fly (and you're Knocked).
-	GuardianThrowBase = 90, -- horizontal throw speed (studs/s) for every guardian...
+	GuardianThrowBase = 110, -- horizontal throw speed (studs/s) for every guardian...
 	GuardianThrowPerKnockback = 30, -- ...plus this per point of its Knockback above 1 (big ones throw further)
 	GuardianThrowLift = 38, -- upward speed (studs/s): a short hop (~4 studs), not a launch
+	-- Too weak for the region? Thrown further: x (1 + GuardianUnderpowerThrow per missing
+	-- "fraction" of its RecommendedStrength), capped at GuardianUnderpowerMax.
+	GuardianUnderpowerThrow = 0.6,
+	GuardianUnderpowerMax = 1.7,
 	CarrierCanAttack = false, -- CARRIER = RUN, CHASER = STOP
 	SafeZoneProtectsCarriers = false, -- carriers cannot hide in the District forever
-	GuardianStunDuration = 2,
+	GuardianSlow = 0.4, -- a bat hit slows a guardian to this x its speed (no stun)...
+	GuardianSlowDuration = 2.5, -- ...for this long
 }
 
 GameConfig.SafeZone = {
@@ -395,7 +402,7 @@ GameConfig.Events = {
 		DropHeight = 140,
 		FallTime = 2.5,
 		Lifetime = 60, -- ungrabbed rain treasure disappears after landing + this
-		RarityWeights = { Common = 55, Uncommon = 40, Rare = 22, Epic = 7, Legendary = 1 },
+		RarityWeights = { Common = 55, Uncommon = 40, Rare = 22, Epic = 5, Legendary = 0.3 },
 		-- Landing sites: WorldLayout.EventSites
 	},
 	-- Every event hits ONE region (Wilds / Ruins / Coast / Falls), never the whole island.

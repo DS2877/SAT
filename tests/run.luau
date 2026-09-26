@@ -1303,8 +1303,16 @@ test("guardians throw you back, low and long, and never hurt", function()
 	for id, def in Guardians do
 		local enraged = (def.Knockback or 1) * 1.3 -- Cursed Hour rage
 		local speed = c.GuardianThrowBase + math.max(0, enraged - 1) * c.GuardianThrowPerKnockback
-		check(speed >= 85 and speed <= 170, ("%s throws hard but sanely (%.0f studs/s)"):format(id, speed))
+		check(speed >= 100 and speed <= 190, ("%s throws hard but sanely (%.0f studs/s)"):format(id, speed))
 	end
+	-- Too weak for the region: thrown further (same formula as Combat.UnderpowerThrow).
+	local function under(strength, rec)
+		local missing = math.clamp(1 - strength / rec, 0, 1)
+		return math.min(1 + missing * c.GuardianUnderpowerThrow * 2, c.GuardianUnderpowerMax)
+	end
+	check(under(20000, 10000) == 1 and under(10000, 10000) == 1, "strong enough: a normal throw")
+	check(under(5000, 10000) > 1.3 and under(0, 10000) == c.GuardianUnderpowerMax, "the weaker you are, the further you fly (capped)")
+	check(c.GuardianSlow > 0.2 and c.GuardianSlow < 0.7 and c.GuardianSlowDuration >= 1.5, "a bat hit slows a guardian, it doesn't freeze it")
 	local apex = c.GuardianThrowLift ^ 2 / (2 * 196.2)
 	check(apex >= 2 and apex <= 6, ("a short hop, not a launch (apex %.1f studs)"):format(apex))
 end)

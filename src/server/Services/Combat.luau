@@ -118,6 +118,13 @@ local function knock(victim: Player, st: Stability.State, attacker: Player?)
 	end)
 end
 
+-- Throw multiplier for a player of `strength` in a region recommending `recommended`:
+-- 1 when strong enough, up to GuardianUnderpowerMax when far too weak.
+function Combat.UnderpowerThrow(strength: number, recommended: number): number
+	local missing = math.clamp(1 - strength / math.max(recommended, 1), 0, 1)
+	return math.min(1 + missing * cfg.GuardianUnderpowerThrow * 2, cfg.GuardianUnderpowerMax)
+end
+
 -- Applies a hit to a player.
 -- source = { Attacker: Player?, Guardian: string?, Damage: number, From: Vector3,
 --            Knockback: number? (x the default power), Power: number? (studs/s, a bat's) }
@@ -145,6 +152,12 @@ function Combat.ApplyHit(victim: Player, source)
 			result = "Knocked"
 		end
 		local power = cfg.GuardianThrowBase + math.max(0, (source.Knockback or 1) - 1) * cfg.GuardianThrowPerKnockback
+		-- Under-powered for this region: the guardian sends you MUCH further (go train!).
+		local region = source.Area and GameConfig.Regions[source.Area]
+		local data = PlayerData.Get(victim)
+		if region and data then
+			power *= Combat.UnderpowerThrow(data.Strength, region.RecommendedStrength)
+		end
 		Net.Fire("Feedback", victim, { Type = "Knockback", Direction = away, Power = power, Lift = cfg.GuardianThrowLift, Thrown = true, Dropped = result == "Knocked" })
 		Combat.PlayerHit:Fire(victim, result, source)
 		return result
