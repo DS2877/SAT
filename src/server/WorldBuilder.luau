@@ -333,8 +333,12 @@ local function buildSpawnPavilion(district: Folder)
 		decal:Destroy()
 	end
 
-	-- Pillars (gap facing north so the view opens onto the plaza)
+	-- Pillars, with the front pair (157.5 and 202.5 degrees, toward the welcome arch and the
+	-- gate) left out: a new player's first view is the sign, not two columns.
 	for i = 0, 7 do
+		if i == 3 or i == 4 then
+			continue
+		end
 		local a = math.rad(22.5 + i * 45)
 		local p = base + Vector3.new(math.sin(a) * 12, 0, math.cos(a) * 12)
 		cylinder(p + Vector3.new(0, 8, 0), 12, 1.6, { Name = "Pillar", Color = Color3.fromRGB(250, 246, 236), Material = Enum.Material.Marble, Parent = pav })
