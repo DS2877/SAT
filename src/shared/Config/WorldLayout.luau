@@ -28,8 +28,7 @@ WorldLayout.Gym = {
 }
 
 -- THE SHOPPING STREET: on the walk from the fountain to the gate, the Bat Shop (west) and the
--- Gadget Shop (east) face each other across the avenue - gear up on the way out. The east side
--- is one tidy row, all facing the avenue: Gadget Shop, Ascension Shop, Ascension Altar.
+-- Gadget Shop (east) face each other across the avenue - gear up on the way out.
 WorldLayout.Shop = Vector3.new(46, 10, 165)
 WorldLayout.BatShop = Vector3.new(-46, 10, 165)
 -- Island map just inside the gate, beside the avenue, facing players on their way out.
@@ -53,13 +52,16 @@ WorldLayout.Waystones = {
 }
 -- Leaderboards: arc behind the fountain, facing the spawn
 WorldLayout.Leaderboards = { Radius = 40, SpreadDegrees = 100 }
-WorldLayout.AscensionAltar = Vector3.new(50, 10, 231)
+-- ASCENSION COURT: its own open square in the east of the District (where the plaza was empty),
+-- reached by a lit path off the avenue - the Altar in the middle, the Ascension Shop behind it.
+WorldLayout.AscensionCourt = { Center = Vector3.new(100, 10, 205), Radius = 30, PathFrom = Vector3.new(7, 10, 205) }
+WorldLayout.AscensionAltar = Vector3.new(90, 10, 205)
 -- Info Board (news, roadmap, events + sign-ups): beside the spawn pavilion, facing the
 -- walk from the pavilion to the fountain so every arriving player sees it.
 WorldLayout.InfoBoard = { Position = Vector3.new(-36, 10, 270), Facing = Vector3.new(0, 10, 270) }
--- Ascension Shop (premium, Ascension-locked weapons): in the east row between the Gadget Shop
--- and the Ascension Altar, facing the avenue.
-WorldLayout.AscensionShop = { Position = Vector3.new(48, 10, 198), Facing = Vector3.new(0, 10, 198) }
+-- Ascension Shop (premium, Ascension-locked weapons): at the back of Ascension Court, facing
+-- the Altar and the avenue beyond it.
+WorldLayout.AscensionShop = { Position = Vector3.new(121, 10, 205), Facing = Vector3.new(0, 10, 205) }
 
 -- Exits are big, easy-to-hit circles (radius 17 safe / 14-15 dangerous / 13 secret).
 WorldLayout.ExtractionZones = {

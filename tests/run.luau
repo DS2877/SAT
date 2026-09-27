@@ -1656,10 +1656,11 @@ test("gadgets: hold it, then tap the screen to use it", function()
 	check(string.find(bat, "HeldGadget", 1, true) ~= nil, "the bat goes on your back while you hold a gadget")
 	local W = require("../src/shared/Config/WorldLayout")
 	check(math.abs(W.Shop.Z - W.BatShop.Z) < 5 and W.Shop.X > 0 and W.BatShop.X < 0, "the Gadget Shop faces the Bat Shop across the avenue")
-	local row = { W.Shop, W.AscensionShop.Position, W.AscensionAltar }
-	for i = 2, #row do
-		check(math.abs(row[i].X - row[1].X) < 6 and row[i].Z - row[i - 1].Z >= 28, "the east row is lined up along the avenue, spaced out")
-	end
+	local court = W.AscensionCourt
+	check((W.AscensionAltar - court.Center).Magnitude < court.Radius and (W.AscensionShop.Position - court.Center).Magnitude < court.Radius, "the Altar and the Ascension Shop stand in Ascension Court")
+	check(W.AscensionAltar.X < W.AscensionShop.Position.X, "the Altar is in front of the shop, on the avenue side")
+	check((court.Center - W.District.Center).Magnitude + court.Radius < W.District.WallRadius - 5, "the court fits inside the District wall")
+	check((court.Center - W.Shop).Magnitude > court.Radius + 12, "the court has room around it (not squeezed against the Gadget Shop)")
 end)
 
 print(("%d passed, %d failed"):format(passed, failed))

@@ -1985,7 +1985,8 @@ local function dressDistrict()
 	end
 
 	-- Houses around the edge, facing the plaza
-	for _, degrees in { 100, 125, 150, 210, 235 } do -- 260° would clip the Strength Gym
+	-- (100° and 125° made way for Ascension Court; 260° would clip the Strength Gym)
+	for _, degrees in { 150, 210, 235 } do
 		local a = math.rad(degrees)
 		local pos = Vector3.new(center.X + math.sin(a) * 135, plazaY - 1, center.Z + math.cos(a) * 135)
 		Props.House(dressing, CFrame.lookAt(pos, Vector3.new(center.X, pos.Y, center.Z)), rng)
@@ -2009,6 +2010,45 @@ local function dressDistrict()
 		cylinder(ground + Vector3.new(0, 0.4, 0), 0.8, 6, { Name = "PalmBed", Color = Color3.fromRGB(150, 110, 70), Material = Enum.Material.Ground, Parent = dressing })
 		Props.Palm(dressing, ground + Vector3.new(0, 0.8, 0), rng)
 	end
+	-- ASCENSION COURT: a round purple-and-marble square with a lit path from the avenue.
+	local court = WorldLayout.AscensionCourt
+	cylinder(Vector3.new(court.Center.X, plazaY + 0.12, court.Center.Z), 0.25, court.Radius * 2, { Name = "CourtFloor", Color = Color3.fromRGB(96, 70, 140), Material = Enum.Material.Marble, CanCollide = false, CanQuery = false, Parent = dressing })
+	cylinder(Vector3.new(court.Center.X, plazaY + 0.14, court.Center.Z), 0.25, court.Radius * 2 - 3, { Name = "CourtInlay", Color = Color3.fromRGB(226, 218, 236), Material = Enum.Material.Marble, CanCollide = false, CanQuery = false, Parent = dressing })
+	local pathStart, pathEnd = court.PathFrom.X, court.Center.X - court.Radius + 1
+	part({
+		Name = "CourtPath",
+		Size = Vector3.new(pathEnd - pathStart, 0.2, 9),
+		CFrame = CFrame.new((pathStart + pathEnd) / 2, plazaY + 0.13, court.Center.Z),
+		Color = Color3.fromRGB(150, 120, 190),
+		Material = Enum.Material.Cobblestone,
+		CanCollide = false,
+		CanQuery = false,
+		Parent = dressing,
+	})
+	for x = pathStart + 12, pathEnd - 4, 16 do
+		for _, side in { -1, 1 } do
+			Props.Lamp(dressing, Vector3.new(x, plazaY, court.Center.Z + side * 6.5))
+		end
+	end
+	-- A ring of short marble posts with violet lights around the court's edge (open toward the path).
+	for i = 0, 11 do
+		local a = math.rad(i * 30)
+		local at = Vector3.new(court.Center.X + math.cos(a) * (court.Radius - 1), plazaY, court.Center.Z + math.sin(a) * (court.Radius - 1))
+		do
+			if (at - Vector3.new(court.Center.X - court.Radius, plazaY, court.Center.Z)).Magnitude > 12 then
+				cylinder(at + Vector3.new(0, 1.2, 0), 2.4, 1.2, { Name = "CourtPost", Color = Color3.fromRGB(235, 228, 245), Material = Enum.Material.Marble, Parent = dressing })
+				local orb = part({ Name = "CourtGlow", Shape = Enum.PartType.Ball, Size = Vector3.new(0.9, 0.9, 0.9), CFrame = CFrame.new(at + Vector3.new(0, 2.8, 0)), Color = Color3.fromRGB(200, 150, 255), Material = Enum.Material.Neon, CanCollide = false, Parent = dressing })
+				if i % 3 == 0 then
+					local glow = Instance.new("PointLight")
+					glow.Color = Color3.fromRGB(190, 140, 255)
+					glow.Range = 14
+					glow.Brightness = 0.8
+					glow.Parent = orb
+				end
+			end
+		end
+	end
+
 	-- Street lamps along the avenue
 	for _, z in { 110, 142, 178, 212 } do
 		Props.Lamp(dressing, Vector3.new(-12, plazaY, z))
