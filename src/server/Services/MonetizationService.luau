@@ -95,19 +95,22 @@ local lastGroupCheck: { [Player]: number } = {}
 
 local function checkOwnership(player: Player)
 	owned[player] = owned[player] or {}
-	for key, pass in Monetization.Passes do
-		if pass.Id ~= 0 then
-			local ok, has = pcall(function()
-				return MarketplaceService:UserOwnsGamePassAsync(player.UserId, pass.Id)
-			end)
-			if ok and has then
-				grantPass(player, key)
+	for _, list in { Monetization.Passes, Monetization.SkinPasses } do
+		for key, pass in list do
+			if pass.Id ~= 0 then
+				local ok, has = pcall(function()
+					return MarketplaceService:UserOwnsGamePassAsync(player.UserId, pass.Id)
+				end)
+				if ok and has then
+					grantPass(player, key)
+				end
 			end
 		end
 	end
 	checkGroup(player)
 	refreshBoost(player)
 	player:SetAttribute("MonetizationReady", true)
+	VaultService.RefreshSkin(player) -- a bought vault skin can go on now
 end
 
 -- DAILY STREAK --------------------------------------------------------------------------
@@ -277,6 +280,7 @@ function MonetizationService.Init()
 	end
 	-- Pass owners can switch it off (the collect pad is half the fun). Note: the experience's
 	-- creator owns every pass automatically.
+	VaultService.OwnsPass = owns
 	VaultService.AutoCollect = function(player: Player)
 		local data = PlayerData.Get(player)
 		return owns(player, "AutoCollect") and data ~= nil and data.Settings.AutoCollect ~= false
@@ -302,6 +306,9 @@ function MonetizationService.Init()
 			Net.Fire("Notify", player, { Kind = "Banner", Title = pass.Icon .. " " .. pass.Name:upper() .. " UNLOCKED!", Text = pass.Description, Tone = "Reward", Duration = 5 })
 			Net.FireAll("Notify", { Kind = "Social", Text = ("%s GOT %s %s"):format(player.DisplayName:upper(), pass.Icon, pass.Name:upper()) })
 			Analytics.Event(player, "PassBought", { Pass = key })
+			if (pass :: any).Skin then
+				VaultService.SkinPurchased(player, (pass :: any).Skin)
+			end
 		end
 	end)
 

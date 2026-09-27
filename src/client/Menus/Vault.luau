@@ -13,6 +13,7 @@ local Treasures = require(Shared.Config.Treasures)
 local Mutations = require(Shared.Config.Mutations)
 local Economy = require(Shared.Logic.Economy)
 local Monetization = require(Shared.Config.Monetization)
+local VaultSkins = require(Shared.Config.VaultSkins)
 local DayNight = require(Shared.Logic.DayNight)
 local Net = require(Shared.Net)
 
@@ -81,7 +82,7 @@ function Vault.Build(root: Frame, controller)
 	local function trophyCard(value: string?, incomeMultiplier: number, auto: boolean)
 		local id, mutation = Economy.DecodeSlot(value)
 		local def = id and Treasures.Get(id)
-		local frame = Kit.panel({ LayoutOrder = 0, BackgroundColor3 = Color3.fromRGB(70, 52, 20), Parent = grid }, { Kit.padding(6) })
+		local frame = Kit.panel({ LayoutOrder = -2, BackgroundColor3 = Color3.fromRGB(70, 52, 20), Parent = grid }, { Kit.padding(6) })
 		Kit.stroke(Theme.Color.Gold, 2.5, 0.05).Parent = frame
 		Kit.label({ Text = if auto then "🏆 TROPHY • ⭐ AUTO: BEST" else "🏆 TROPHY • OUTSIDE", Size = UDim2.new(1, 0, 0, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.Gold, Parent = frame })
 		if not def then
@@ -217,6 +218,30 @@ function Vault.Build(root: Frame, controller)
 		end)
 	end
 
+	-- 🎨 SKINS: a card of its own at the front of the grid (Menus/VaultSkins).
+	local function skinsCard(data)
+		local skin = VaultSkins.Get(data.VaultSkin)
+		local frame = Kit.panel({ LayoutOrder = -1, BackgroundColor3 = Color3.fromRGB(30, 50, 90), BackgroundTransparency = 0, Parent = grid }, { Kit.padding(6) })
+		Kit.new("UIGradient", { Rotation = 30, Color = ColorSequence.new(Color3.fromRGB(150, 210, 255), Color3.fromRGB(230, 170, 255)), Parent = frame })
+		Kit.stroke(Color3.fromRGB(150, 220, 255), 2.5, 0.05).Parent = frame
+		Kit.label({ Text = "🎨 VAULT SKIN", Size = UDim2.new(1, 0, 0, 16), Font = Theme.Font.Black, TextSize = Theme.TextSize.Tiny, TextColor3 = Color3.fromRGB(20, 30, 70), Parent = frame })
+		Kit.label({ Text = ("%s %s"):format(skin.Icon, skin.Name), Position = UDim2.fromOffset(0, 20), Size = UDim2.new(1, 0, 0, 40), Font = Theme.Font.Display, TextSize = 17, TextColor3 = Color3.fromRGB(20, 30, 70), Parent = frame })
+		Kit.button({
+			AnchorPoint = Vector2.new(0.5, 1),
+			Position = UDim2.fromScale(0.5, 1),
+			Size = UDim2.new(1, 0, 0, 34),
+			Text = "CHANGE • TRY ON",
+			TextSize = Theme.TextSize.Small,
+			BackgroundColor3 = Color3.fromRGB(20, 40, 90),
+			TextColor3 = Color3.new(1, 1, 1),
+			Parent = frame,
+		}, function()
+			if controller then
+				controller.Open("VaultSkins")
+			end
+		end)
+	end
+
 	refresh = function(data)
 		latest = data
 		local tier = GameConfig.Vault.Tiers[data.Vault.Tier] or GameConfig.Vault.Tiers[1]
@@ -241,6 +266,7 @@ function Vault.Build(root: Frame, controller)
 			end
 		end
 		trophyCard(data.Vault.Displays[Economy.TrophyKey], incomeMultiplier, data.Settings.AutoTrophy ~= false)
+		skinsCard(data)
 		for slot = 1, tier.Slots do
 			card(slot, data.Vault.Displays[tostring(slot)], incomeMultiplier)
 		end

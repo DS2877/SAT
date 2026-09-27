@@ -35,6 +35,13 @@ local MENUS = {
 		Subtitle = "Sell to free a pedestal • upgrade to grow your gallery",
 		Accent = Color3.fromRGB(255, 180, 40),
 	},
+	VaultSkins = {
+		Module = script.Parent.VaultSkins,
+		Title = "VAULT SKINS",
+		Icon = "🎨",
+		Subtitle = "Dress up your vault • earn them with net worth & Ascension, or grab one for Robux",
+		Accent = Color3.fromRGB(120, 200, 255),
+	},
 	Shop = {
 		Module = script.Parent.Shop,
 		Title = "GADGET SHOP",

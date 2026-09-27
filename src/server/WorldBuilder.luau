@@ -1167,13 +1167,15 @@ local function buildVaultPlots(district: Folder)
 		local terminal = part({ Name = "Terminal", Size = Vector3.new(2.2, 3.4, 2.2), CFrame = cf * CFrame.new(-8.5, 2.3, -half + 1.5), Color = C.Gold, Material = Enum.Material.Metal, Parent = plotFolder })
 		part({ Name = "TerminalScreen", Size = Vector3.new(1.8, 1.2, 0.2), CFrame = cf * CFrame.new(-8.5, 3.6, -half + 0.35) * CFrame.Angles(math.rad(-20), 0, 0), Color = Color3.fromRGB(120, 220, 255), Material = Enum.Material.Neon, CanCollide = false, Parent = plotFolder })
 		-- Vault management (sell, upgrade) only happens here, at your own terminal.
-		billboardSign(terminal, "🏆 MANAGE VAULT", "Sell • Upgrade", C.Gold, 45, 4.5, 6)
+		billboardSign(terminal, "🏆 MANAGE VAULT", "Sell • Upgrade • 🎨 Skins", C.Gold, 45, 4.5, 6)
 		local displays = folder("Displays", plotFolder)
 		table.insert(plots, {
 			Index = i,
 			CFrame = cf * CFrame.new(0, 0.6, 0), -- floor surface
 			Sign = signLabel,
-			Prompt = prompt(terminal, "Manage Vault", "Sell • Upgrade", 0),
+			Shell = plotFolder, -- repainted per vault skin (Services/VaultService, Config/VaultSkins)
+			Decor = folder("Decor", plotFolder), -- the skin's showpieces (World/VaultSkinDecor)
+			Prompt = prompt(terminal, "Manage Vault", "Sell • Upgrade • Skins", 0),
 			Displays = displays,
 			Owner = nil,
 		})

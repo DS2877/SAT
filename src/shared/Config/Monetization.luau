@@ -97,6 +97,59 @@ Monetization.Products = {
 	},
 }
 
+-- VAULT SKIN game passes (Config/VaultSkins, Menus/VaultSkins): cosmetic only. Diamond Royale
+-- is the flex - buy-only and pricey on purpose.
+Monetization.SkinPasses = {
+	SkinCandy = {
+		Id = 0,
+		Price = 149,
+		Icon = "🍭",
+		Name = "Candy Kingdom Vault",
+		Description = "Vault skin: pastel walls, giant lollipops, candy-cane gates and a sprinkle storm. Cosmetic only.",
+		Skin = "candy",
+	},
+	SkinNeon = {
+		Id = 0,
+		Price = 199,
+		Icon = "⚡",
+		Name = "Neon Cyber Vault",
+		Description = "Vault skin: black glass, neon edges, laser gates and a holo ring over the door. Cosmetic only.",
+		Skin = "neon",
+	},
+	SkinCrypt = {
+		Id = 0,
+		Price = 199,
+		Icon = "👻",
+		Name = "Haunted Crypt Vault",
+		Description = "Vault skin: tombstones, iron spikes, ghost lights and a fog that never lifts. Cosmetic only.",
+		Skin = "crypt",
+	},
+	SkinPirate = {
+		Id = 0,
+		Price = 249,
+		Icon = "🏴",
+		Name = "Pirate's Cove Vault",
+		Description = "Vault skin: ship's timbers, cannons at the gate and a chest spilling gold. Cosmetic only.",
+		Skin = "pirate",
+	},
+	SkinDragon = {
+		Id = 0,
+		Price = 399,
+		Icon = "🐉",
+		Name = "Dragon's Hoard Vault",
+		Description = "Vault skin: obsidian and gold with a fire-breathing dragon over the gate. Cosmetic only.",
+		Skin = "dragon",
+	},
+	SkinDiamond = {
+		Id = 0,
+		Price = 1999,
+		Icon = "💎",
+		Name = "Diamond Royale Vault",
+		Description = "The rarest vault in the game: diamond walls, a giant floating gem and sky beams. The whole server is told when you get it. Cosmetic only.",
+		Skin = "diamond",
+	},
+}
+
 -- Display order in the store.
 Monetization.PassOrder = { "DoubleCash", "VIP", "DoubleStrength", "OfflineVault", "AutoCollect" }
 Monetization.ProductOrder = { "TreasureRain", "GoldRush", "StrengthSurge", "CashSmall", "CashMedium", "CashLarge" }
@@ -123,6 +176,11 @@ Monetization.Free = {
 
 function Monetization.PassById(id: number)
 	for key, pass in Monetization.Passes do
+		if pass.Id == id and id ~= 0 then
+			return key, pass
+		end
+	end
+	for key, pass in Monetization.SkinPasses do
 		if pass.Id == id and id ~= 0 then
 			return key, pass
 		end

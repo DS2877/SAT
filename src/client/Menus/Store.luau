@@ -27,7 +27,7 @@ local BADGES = {
 	CashLarge = { Text = "💎 BEST VALUE", Color = Color3.fromRGB(60, 170, 90) },
 }
 
-function Store.Build(root: Frame)
+function Store.Build(root: Frame, controller)
 	local scroller = Kit.new("ScrollingFrame", {
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
@@ -141,6 +141,18 @@ function Store.Build(root: Frame)
 		end)
 		table.insert(buttons, { Button = button, Kind = kind, Key = key, Item = item })
 	end
+
+	-- Vault skins live in their own menu (every card previewable on your own vault).
+	local skins = Kit.panel({ LayoutOrder = nextOrder(), Size = UDim2.new(1, -8, 0, 74), BackgroundColor3 = Color3.fromRGB(30, 50, 90), BackgroundTransparency = 0, Parent = scroller })
+	Kit.new("UIGradient", { Color = ColorSequence.new(Color3.fromRGB(150, 210, 255), Color3.fromRGB(230, 170, 255)), Parent = skins })
+	Kit.label({ Text = "🎨", Position = UDim2.fromOffset(6, 0), Size = UDim2.fromOffset(64, 74), TextSize = 40, Parent = skins })
+	Kit.label({ Text = "VAULT SKINS", Position = UDim2.fromOffset(74, 8), Size = UDim2.new(1, -220, 0, 24), Font = Theme.Font.Display, TextSize = 21, TextXAlignment = Enum.TextXAlignment.Left, Parent = skins })
+	Kit.label({ Text = "Candy, Neon, Crypt, Pirate, Dragon - and the 💎 DIAMOND ROYALE. Try any of them on your vault first.", Position = UDim2.fromOffset(74, 32), Size = UDim2.new(1, -220, 0, 36), Font = Theme.Font.Body, TextSize = Theme.TextSize.Small, TextColor3 = Theme.Color.Text, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Parent = skins })
+	Kit.button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.fromOffset(130, 46), Text = "🎨 SEE ALL", Font = Theme.Font.Display, TextSize = 19, BackgroundColor3 = Color3.fromRGB(120, 200, 255), TextColor3 = Color3.fromRGB(10, 30, 60), Parent = skins }, function()
+		if controller then
+			controller.Open("VaultSkins")
+		end
+	end)
 
 	heading("⭐ GAME PASSES", "One purchase, yours forever. Nothing here helps in a fight.")
 	for _, key in Monetization.PassOrder do

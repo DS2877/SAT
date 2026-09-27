@@ -3,6 +3,10 @@
 -- night). Earnings pile up on the plot's COLLECT pad until the owner steps on it. The owner can
 -- sell a treasure (pedestal prompt or Vault menu) to free the pedestal for a better one.
 -- Others can walk in and look (social flex).
+-- VAULT SKINS (Config/VaultSkins): each vault wears its owner's skin - the shell repainted, the
+-- floors, stairs, pedestals and trophy in its palette, and its showpieces (World/VaultSkinDecor)
+-- in the plot's Decor folder. Earned by best-ever net worth or Ascension, or bought (game
+-- passes, ownership via the OwnsPass hook). PREVIEW puts any skin on your vault for a moment.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -19,6 +23,10 @@ local Boosts = require(Shared.Logic.Boosts)
 local DayNight = require(Shared.Logic.DayNight)
 local Net = require(Shared.Net)
 
+local VaultSkins = require(Shared.Config.VaultSkins)
+local SkinRules = require(Shared.Logic.VaultSkins)
+
+local VaultSkinDecor = require(script.Parent.Parent.World.VaultSkinDecor)
 local PlayerData = require(script.Parent.PlayerData)
 local Extraction = require(script.Parent.Extraction)
 local Analytics = require(script.Parent.Analytics)
@@ -42,6 +50,10 @@ VaultService.OfflineTerms = function(_player: Player): (number, number)
 	return GameConfig.Economy.OfflineIncomeRate, GameConfig.Economy.OfflineMaxHours
 end
 VaultService.AutoCollect = function(_player: Player): boolean
+	return false
+end
+-- OwnsPass(player, passKey) -> boolean: game pass ownership (skin passes).
+VaultService.OwnsPass = function(_player: Player, _key: string): boolean
 	return false
 end
 
@@ -127,16 +139,136 @@ end
 local function stairDirection(f: number): number
 	return if f % 2 == 1 then 1 else -1
 end
+-- VAULT SKINS ----------------------------------------------------------------------------------
+
+local PREVIEW_SECONDS = 20
+local previewing: { [Player]: { Id: string, Token: number } } = {}
+
+local function canUse(player: Player, data, skin): boolean
+	return SkinRules.IsUnlocked(skin, data, function(key: string): boolean
+		return VaultService.OwnsPass(player, key)
+	end)
+end
+
+-- What this player's vault shows right now: a preview, else their skin (if they still have it).
+local function shownSkin(player: Player)
+	local preview = previewing[player]
+	if preview then
+		return VaultSkins.Get(preview.Id)
+	end
+	local data = PlayerData.Get(player)
+	if data then
+		local skin = VaultSkins.Get(data.VaultSkin)
+		if canUse(player, data, skin) then
+			return skin
+		end
+	end
+	return VaultSkins.Get(VaultSkins.Default)
+end
+
+local paletteCache: { [string]: { [string]: Color3 } } = {}
+local function paletteOf(skin): { [string]: Color3 }
+	local cached = paletteCache[skin.Id]
+	if not cached then
+		cached = VaultSkinDecor.Colors(skin.Palette)
+		paletteCache[skin.Id] = cached
+	end
+	return cached
+end
+
+local function materialOf(name: string?, fallback: Enum.Material): Enum.Material
+	local ok, material = pcall(function()
+		return (Enum.Material :: any)[name]
+	end)
+	return if ok and material then material else fallback
+end
+
+-- Colours + materials for pedestals, the trophy and the upper floors.
+type Style = {
+	Plinth: Color3,
+	Pillar: Color3,
+	PillarMat: Enum.Material,
+	Trim: Color3,
+	TrimMat: Enum.Material,
+	Reflect: number,
+	Floor: Color3,
+	FloorMat: Enum.Material,
+	Stair: Color3,
+	StairAlt: Color3,
+	StairMat: Enum.Material,
+	Glass: Color3,
+}
+local function styleOf(skin): Style
+	local palette, raw = paletteOf(skin), skin.Palette
+	return {
+		Plinth = palette.Plinth,
+		Pillar = palette.Pillar,
+		PillarMat = materialOf(raw.PillarMat, Enum.Material.Marble),
+		Trim = palette.Trim,
+		TrimMat = materialOf(raw.TrimMat, Enum.Material.Metal),
+		Reflect = raw.Reflect or 0,
+		Floor = palette.Floor,
+		FloorMat = materialOf(raw.FloorMat, Enum.Material.Marble),
+		Stair = palette.Stair,
+		StairAlt = palette.StairAlt,
+		StairMat = materialOf(raw.StairMat, Enum.Material.Marble),
+		Glass = palette.Glass,
+	}
+end
+
+-- The plot's own parts (WorldBuilder.buildVaultPlots) by name -> palette role.
+local SHELL_ROLES = {
+	Border = "Trim",
+	Floor = "Floor",
+	Carpet = "Carpet",
+	CarpetOut = "Carpet",
+	BackWall = "Wall",
+	WallTrim = "Trim",
+	Emblem = "Glow",
+	Balustrade = "Wall",
+	Rail = "Trim",
+	FrontRail = "Wall",
+	FrontRailTop = "Trim",
+	ArchPost = "Wall",
+	ArchGlow = "Glow",
+	ArchTop = "Plaque",
+	ArchTrim = "Trim",
+	ArchTrimTop = "Trim",
+	EntranceGlow = "Glow",
+	Terminal = "Trim",
+	TerminalScreen = "Screen",
+}
+local ROLE_MATERIAL = { Floor = "FloorMat", Wall = "WallMat", Trim = "TrimMat", Carpet = "CarpetMat" }
+VaultService.SHELL_ROLES = SHELL_ROLES
+
+local function paintShell(plot, skin)
+	local palette, raw = paletteOf(skin), skin.Palette
+	for _, child in plot.Shell:GetChildren() do
+		local role = SHELL_ROLES[child.Name]
+		if role and child:IsA("BasePart") then
+			child.Color = palette[role]
+			if role == "Glow" or role == "Screen" then
+				child.Material = Enum.Material.Neon
+			elseif role == "Plaque" then
+				child.Material = Enum.Material.SmoothPlastic
+			else
+				child.Material = materialOf(raw[ROLE_MATERIAL[role]], child.Material)
+			end
+			child.Reflectance = if role == "Trim" then raw.Reflect or 0 else 0
+		end
+	end
+	plot.Sign.TextColor3 = palette.SignText
+end
+
 local sellSlot -- forward declaration (pedestal sell prompts)
 local render: (Player) -> () -- forward declaration (throttled rebuild, see RENDER_GAP)
 
 -- owner/slot are set for filled pedestals (sell prompt); income = the owner's actual $/s.
-local function buildPedestal(parent: Instance, base: CFrame, def, ghost: boolean, mutation: string?, owner: Player?, slot: number?, income: number?)
-	local marble = Color3.fromRGB(235, 228, 210)
+local function buildPedestal(parent: Instance, base: CFrame, def, ghost: boolean, mutation: string?, owner: Player?, slot: number?, income: number?, style: Style)
 	local t = if ghost then 0.82 else 0
-	newPart(parent, { Name = "Plinth", Size = Vector3.new(3.6, 0.5, 3.6), CFrame = base * CFrame.new(0, 0.25, 0), Color = Color3.fromRGB(70, 60, 95), Material = Enum.Material.Marble, Transparency = t, CanCollide = not ghost })
-	local column = newPart(parent, { Name = "Column", Shape = Enum.PartType.Cylinder, Size = Vector3.new(2.4, 2.2, 2.2), CFrame = base * CFrame.new(0, 1.7, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = marble, Material = Enum.Material.Marble, Transparency = t, CanCollide = not ghost })
-	newPart(parent, { Name = "Cap", Size = Vector3.new(3.2, 0.4, 3.2), CFrame = base * CFrame.new(0, 3.1, 0), Color = Color3.fromRGB(255, 196, 50), Material = Enum.Material.Metal, Transparency = t, CanCollide = not ghost })
+	newPart(parent, { Name = "Plinth", Size = Vector3.new(3.6, 0.5, 3.6), CFrame = base * CFrame.new(0, 0.25, 0), Color = style.Plinth, Material = style.FloorMat, Transparency = t, CanCollide = not ghost })
+	local column = newPart(parent, { Name = "Column", Shape = Enum.PartType.Cylinder, Size = Vector3.new(2.4, 2.2, 2.2), CFrame = base * CFrame.new(0, 1.7, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = style.Pillar, Material = style.PillarMat, Transparency = t, CanCollide = not ghost })
+	newPart(parent, { Name = "Cap", Size = Vector3.new(3.2, 0.4, 3.2), CFrame = base * CFrame.new(0, 3.1, 0), Color = style.Trim, Material = style.TrimMat, Reflectance = if ghost then 0 else style.Reflect, Transparency = t, CanCollide = not ghost })
 	if def then
 		local info = Rarities.Info[def.Rarity]
 		newPart(parent, { Name = "Rim", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.15, 3.3, 3.3), CFrame = base * CFrame.new(0, 3.35, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = info.Color, Material = Enum.Material.Neon, CanCollide = false })
@@ -240,16 +372,14 @@ local function trophySign(plot, base: CFrame, player: Player, def, mutation: str
 	line(("%s / s"):format(formatShort(income)), 0.75, 0.19, Color3.fromRGB(120, 235, 120), Enum.Font.FredokaOne)
 end
 
-local function buildTrophy(plot, player: Player, data, incomeMultiplier: number)
+local function buildTrophy(plot, player: Player, data, incomeMultiplier: number, style: Style)
 	local half = cfg.PlotDepth / 2
 	local base = plot.CFrame * CFrame.new(-11.5, 0, -half - 5)
 	local def, mutation, income = trophyOf(data)
-	local gold = Color3.fromRGB(255, 196, 50)
-	local marble = Color3.fromRGB(240, 234, 220)
-	-- A stepped plinth with a gold rim.
-	newPart(plot.Displays, { Name = "TrophyStep", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.8, 7, 7), CFrame = base * CFrame.new(0, 0.4, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(60, 50, 80), Material = Enum.Material.Marble })
-	newPart(plot.Displays, { Name = "TrophyColumn", Shape = Enum.PartType.Cylinder, Size = Vector3.new(3.4, 4, 4), CFrame = base * CFrame.new(0, 2.5, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = marble, Material = Enum.Material.Marble })
-	newPart(plot.Displays, { Name = "TrophyTop", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 5.4, 5.4), CFrame = base * CFrame.new(0, 4.45, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = gold, Material = Enum.Material.Metal, Reflectance = 0.2 })
+	-- A stepped plinth with a rim in the skin's trim.
+	newPart(plot.Displays, { Name = "TrophyStep", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.8, 7, 7), CFrame = base * CFrame.new(0, 0.4, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = style.Plinth, Material = style.FloorMat })
+	newPart(plot.Displays, { Name = "TrophyColumn", Shape = Enum.PartType.Cylinder, Size = Vector3.new(3.4, 4, 4), CFrame = base * CFrame.new(0, 2.5, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = style.Pillar, Material = style.PillarMat })
+	newPart(plot.Displays, { Name = "TrophyTop", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 5.4, 5.4), CFrame = base * CFrame.new(0, 4.45, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = style.Trim, Material = style.TrimMat, Reflectance = math.max(0.2, style.Reflect) })
 	if not def then
 		trophySign(plot, base, player, nil, nil, 0)
 		return
@@ -292,6 +422,7 @@ local function renderNow(player: Player)
 		return
 	end
 	plot.Displays:ClearAllChildren()
+	local style = styleOf(shownSkin(player))
 	local slots = slotsFor(data)
 	local floorsUnlocked = math.ceil(slots / cfg.PerFloor)
 	local maxFloors = math.ceil(maxEnabledSlots() / cfg.PerFloor)
@@ -322,12 +453,12 @@ local function renderNow(player: Player)
 						Name = "Floor" .. f,
 						Size = Vector3.new(sx, 0.6, sz),
 						CFrame = floorCf * CFrame.new((slab[1] + slab[2]) / 2, -0.3, (slab[3] + slab[4]) / 2),
-						Color = Color3.fromRGB(62, 52, 88),
-						Material = Enum.Material.Marble,
+						Color = style.Floor,
+						Material = style.FloorMat,
 					})
 				end
 			end
-			local glass = Color3.fromRGB(200, 235, 255)
+			local glass = style.Glass
 			local rails = {
 				{ Vector3.new(halfW * 2 - 2, 3, 0.4), CFrame.new(0, 1.5, -halfD + 1) },
 				{ Vector3.new(0.4, 3, halfD * 2 - 2), CFrame.new(-halfW + 1, 1.5, 0) },
@@ -387,15 +518,15 @@ local function renderNow(player: Player)
 				Name = "Stair",
 				Size = Vector3.new(run + 0.05, rise, stairs.Width),
 				CFrame = base * CFrame.new(x, (i - 0.5) * rise, 0),
-				Color = if i % 2 == 0 then Color3.fromRGB(235, 228, 210) else Color3.fromRGB(222, 214, 196),
-				Material = Enum.Material.Marble,
+				Color = if i % 2 == 0 then style.Stair else style.StairAlt,
+				Material = style.StairMat,
 			})
 			newPart(plot.Displays, {
 				Name = "StairNosing",
 				Size = Vector3.new(0.2, 0.12, stairs.Width),
 				CFrame = base * CFrame.new(x + direction * (run / 2 - 0.1), i * rise + 0.02, 0),
-				Color = Color3.fromRGB(255, 196, 50),
-				Material = Enum.Material.Metal,
+				Color = style.Trim,
+				Material = style.TrimMat,
 				CanCollide = false,
 				CanQuery = false,
 			})
@@ -407,7 +538,7 @@ local function renderNow(player: Player)
 			Name = "StairRail",
 			Size = Vector3.new(length, 2.6, 0.3),
 			CFrame = base * CFrame.new(0, cfg.FloorHeight / 2 + 1.6, -stairs.Width / 2 - 0.2) * CFrame.Angles(0, 0, slope),
-			Color = Color3.fromRGB(200, 235, 255),
+			Color = style.Glass,
 			Material = Enum.Material.Glass,
 			Transparency = 0.6,
 		})
@@ -424,8 +555,8 @@ local function renderNow(player: Player)
 					Name = "Column",
 					Size = Vector3.new(1.6, columnHeight, 1.6),
 					CFrame = plot.CFrame * CFrame.new(x, columnHeight / 2, z),
-					Color = Color3.fromRGB(235, 228, 210),
-					Material = Enum.Material.Marble,
+					Color = style.Pillar,
+					Material = style.PillarMat,
 				})
 			end
 		end
@@ -443,9 +574,9 @@ local function renderNow(player: Player)
 			local income = if def
 				then math.floor(Economy.Income(def, mutation) * incomeMultiplier + 0.5)
 				else nil
-			buildPedestal(plot.Displays, base, def, false, mutation, player, index, income)
+			buildPedestal(plot.Displays, base, def, false, mutation, player, index, income, style)
 		else
-			buildPedestal(plot.Displays, base, nil, true)
+			buildPedestal(plot.Displays, base, nil, true, nil, nil, nil, nil, style)
 			if not shownNextSign and nextTier and nextTier.Enabled then
 				shownNextSign = true
 				local anchor = newPart(plot.Displays, { Name = "NextTier", Size = Vector3.new(1, 1, 1), CFrame = base * CFrame.new(0, 4, 0), Transparency = 1, CanCollide = false, CanQuery = false })
@@ -454,7 +585,7 @@ local function renderNow(player: Player)
 		end
 	end
 
-	buildTrophy(plot, player, data, incomeMultiplier)
+	buildTrophy(plot, player, data, incomeMultiplier, style)
 
 	-- COLLECT pad OUTSIDE the entrance (right of the gate) with a sign board facing the plaza:
 	-- inside the Vault the text got cut by the gate posts and clashed with the treasure tags.
@@ -480,8 +611,8 @@ local function renderNow(player: Player)
 		Name = "CollectBoardTrim",
 		Size = Vector3.new(6.4, 3.8, 0.3),
 		CFrame = plot.CFrame * CFrame.new(11.5, 4.6, -half - 1.05),
-		Color = Color3.fromRGB(255, 196, 50),
-		Material = Enum.Material.Metal,
+		Color = style.Trim,
+		Material = style.TrimMat,
 		CanCollide = false,
 	})
 	local surface = Instance.new("SurfaceGui")
@@ -540,6 +671,178 @@ render = function(player: Player)
 			renderNow(player)
 		end
 	end)
+end
+
+-- Puts the skin this player should show on their plot (repaint + showpieces + re-render), if
+-- it isn't already there.
+local flexAnnounced: { [Player]: boolean } = {}
+local function applySkin(player: Player)
+	local plot = plotOf[player]
+	if not plot then
+		return
+	end
+	local skin = shownSkin(player)
+	if plot.SkinId == skin.Id then
+		return
+	end
+	plot.SkinId = skin.Id
+	paintShell(plot, skin)
+	local ok, err = pcall(VaultSkinDecor.Build, skin, plot.Decor, plot.CFrame, paletteOf(skin), player.DisplayName)
+	if not ok then
+		warn("[Vault] skin decor failed:", skin.Id, err)
+	end
+	player:SetAttribute("VaultSkinShown", skin.Id)
+	render(player)
+	-- The flex: a Diamond vault arriving is news for the whole server (once per visit).
+	if skin.Flex and not previewing[player] and not flexAnnounced[player] then
+		flexAnnounced[player] = true
+		Net.FireAll("Notify", { Kind = "Social", Text = ("%s %s'S %s VAULT HAS ARRIVED"):format(skin.Icon, player.DisplayName:upper(), skin.Name:upper()) })
+	end
+end
+
+-- 🎨 SKINS menu: wear a skin you have.
+local function onSetSkin(player: Player, id: any)
+	local data = PlayerData.Get(player)
+	local skin = type(id) == "string" and VaultSkins.ById[id]
+	if not data or not skin then
+		return
+	end
+	if not canUse(player, data, skin) then
+		Net.Fire("Notify", player, { Kind = "Toast", Text = ("🔒 %s: %s"):format(skin.Name, SkinRules.Requirement(skin):lower()), Tone = "Warn" })
+		return
+	end
+	previewing[player] = nil
+	player:SetAttribute("SkinPreviewUntil", 0)
+	PlayerData.Update(player, function(d)
+		d.VaultSkin = skin.Id
+	end)
+	applySkin(player)
+	Net.Fire("Notify", player, { Kind = "Toast", Text = ("%s %s is on your vault!"):format(skin.Icon, skin.Name), Tone = "Reward" })
+	Net.Fire("Feedback", player, { Type = "SkinEquipped", Skin = skin.Id })
+	Analytics.Event(player, "SkinEquip", { Skin = skin.Id })
+end
+
+-- 🎨 SKINS menu: try ANY skin on your own vault for PREVIEW_SECONDS ("" ends it early).
+local previewToken = 0
+local lastPreview: { [Player]: number } = {}
+local function onPreviewSkin(player: Player, id: any)
+	if type(id) ~= "string" or not plotOf[player] then
+		return
+	end
+	if id == "" then
+		if previewing[player] then
+			previewing[player] = nil
+			player:SetAttribute("SkinPreviewUntil", 0)
+			applySkin(player)
+		end
+		return
+	end
+	if not VaultSkins.ById[id] then
+		return
+	end
+	local now = os.clock()
+	if now - (lastPreview[player] or -math.huge) < 1.5 then
+		return
+	end
+	lastPreview[player] = now
+	previewToken += 1
+	local token = previewToken
+	previewing[player] = { Id = id, Token = token }
+	player:SetAttribute("SkinPreviewUntil", workspace:GetServerTimeNow() + PREVIEW_SECONDS)
+	player:SetAttribute("SkinPreviewId", id)
+	applySkin(player)
+	Analytics.Event(player, "SkinPreview", { Skin = id })
+	task.delay(PREVIEW_SECONDS, function()
+		local current = previewing[player]
+		if current and current.Token == token then
+			previewing[player] = nil
+			player:SetAttribute("SkinPreviewUntil", 0)
+			applySkin(player)
+		end
+	end)
+end
+
+-- A skin pass was just bought (Services/MonetizationService): wear it at once.
+function VaultService.SkinPurchased(player: Player, skinId: string)
+	local skin = VaultSkins.ById[skinId]
+	if not skin or not PlayerData.Get(player) then
+		return
+	end
+	previewing[player] = nil
+	player:SetAttribute("SkinPreviewUntil", 0)
+	PlayerData.Update(player, function(d)
+		d.VaultSkin = skin.Id
+	end)
+	applySkin(player)
+	if skin.Flex then
+		Net.FireAll("Notify", {
+			Kind = "Banner",
+			Title = ("%s %s GOT THE %s VAULT!"):format(skin.Icon, player.DisplayName:upper(), skin.Name:upper()),
+			Text = "The rarest vault in the game - go see it, it's the one with the sky beams",
+			Tone = "Reward",
+			Duration = 7,
+		})
+	end
+end
+
+-- Pass ownership arrived (join) or changed: the vault may be allowed a different skin now.
+function VaultService.RefreshSkin(player: Player)
+	applySkin(player)
+end
+
+-- NET WORTH: tracked every earnings tick. The best-ever value (Stats.PeakNetWorth) unlocks skins,
+-- so spending or Ascending never takes one away. Crossing a skin's line (or Ascending into one)
+-- is a "NEW VAULT SKIN" moment.
+local lastAscension: { [Player]: number } = {}
+local worthReady: { [Player]: boolean } = {} -- set once the join-time baseline is in (skinsIntro)
+local function sellValue(value: string): number
+	local id, mutation = Economy.DecodeSlot(value)
+	local def = id and Treasures.Get(id)
+	return if def then Economy.SellPrice(def, mutation) else 0
+end
+local function announceSkins(player: Player, skins)
+	for _, skin in skins do
+		Net.Fire("Notify", player, {
+			Kind = "Banner",
+			Title = ("🎨 NEW VAULT SKIN: %s %s"):format(skin.Icon, skin.Name:upper()),
+			Text = "Open your vault terminal → 🎨 SKINS to put it on",
+			Tone = "Reward",
+			Duration = 6,
+		})
+		Net.Fire("Feedback", player, { Type = "SkinUnlocked", Skin = skin.Id })
+		Analytics.Event(player, "SkinUnlocked", { Skin = skin.Id })
+	end
+end
+local function trackWorth(player: Player, data)
+	local worth = SkinRules.NetWorth(data, sellValue)
+	if player:GetAttribute("NetWorth") ~= worth then
+		player:SetAttribute("NetWorth", worth)
+	end
+	if not worthReady[player] then
+		return
+	end
+	local peak = data.Stats.PeakNetWorth
+	local ascension = data.Ascension
+	local previousAscension = lastAscension[player] or ascension
+	lastAscension[player] = ascension
+	if worth <= peak and ascension == previousAscension then
+		return
+	end
+	local earned = SkinRules.NewlyEarned(
+		VaultSkins.List,
+		{ Stats = { PeakNetWorth = peak }, Ascension = previousAscension },
+		{ Stats = { PeakNetWorth = math.max(peak, worth) }, Ascension = ascension }
+	)
+	if worth > peak then
+		if #earned > 0 or worth >= peak * 1.02 + 1000 then
+			PlayerData.Update(player, function(d)
+				d.Stats.PeakNetWorth = math.max(d.Stats.PeakNetWorth, worth)
+			end)
+		else
+			data.Stats.PeakNetWorth = worth -- saved with the profile; synced on the next real step
+		end
+	end
+	announceSkins(player, earned)
 end
 
 sellSlot = function(player: Player, slot: any)
@@ -800,6 +1103,7 @@ local function earningsTick(dt: number)
 		if data then
 			local income = incomeOf(data, player)
 			data.Vault.Stored += income * dt
+			trackWorth(player, data)
 			data.LastOnline = os.time() -- saved with the profile; drives offline earnings
 			player:SetAttribute("VaultIncome", income)
 			if VaultService.AutoCollect(player) and data.Vault.Stored >= 1 then
@@ -884,6 +1188,45 @@ local function migrateTrophy(player: Player)
 	PlayerData.Milestone(player, "TrophyPedestal")
 end
 
+-- First visit after skins arrived: tell players about the ones they've already earned.
+local function skinsIntro(player: Player)
+	task.delay(8, function()
+		local data = PlayerData.Get(player)
+		if not data or not player.Parent then
+			return
+		end
+		-- The baseline: whatever they're worth on arrival counts, quietly (no banner per skin).
+		local worth = SkinRules.NetWorth(data, sellValue)
+		if worth > data.Stats.PeakNetWorth then
+			PlayerData.Update(player, function(d)
+				d.Stats.PeakNetWorth = math.max(d.Stats.PeakNetWorth, worth)
+			end)
+		end
+		lastAscension[player] = data.Ascension
+		worthReady[player] = true
+		applySkin(player) -- (a net-worth skin may have just become allowed)
+		if not PlayerData.Milestone(player, "VaultSkinsIntro") then
+			return
+		end
+		local earned = {}
+		for _, skin in VaultSkins.List do
+			local kind = skin.Unlock.Kind
+			if (kind == "NetWorth" or kind == "Ascension") and canUse(player, data, skin) then
+				table.insert(earned, skin)
+			end
+		end
+		Net.Fire("Notify", player, {
+			Kind = "Banner",
+			Title = "🎨 VAULT SKINS ARE HERE!",
+			Text = if #earned > 0
+				then ("You've already earned %d - open your vault terminal → 🎨 SKINS"):format(#earned)
+				else "Dress up your vault - open your vault terminal → 🎨 SKINS",
+			Tone = "Reward",
+			Duration = 7,
+		})
+	end)
+end
+
 local function assign(player: Player)
 	task.spawn(payOffline, player)
 	migrateTrophy(player)
@@ -892,7 +1235,8 @@ local function assign(player: Player)
 			plot.Owner = player
 			plotOf[player] = plot
 			player:SetAttribute("VaultPlot", plot.Index)
-			render(player)
+			applySkin(player) -- (paints the plot and renders it)
+			skinsIntro(player)
 			return
 		end
 	end
@@ -902,10 +1246,18 @@ end
 local function release(player: Player)
 	lastRender[player] = nil
 	renderQueued[player] = nil
+	previewing[player] = nil
+	lastPreview[player] = nil
+	lastAscension[player] = nil
+	flexAnnounced[player] = nil
+	worthReady[player] = nil
 	local plot = plotOf[player]
 	if plot then
 		plot.Owner = nil
 		plot.Displays:ClearAllChildren()
+		plot.Decor:ClearAllChildren()
+		plot.SkinId = nil
+		paintShell(plot, VaultSkins.Get(VaultSkins.Default))
 		plot.Sign.Text = "EMPTY VAULT"
 		plot.CollectPosition = nil
 		plot.CollectAmount = nil
@@ -946,6 +1298,8 @@ function VaultService.Init(builtPlots)
 	Net.On("SellTreasure", sellSlot, 4)
 	Net.On("SetTrophy", onSetTrophy, 4)
 	Net.On("UpgradeVault", onUpgrade, 2)
+	Net.On("SetVaultSkin", onSetSkin, 2)
+	Net.On("PreviewVaultSkin", onPreviewSkin, 2)
 
 	task.spawn(function()
 		while true do

@@ -1688,6 +1688,136 @@ test("feedback: sent from the Info Board, read in the Admin panel", function()
 	check(string.find(fs.readFile("src/shared/Net.luau"), '"AdminFeedback"', 1, true) ~= nil, "a remote carries it back")
 end)
 
+test("vault skins: a full, fair, well-formed catalogue", function()
+	local fs = require("@lune/fs")
+	local VaultSkins = require("../src/shared/Config/VaultSkins")
+	local SkinRules = require("../src/shared/Logic/VaultSkins")
+	local ROLES = { "Floor", "Wall", "Trim", "Glow", "Carpet", "Plaque", "SignText", "Pillar", "Plinth", "Stair", "StairAlt", "Glass", "Screen" }
+	local MATERIAL_ROLES = { "FloorMat", "WallMat", "TrimMat", "CarpetMat", "PillarMat", "StairMat" }
+	local MATERIALS = {}
+	for _, name in { "Marble", "Sandstone", "Metal", "Cobblestone", "Slate", "Grass", "LeafyGrass", "Glacier", "Ice", "Foil", "Snow", "Basalt", "CorrodedMetal", "Neon", "SmoothPlastic", "Glass", "DiamondPlate", "WoodPlanks", "Wood", "Fabric" } do
+		MATERIALS[name] = true
+	end
+	local decor = fs.readFile("src/server/World/VaultSkinDecor.luau")
+	check(#VaultSkins.List >= 12, "plenty of skins to chase")
+	local ids, kinds, flex = {}, {}, {}
+	local lastWorth, ascensions = 0, {}
+	for _, skin in VaultSkins.List do
+		check(not ids[skin.Id], "unique skin id " .. skin.Id)
+		ids[skin.Id] = true
+		kinds[skin.Unlock.Kind] = (kinds[skin.Unlock.Kind] or 0) + 1
+		check(type(skin.Name) == "string" and #skin.Tagline > 10 and skin.Icon ~= "", skin.Id .. " has a name, icon and tagline")
+		for _, role in ROLES do
+			local c = skin.Palette[role]
+			check(type(c) == "table" and #c == 3 and c[1] >= 0 and c[1] <= 255 and c[2] >= 0 and c[2] <= 255 and c[3] >= 0 and c[3] <= 255, ("%s palette has %s"):format(skin.Id, role))
+		end
+		for _, role in MATERIAL_ROLES do
+			check(MATERIALS[skin.Palette[role]] == true, ("%s %s is a real material (%s)"):format(skin.Id, role, tostring(skin.Palette[role])))
+		end
+		check(string.find(decor, ("Builders.%s = function"):format(skin.Decor), 1, true) ~= nil, skin.Id .. " has its showpieces")
+		if skin.Unlock.Kind == "NetWorth" then
+			check(skin.Unlock.Value > lastWorth, skin.Id .. ": the net worth ladder climbs")
+			lastWorth = skin.Unlock.Value
+		elseif skin.Unlock.Kind == "Ascension" then
+			check(not ascensions[skin.Unlock.Value] and skin.Unlock.Value >= 1 and skin.Unlock.Value <= 3, skin.Id .. ": one skin per Ascension region")
+			ascensions[skin.Unlock.Value] = true
+		elseif skin.Unlock.Kind == "Pass" then
+			local pass = Monetization.SkinPasses[skin.Unlock.Pass]
+			check(pass ~= nil and pass.Skin == skin.Id, skin.Id .. " is sold by its own pass")
+		else
+			check(skin.Unlock.Kind == "Free", skin.Id .. " unlock kind")
+		end
+		if skin.Flex then
+			table.insert(flex, skin)
+		end
+	end
+	check(VaultSkins.Get(VaultSkins.Default).Unlock.Kind == "Free", "the default skin is free")
+	check(VaultSkins.Get("nonsense").Id == VaultSkins.Default, "unknown skins fall back to the default")
+	check((kinds.NetWorth or 0) >= 3 and (kinds.Ascension or 0) == 3 and (kinds.Pass or 0) >= 4, "earned by net worth, by Ascension, and for Robux")
+	-- THE FLEX: exactly one, buy-only, the priciest thing in the game.
+	check(#flex == 1 and flex[1].Unlock.Kind == "Pass", "exactly one buy-only flex skin")
+	if #flex == 1 then
+		local flexPass = Monetization.SkinPasses[flex[1].Unlock.Pass]
+		check(flexPass ~= nil and flexPass.Price >= 999, "the flex is expensive")
+		for key, pass in Monetization.SkinPasses do
+			check(pass.Price > 0 and type(pass.Id) == "number", "skin pass configured: " .. key)
+			check(ids[pass.Skin] == true, key .. " sells a real skin")
+			for field in pass do
+				check(({ Id = true, Price = true, Icon = true, Name = true, Description = true, Skin = true })[field] == true, ("skin pass %s is cosmetic only (%s)"):format(key, field))
+			end
+			if flexPass and pass ~= flexPass then
+				check(pass.Price < flexPass.Price, key .. " costs less than the flex")
+			end
+		end
+		for _, pass in Monetization.Passes do
+			check(flexPass == nil or pass.Price < flexPass.Price, "the flex is the most expensive pass")
+		end
+	end
+	-- Classic is today's vault, exactly.
+	local classic = VaultSkins.Get("classic").Palette
+	check(classic.Wall[1] == 245 and classic.Wall[2] == 235 and classic.Wall[3] == 210, "classic walls are the District cream")
+	check(classic.Trim[1] == 255 and classic.Trim[2] == 196 and classic.Trim[3] == 50, "classic trim is the District gold")
+	check(classic.Floor[1] == 62 and classic.Carpet[1] == 180, "classic floor and carpet unchanged")
+
+	-- Rules.
+	local data = { Cash = 1000, Ascension = 0, Vault = { Stored = 500, Displays = { ["1"] = "a", ["2"] = "b|Gold", trophy = "c" } }, Stats = { PeakNetWorth = 0 } }
+	local worth = SkinRules.NetWorth(data, function(v)
+		return if v == "a" then 100 elseif v == "b|Gold" then 1000 else 10
+	end)
+	check(worth == 2610, ("net worth = cash + pad + vault (%d)"):format(worth))
+	local never = function()
+		return false
+	end
+	local pharaoh, rime, candy = VaultSkins.Get("pharaoh"), VaultSkins.Get("rime"), VaultSkins.Get("candy")
+	check(SkinRules.IsUnlocked(VaultSkins.Get("classic"), data, never), "classic is always yours")
+	check(not SkinRules.IsUnlocked(pharaoh, data, never), "net worth skins need the net worth")
+	data.Stats.PeakNetWorth = pharaoh.Unlock.Value
+	check(SkinRules.IsUnlocked(pharaoh, data, never), "...and unlock at it")
+	check(not SkinRules.IsUnlocked(rime, data, never), "Ascension skins need the Ascension")
+	data.Ascension = 2
+	check(SkinRules.IsUnlocked(rime, data, never) and SkinRules.IsUnlocked(VaultSkins.Get("ember"), data, never), "...and unlock with it")
+	check(not SkinRules.IsUnlocked(candy, data, never), "pass skins need the pass")
+	check(SkinRules.IsUnlocked(candy, data, function(key)
+		return key == "SkinCandy"
+	end), "...and unlock with it")
+	check(math.abs(SkinRules.Progress(VaultSkins.Get("frost"), { Stats = { PeakNetWorth = 50000000 }, Ascension = 0 }) - 0.5) < 1e-9, "progress towards a net worth skin")
+	local earned = SkinRules.NewlyEarned(VaultSkins.List, { Stats = { PeakNetWorth = 0 }, Ascension = 0 }, { Stats = { PeakNetWorth = 6000000 }, Ascension = 1 })
+	local earnedIds = {}
+	for _, skin in earned do
+		earnedIds[skin.Id] = true
+	end
+	check(earnedIds.pharaoh and earnedIds.jungle and earnedIds.ember and not earnedIds.classic and not earnedIds.candy and not earnedIds.frost, "newly earned: crossed lines only, never free or pass skins")
+	check(SkinRules.Short(250000) == "$250K" and SkinRules.Short(2000000000) == "$2B" and SkinRules.Short(3100000) == "$3.1M", "short money")
+	check(SkinRules.Requirement(pharaoh) == "REACH $250K NET WORTH", "requirement text")
+
+	-- Saves.
+	local fresh = DataSchema.Default()
+	check(fresh.VaultSkin == "classic" and fresh.Stats.PeakNetWorth == 0, "new players wear classic")
+	local old = DataSchema.Migrate({ Version = 4, Cash = 5, Stats = { TotalEarned = 9 } })
+	check(old.VaultSkin == "classic" and old.Stats.PeakNetWorth == 0 and old.Stats.TotalEarned == 9, "older saves get skins without losing anything")
+	check(DataSchema.Migrate({ VaultSkin = "", Stats = { PeakNetWorth = -5 } }).VaultSkin == "classic", "blank skin repaired")
+	check(DataSchema.Migrate({ Stats = { PeakNetWorth = -5 } }).Stats.PeakNetWorth == 0, "peak net worth sanitised")
+
+	-- Server wiring.
+	local vault = fs.readFile("src/server/Services/VaultService.luau")
+	local builder = fs.readFile("src/server/WorldBuilder.luau")
+	local plotsSource = string.match(builder, "local function buildVaultPlots%(.-\nend\n") or ""
+	local roles = string.match(vault, "local SHELL_ROLES = (%b{})") or ""
+	local shellParts = 0
+	for name in string.gmatch(plotsSource, 'part%(%{ Name = "(%w+)"') do
+		shellParts += 1
+		check(string.find(roles, "\t" .. name .. " = ", 1, true) ~= nil, "the skin repaints the plot's " .. name)
+	end
+	check(shellParts >= 15, "found the plot's parts")
+	local setSkin = string.match(vault, "local function onSetSkin%(.-\nend") or ""
+	check(string.find(setSkin, "if not canUse(player, data, skin) then", 1, true) ~= nil, "the server checks you have a skin before you wear it")
+	check(string.find(vault, "trackWorth(player, data)", 1, true) ~= nil, "net worth is tracked")
+	local monetization = fs.readFile("src/server/Services/MonetizationService.luau")
+	check(string.find(monetization, "Monetization.SkinPasses", 1, true) ~= nil and string.find(monetization, "VaultService.SkinPurchased", 1, true) ~= nil, "skin passes are checked and granted")
+	check(string.find(fs.readFile("src/client/Menus/MenuController.luau"), "script.Parent.VaultSkins", 1, true) ~= nil, "the SKINS menu is registered")
+	check(string.find(fs.readFile("src/client/Controllers/Effects.luau"), "OrbitCenter", 1, true) ~= nil, "orbiting showpieces animate")
+end)
+
 test("admin panel: boosts, broadcasts and events, admins only", function()
 	local cfg = require("../src/shared/Config/GameConfig")
 	local fs = require("@lune/fs")

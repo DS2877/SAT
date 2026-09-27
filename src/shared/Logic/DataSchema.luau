@@ -23,6 +23,7 @@ function DataSchema.Default()
 		OwnedBats = {}, -- [batId] = true (the Wooden Bat is free and needs no entry)
 		EquippedBat = "wooden_bat",
 		OwnedCosmetics = {},
+		VaultSkin = "classic", -- Config/VaultSkins id (checked against what you've unlocked on join)
 		Titles = {},
 		SelectedTitle = "",
 		LastOnline = 0, -- os.time() of the last moment the player was in a server (offline earnings)
@@ -35,6 +36,7 @@ function DataSchema.Default()
 			Knocks = 0,
 			Deaths = 0,
 			TotalEarned = 0,
+			PeakNetWorth = 0, -- best-ever cash + pad + vault sell value (unlocks vault skins; never drops)
 			BestRarityRank = 0,
 			BestTreasureId = "",
 		},
@@ -117,6 +119,10 @@ function DataSchema.Migrate(data)
 	data.Daily.LastDay = math.max(0, math.floor(tonumber(data.Daily.LastDay) or 0))
 	data.Daily.Streak = math.clamp(math.floor(tonumber(data.Daily.Streak) or 0), 0, 7)
 	data.Boosts.TrainingUntil = math.max(0, tonumber(data.Boosts.TrainingUntil) or 0)
+	data.Stats.PeakNetWorth = math.max(0, math.floor(tonumber(data.Stats.PeakNetWorth) or 0))
+	if data.VaultSkin == "" then
+		data.VaultSkin = "classic"
+	end
 	if data.EquippedBat == "" then
 		data.EquippedBat = "wooden_bat"
 	end

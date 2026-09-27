@@ -16,7 +16,7 @@ API_KEY = os.environ.get("ROBLOX_API_KEY", "")
 UNIVERSE_ID = os.environ.get("UNIVERSE_ID", "")
 DRY_RUN = os.environ.get("DRY_RUN", "true").lower() != "false"
 SOURCE = "src/shared/Config/Monetization.luau"
-LABEL = {"Passes": "Pass", "Products": "Product"}
+LABEL = {"Passes": "Pass", "SkinPasses": "Pass", "Products": "Product"}
 
 
 def section(text, name):
@@ -66,11 +66,13 @@ def post(url, fields):
 def main():
     text = open(SOURCE).read()
     passes = entries(section(text, "Passes"))
+    skins = entries(section(text, "SkinPasses"))
     products = entries(section(text, "Products"))
-    print(f"{'DRY RUN - ' if DRY_RUN else ''}universe {UNIVERSE_ID}: {len(passes)} passes, {len(products)} products")
-    results = {"Passes": {}, "Products": {}}
+    print(f"{'DRY RUN - ' if DRY_RUN else ''}universe {UNIVERSE_ID}: {len(passes)} passes, {len(skins)} skin passes, {len(products)} products")
+    results = {"Passes": {}, "SkinPasses": {}, "Products": {}}
     for kind, items, url in (
         ("Passes", passes, f"https://apis.roblox.com/game-passes/v1/universes/{UNIVERSE_ID}/game-passes"),
+        ("SkinPasses", skins, f"https://apis.roblox.com/game-passes/v1/universes/{UNIVERSE_ID}/game-passes"),
         ("Products", products, f"https://apis.roblox.com/developer-products/v2/universes/{UNIVERSE_ID}/developer-products"),
     ):
         for item in items:

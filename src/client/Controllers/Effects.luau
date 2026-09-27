@@ -229,6 +229,15 @@ function handlers.Sold(payload)
 	Sounds.Play("ExtractSuccess")
 end
 
+-- Vault skins (Services/VaultService): a new one earned, or one put on.
+function handlers.SkinUnlocked()
+	Sounds.Play("RareDiscovery", 0.9)
+end
+
+function handlers.SkinEquipped()
+	Sounds.Play("BigReward", 0.7)
+end
+
 function handlers.Balloon()
 	Sounds.Play("Gadget")
 	local humanoid = myHumanoid()
@@ -520,14 +529,61 @@ function Effects.Init()
 	task.spawn(Effects.StartSpinners)
 end
 
--- Spinning showpieces (District coin, spawn crown, vault displays). Client-side only; tracks
--- parts as they stream in or get rebuilt (vaults re-render on every change).
+-- Animated showpieces (District coin, spawn crown, vault displays, vault skin decor). Client-side
+-- only; tracks parts as they stream in or get rebuilt (vaults re-render on every change).
+-- Attributes on an anchored part:
+--   Spin = turns/second-ish around its own vertical axis
+--   Bob (+ BobSpeed) = floats up and down by Bob studs
+--   Orbit + OrbitCenter (Vector3) + OrbitRadius = circles OrbitCenter (from where it was built)
+--   Pulse = neon breathing (transparency) this fast
+--   Phase = offset so a row of them doesn't move in lockstep
+type Mover = {
+	Base: CFrame,
+	Spin: number,
+	Bob: number,
+	BobSpeed: number,
+	Orbit: number,
+	Center: Vector3?,
+	Offset: Vector3?,
+	Pulse: number,
+	Phase: number,
+	Transparency: number,
+}
+
 function Effects.StartSpinners()
-	local spinners: { [BasePart]: { Speed: number, Base: CFrame } } = {}
+	local movers: { [BasePart]: Mover } = {}
+	local function num(inst: Instance, name: string): number
+		local value = inst:GetAttribute(name)
+		return if type(value) == "number" then value else 0
+	end
 	local function track(inst: Instance)
-		if inst:IsA("BasePart") and inst.Anchored and inst:GetAttribute("Spin") then
-			spinners[inst] = { Speed = inst:GetAttribute("Spin"), Base = inst.CFrame }
+		if not (inst:IsA("BasePart") and inst.Anchored) then
+			return
 		end
+		local spin, bob, orbitSpeed, pulseSpeed = num(inst, "Spin"), num(inst, "Bob"), num(inst, "Orbit"), num(inst, "Pulse")
+		if spin == 0 and bob == 0 and orbitSpeed == 0 and pulseSpeed == 0 then
+			return
+		end
+		local center = inst:GetAttribute("OrbitCenter")
+		local offset = nil
+		if orbitSpeed ~= 0 and typeof(center) == "Vector3" then
+			local flat = inst.Position - center
+			flat = Vector3.new(flat.X, 0, flat.Z)
+			local radius = num(inst, "OrbitRadius")
+			offset = if flat.Magnitude > 0.01 then flat.Unit * (if radius > 0 then radius else flat.Magnitude) else Vector3.new(radius, 0, 0)
+		end
+		movers[inst] = {
+			Base = inst.CFrame,
+			Spin = spin,
+			Bob = bob,
+			BobSpeed = if num(inst, "BobSpeed") ~= 0 then num(inst, "BobSpeed") else 1.2,
+			Orbit = if offset then orbitSpeed else 0,
+			Center = if offset then center :: Vector3 else nil,
+			Offset = offset,
+			Pulse = pulseSpeed,
+			Phase = num(inst, "Phase"),
+			Transparency = inst.Transparency,
+		}
 	end
 	local world = workspace:WaitForChild("World", 30)
 	if not world then
@@ -538,13 +594,36 @@ function Effects.StartSpinners()
 	end
 	world.DescendantAdded:Connect(track)
 	world.DescendantRemoving:Connect(function(inst)
-		spinners[inst :: any] = nil
+		movers[inst :: any] = nil
 	end)
-	local angle = 0
+	-- Phones: a full District can hold a thousand animated showpieces - only animate the ones
+	-- near the camera (the rest hold still where they were built).
+	local NEAR = 200
+	local t = 0
 	RunService.Heartbeat:Connect(function(dt)
-		angle += dt
-		for part, spin in spinners do
-			part.CFrame = CFrame.new(spin.Base.Position) * CFrame.Angles(0, angle * spin.Speed, 0) * spin.Base.Rotation
+		t += dt
+		local camera = workspace.CurrentCamera
+		local eye = if camera then camera.CFrame.Position else nil
+		for part, m in movers do
+			if eye and (m.Base.Position - eye).Magnitude > NEAR then
+				continue
+			end
+			if m.Spin ~= 0 or m.Bob ~= 0 or m.Orbit ~= 0 then
+				local position = m.Base.Position
+				local turn = CFrame.identity
+				if m.Orbit ~= 0 and m.Center and m.Offset then
+					turn = CFrame.Angles(0, t * m.Orbit + m.Phase, 0)
+					position = m.Center + turn * m.Offset + Vector3.new(0, m.Base.Position.Y - m.Center.Y, 0)
+				end
+				if m.Bob ~= 0 then
+					position += Vector3.new(0, math.sin(t * m.BobSpeed + m.Phase) * m.Bob, 0)
+				end
+				part.CFrame = CFrame.new(position) * turn * CFrame.Angles(0, t * m.Spin, 0) * m.Base.Rotation
+			end
+			if m.Pulse ~= 0 then
+				local wave = 0.5 + 0.5 * math.sin(t * m.Pulse * math.pi + m.Phase)
+				part.Transparency = m.Transparency + (1 - m.Transparency) * 0.55 * wave
+			end
 		end
 	end)
 end

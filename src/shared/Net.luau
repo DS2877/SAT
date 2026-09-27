@@ -47,6 +47,8 @@ Net.ClientToServer = {
 	"RedeemCode", -- (text) a code typed on the Info Board (Config/Codes)
 	"RecheckGroup", -- after the community join prompt: re-check membership (+10% income)
 	"AdminAction", -- (action table) from the 🛡 Admin panel; admins only (Services/AdminService)
+	"SetVaultSkin", -- (skinId) wear a vault skin you have (Config/VaultSkins; Services/VaultService)
+	"PreviewVaultSkin", -- (skinId) try any skin on your vault for a moment; "" ends it
 	"LikeAskSeen", -- (stage 1/2, done) the "like the game" card was shown (Controllers/LikeAsk)
 }
 
