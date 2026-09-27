@@ -20,6 +20,7 @@ Net.ServerToClient = {
 	"ExtractionState",
 	"GadgetState", -- cooldowns / effects
 	"OpenMenu",
+	"AdminFeedback", -- (entries) the latest player feedback, for the 🛡 Admin panel only
 }
 
 -- Client -> Server
@@ -40,7 +41,7 @@ Net.ClientToServer = {
 	"TutorialProgress",
 	"SetSetting", -- (name, value) player preferences, e.g. Music on/off
 	"DropTreasure", -- put down the treasure you are carrying
-	"SendFeedback", -- (vote -1/0/1, text) from the 💬 menu
+	"SendFeedback", -- (vote -1/0/1, text, kind) from the 💬 menu or the Info Board's FEEDBACK tab
 	"EventSignup", -- (eventId, wantIn) at the Info Board
 	"NewsSeen", -- (postId) the newest post the player has read on the Info Board
 	"RedeemCode", -- (text) a code typed on the Info Board (Config/Codes)

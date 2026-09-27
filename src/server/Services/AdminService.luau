@@ -3,6 +3,7 @@
 --   * BROADCAST a message: a big banner on every screen (text-filtered, like everything
 --     players see); optionally also pinned on the Info Board (NewsService).
 --   * START an event: Treasure Rain, Cursed Hour, Gold Rush, the Deep South storms.
+--   * READ PLAYER FEEDBACK: the last week of messages from the 💬 button and the Info Board.
 --   * RUN a global boost (GameConfig.GlobalBoosts): LUCK, CASH, MUTATIONS, STRENGTH for N minutes.
 --     Boosts are saved (DataStore "SATAdmin") so a server that starts mid-boost joins in.
 -- Every server hears about global actions through MessagingService topic "SATAdmin".
@@ -22,6 +23,7 @@ local Net = require(Shared.Net)
 local EventService = require(script.Parent.EventService)
 local NewsService = require(script.Parent.NewsService)
 local Analytics = require(script.Parent.Analytics)
+local FeedbackService = require(script.Parent.FeedbackService)
 
 local AdminService = {}
 
@@ -183,6 +185,9 @@ local function onAction(player: Player, action: any)
 		end
 		send({ Kind = "EndBoosts" }, global)
 		toast(player, "Boosts ended" .. (if global then " everywhere" else " here"), true)
+	elseif kind == "ReadFeedback" then
+		task.spawn(FeedbackService.SendToAdmin, player)
+		return
 	else
 		return
 	end

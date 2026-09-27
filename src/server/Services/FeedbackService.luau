@@ -1,8 +1,9 @@
--- In-game player feedback (the 💬 button): a thumbs up/down and an optional short message.
+-- In-game player feedback: the 💬 button (a thumbs up/down and a short message) and the Info
+-- Board's FEEDBACK tab (a kind - idea / bug / love it / not fun - and a message).
 -- Stored in the DataStore GameConfig.Feedback.StoreName, one key per UTC day ("2026-09-25")
--- holding a capped list, so the developer can read it with Open Cloud
--- (.github/workflows/feedback.yml). Entries carry no user id or name: only the vote, the
--- text and a little game context (region danger reached, extractions, ascension).
+-- holding a capped list. READ IT in the 🛡 Admin panel (💬 PLAYER FEEDBACK), or outside the
+-- game with Open Cloud (.github/workflows/feedback.yml). Entries carry no user id or name:
+-- only the vote, the kind, the text and a little game context (extractions, ascension).
 
 local DataStoreService = game:GetService("DataStoreService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13,6 +14,7 @@ local Net = require(Shared.Net)
 
 local PlayerData = require(script.Parent.PlayerData)
 local Analytics = require(script.Parent.Analytics)
+local EventService = require(script.Parent.EventService)
 
 local FeedbackService = {}
 
@@ -49,10 +51,58 @@ local function store(entry)
 	end
 end
 
+local KINDS = {}
+for _, kind in cfg.Kinds do
+	KINDS[kind.Id] = kind
+end
+
+-- The last `days` days of feedback, newest first (at most AdminMax). Yields.
+function FeedbackService.Recent(days: number)
+	local entries = {}
+	local ok, storeOrErr = pcall(DataStoreService.GetDataStore, DataStoreService, cfg.StoreName)
+	if not ok then
+		return entries, "The DataStore is unavailable (in Studio: turn on API access)"
+	end
+	local now = os.time()
+	for i = 0, days - 1 do
+		local key = os.date("!%Y-%m-%d", now - i * 86400) :: string
+		local got, list = pcall(storeOrErr.GetAsync, storeOrErr, key)
+		if got and type(list) == "table" then
+			for _, entry in list do
+				if type(entry) == "table" then
+					table.insert(entries, entry)
+				end
+			end
+		elseif not got then
+			return entries, "Couldn't read the feedback - try again in a minute"
+		end
+	end
+	table.sort(entries, function(a, b)
+		return (tonumber(a.t) or 0) > (tonumber(b.t) or 0)
+	end)
+	while #entries > cfg.AdminMax do
+		table.remove(entries)
+	end
+	return entries, nil
+end
+
+-- 🛡 Admin panel: send the latest feedback to an admin (checked here, not trusted from the client).
+function FeedbackService.SendToAdmin(player: Player)
+	if not EventService.IsAdmin(player) then
+		return
+	end
+	local entries, err = FeedbackService.Recent(cfg.AdminDays)
+	Net.Fire("AdminFeedback", player, { Entries = entries, Error = err, Days = cfg.AdminDays })
+end
+
 function FeedbackService.Init()
-	Net.On("SendFeedback", function(player: Player, vote: any, text: any)
+	Net.On("SendFeedback", function(player: Player, vote: any, text: any, kind: any)
 		if type(vote) ~= "number" or (vote ~= 1 and vote ~= -1 and vote ~= 0) then
 			return
+		end
+		kind = if type(kind) == "string" and KINDS[kind] then kind else nil
+		if kind then
+			vote = KINDS[kind].Vote
 		end
 		text = if type(text) == "string" then clean(text) else ""
 		if vote == 0 and text == "" then
@@ -69,6 +119,7 @@ function FeedbackService.Init()
 			t = os.time(),
 			v = vote,
 			m = text,
+			k = kind,
 			x = data and data.Stats.Extractions or 0,
 			a = data and data.Ascension or 0,
 			p = math.floor((workspace.DistributedGameTime or 0) / 60), -- server age in minutes

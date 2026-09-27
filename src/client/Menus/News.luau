@@ -1,6 +1,7 @@
 -- Info Board menu (opened at the board beside the spawn pavilion): NEWS (live announcement +
 -- posts), ROADMAP (done / now / next / later), EVENTS (sign up; we ping you when it starts)
--- and CODES (type a code for a reward - Config/Codes, Services/CodeService).
+-- CODES (type a code for a reward - Config/Codes, Services/CodeService) and FEEDBACK (an idea,
+-- a bug, what you love or don't - Services/FeedbackService; the devs read it in the Admin panel).
 -- Content: Config/News. Sign-ups + live announcements: Services/NewsService.
 
 local GroupService = game:GetService("GroupService")
@@ -10,16 +11,18 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage.Shared
 local News = require(Shared.Config.News)
 local Monetization = require(Shared.Config.Monetization)
+local GameConfig = require(Shared.Config.GameConfig)
 local NewsBoard = require(Shared.Logic.NewsBoard)
 local Net = require(Shared.Net)
 
 local UI = script.Parent.Parent.UI
 local Theme = require(UI.Theme)
 local Kit = require(UI.Kit)
+local Sounds = require(UI.Sounds)
 
 local NewsMenu = {}
 
-local TABS = { "NEWS", "ROADMAP", "EVENTS", "CODES" }
+local TABS = { "NEWS", "ROADMAP", "EVENTS", "CODES", "FEEDBACK" }
 local STATUS_TITLES = { Done = "✅ DONE", Now = "🛠 WORKING ON IT", Next = "⏭ UP NEXT", Later = "🔮 LATER" }
 local STATUS_ORDER = { "Now", "Next", "Later", "Done" }
 
@@ -95,7 +98,7 @@ function NewsMenu.Build(root: Frame)
 	end
 	for i, tab in TABS do
 		pages[tab] = page(root)
-		tabButtons[tab] = Kit.button({ LayoutOrder = i, Size = UDim2.fromScale(0.23, 1), Text = tab, TextSize = 16, Parent = tabBar }, function()
+		tabButtons[tab] = Kit.button({ LayoutOrder = i, Size = UDim2.fromScale(0.185, 1), Text = tab, TextSize = 15, Parent = tabBar }, function()
 			show(tab)
 		end)
 	end
@@ -211,6 +214,76 @@ function NewsMenu.Build(root: Frame)
 		end
 	end)
 	Kit.button({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0), Size = UDim2.fromScale(0.35, 1), Text = "REDEEM", TextSize = 18, BackgroundColor3 = Theme.Color.Safe, TextColor3 = Color3.fromRGB(10, 40, 16), Parent = codeRow }, redeem)
+
+	-- FEEDBACK ------------------------------------------------------------------------------
+	local feedbackPage = pages.FEEDBACK
+	local fbCard = card(feedbackPage, 1, Theme.Color.PanelLight, Theme.Color.Info)
+	block(fbCard, { Text = "💬 TELL US WHAT TO ADD OR FIX", Font = Theme.Font.Display, TextSize = 24, TextColor3 = Color3.fromRGB(120, 210, 255) })
+	block(fbCard, { Text = "Every message is read by the developers and shapes the next update. No names are saved.", Font = Theme.Font.Body, TextSize = Theme.TextSize.Body, TextColor3 = Theme.Color.TextDim })
+	local kinds = GameConfig.Feedback.Kinds
+	local chosen: string? = nil
+	local chipRow = Kit.new("Frame", { Size = UDim2.new(1, 0, 0, 44), BackgroundTransparency = 1, Parent = fbCard }, { Kit.list(Enum.FillDirection.Horizontal, 6) })
+	local chips: { [string]: TextButton } = {}
+	local function paintChips()
+		for id, chip in chips do
+			chip.BackgroundColor3 = if id == chosen then Theme.Color.Button else Theme.Color.ButtonAlt
+			chip.TextColor3 = if id == chosen then Theme.Color.ButtonText else Theme.Color.Text
+		end
+	end
+	for i, kind in kinds do
+		chips[kind.Id] = Kit.button({ LayoutOrder = i, Size = UDim2.new(1 / #kinds, -6, 1, 0), Text = kind.Label, TextSize = 14, Parent = chipRow }, function()
+			chosen = if chosen == kind.Id then nil else kind.Id
+			paintChips()
+			Sounds.Play("Click")
+		end)
+	end
+	local max = GameConfig.Feedback.MaxLength
+	local message = Kit.new("TextBox", {
+		Size = UDim2.new(1, 0, 0, 110),
+		BackgroundColor3 = Color3.fromRGB(20, 24, 40),
+		BorderSizePixel = 0,
+		ClearTextOnFocus = false,
+		MultiLine = true,
+		TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		Font = Theme.Font.Body,
+		TextSize = 18,
+		TextColor3 = Theme.Color.Text,
+		PlaceholderText = "e.g. \"Add a pet that carries treasure\" or \"I fell through the ice at the Glacier Station\"",
+		PlaceholderColor3 = Theme.Color.TextDim,
+		Text = "",
+		Parent = fbCard,
+	}, { Kit.corner(Theme.Radius.Medium), Kit.padding(10) })
+	local fbFoot = Kit.new("Frame", { Size = UDim2.new(1, 0, 0, 48), BackgroundTransparency = 1, Parent = fbCard })
+	local fbCount = Kit.label({ Size = UDim2.fromScale(0.5, 1), Text = ("0 / %d"):format(max), Font = Theme.Font.Bold, TextSize = Theme.TextSize.Small, TextColor3 = Theme.Color.TextDim, TextXAlignment = Enum.TextXAlignment.Left, Parent = fbFoot })
+	message:GetPropertyChangedSignal("Text"):Connect(function()
+		local length = utf8.len(message.Text) or #message.Text
+		if length > max then
+			message.Text = message.Text:sub(1, (utf8.offset(message.Text, max + 1) or (#message.Text + 1)) - 1)
+			length = max
+		end
+		fbCount.Text = ("%d / %d"):format(length, max)
+	end)
+	Kit.button({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0), Size = UDim2.fromScale(0.42, 1), Text = "SEND 📨", TextSize = 20, BackgroundColor3 = Theme.Color.Cash, TextColor3 = Color3.fromRGB(20, 40, 20), Parent = fbFoot }, function()
+		local text = message.Text
+		local voteOnly = false
+		for _, kind in kinds do
+			if kind.Id == chosen and kind.Vote ~= 0 then
+				voteOnly = true -- "love it" / "not fun" count even without words
+			end
+		end
+		if text:match("^%s*$") and not voteOnly then
+			Sounds.Play("Error")
+			fbCount.Text = "Write a few words first"
+			return
+		end
+		Net.Get("SendFeedback"):FireServer(0, text, chosen)
+		message.Text = ""
+		chosen = nil
+		paintChips()
+	end)
+	paintChips()
 
 	local function tick()
 		local t = now()

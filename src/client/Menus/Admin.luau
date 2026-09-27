@@ -3,6 +3,7 @@
 --   📢 send a message as a banner on every screen (optionally pinned on the Info Board)
 --   ⚡ run a global boost (luck / cash / mutations / strength) for N minutes, or end them
 --   🎉 start an event (Treasure Rain, Cursed Hour, Gold Rush, the Deep South storms)
+--   💬 read player feedback (the last week, newest first; no names are ever stored)
 -- Built for a phone first: big buttons, one scrolling column.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -178,6 +179,48 @@ function Admin.Build(root: Frame, _menus)
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = scroll,
 	})
+
+	-- PLAYER FEEDBACK
+	heading("💬 PLAYER FEEDBACK")
+	local kindLabels = {}
+	for _, kind in GameConfig.Feedback.Kinds do
+		kindLabels[kind.Id] = kind.Label
+	end
+	local feedbackRow = row(46)
+	local summary = Kit.label({ Size = UDim2.new(1, -170, 1, 0), Text = "Tap LOAD to read what players sent", Font = Theme.Font.Bold, TextSize = Theme.TextSize.Small, TextColor3 = Theme.Color.TextDim, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = true, LayoutOrder = 2, Parent = feedbackRow })
+	local loadButton = button(feedbackRow, "📥 LOAD", 150, Theme.Color.Info, function()
+		summary.Text = "Loading..."
+		send({ Kind = "ReadFeedback" })
+	end)
+	loadButton.LayoutOrder = 1
+	local list = Kit.new("Frame", { LayoutOrder = nextOrder(), Size = UDim2.fromScale(1, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, Parent = scroll }, { Kit.list(Enum.FillDirection.Vertical, 6) })
+	Net.Get("AdminFeedback").OnClientEvent:Connect(function(payload)
+		for _, child in list:GetChildren() do
+			if child:IsA("GuiObject") then
+				child:Destroy()
+			end
+		end
+		local entries = if type(payload) == "table" and type(payload.Entries) == "table" then payload.Entries else {}
+		local up, down = 0, 0
+		for i, entry in entries do
+			up += if entry.v == 1 then 1 else 0
+			down += if entry.v == -1 then 1 else 0
+			local tag = kindLabels[entry.k] or (if entry.v == 1 then "👍" elseif entry.v == -1 then "👎" else "💬")
+			local when = os.date("!%b %d %H:%M", tonumber(entry.t) or 0)
+			local message = if type(entry.m) == "string" and entry.m ~= "" then entry.m else "(no message)"
+			local rowFrame = Kit.new("Frame", { LayoutOrder = i, Size = UDim2.fromScale(1, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = Theme.Color.PanelLight, BorderSizePixel = 0, Parent = list }, { Kit.corner(Theme.Radius.Medium), Kit.padding(8), Kit.list(Enum.FillDirection.Vertical, 2) })
+			Kit.label({ Size = UDim2.new(1, 0, 0, 18), Text = ("%s  •  %s UTC  •  %d banked  •  Ascension %d"):format(tag, when, tonumber(entry.x) or 0, tonumber(entry.a) or 0), Font = Theme.Font.Bold, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.Gold, TextXAlignment = Enum.TextXAlignment.Left, Parent = rowFrame })
+			Kit.label({ Size = UDim2.fromScale(1, 0), AutomaticSize = Enum.AutomaticSize.Y, Text = message, TextWrapped = true, Font = Theme.Font.Body, TextSize = 17, TextColor3 = Theme.Color.Text, TextXAlignment = Enum.TextXAlignment.Left, Parent = rowFrame })
+		end
+		local days = if type(payload) == "table" then tonumber(payload.Days) or 7 else 7
+		if type(payload) == "table" and type(payload.Error) == "string" then
+			summary.Text = "⚠ " .. payload.Error
+		elseif #entries == 0 then
+			summary.Text = ("Nothing in the last %d days yet"):format(days)
+		else
+			summary.Text = ("%d messages in %d days  •  👍 %d  👎 %d"):format(#entries, days, up, down)
+		end
+	end)
 
 	return {
 		Refresh = function() end,

@@ -60,12 +60,12 @@ def main() -> int:
         "",
         f"**{len(entries)} entries** - 👍 {up} / 👎 {down}",
         "",
-        "| When (UTC) | Vote | Banks | Asc | Message |",
+        "| When (UTC) | Kind | Banks | Asc | Message |",
         "|---|---|---|---|---|",
     ]
     for entry in sorted(entries, key=lambda e: e.get("t", 0), reverse=True):
         when = datetime.datetime.fromtimestamp(entry.get("t", 0), datetime.timezone.utc).strftime("%m-%d %H:%M")
-        vote = {1: "👍", -1: "👎"}.get(entry.get("v"), "-")
+        vote = {"Idea": "💡 idea", "Bug": "🐞 bug", "Love": "❤ love", "Dislike": "😕 not fun"}.get(entry.get("k"), {1: "👍", -1: "👎"}.get(entry.get("v"), "-"))
         message = str(entry.get("m") or "").replace("|", "/").replace("\n", " ")
         lines.append(f"| {when} | {vote} | {entry.get('x', 0)} | {entry.get('a', 0)} | {message} |")
     report = "\n".join(lines)

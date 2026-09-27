@@ -232,8 +232,18 @@ GameConfig.Hazards = {
 	Cooldown = 1.5, -- seconds between hazard hits for one player
 }
 
--- In-game feedback (Services/FeedbackService, read with .github/workflows/feedback.yml).
+-- In-game feedback (Services/FeedbackService): sent from the 💬 button or the Info Board's
+-- FEEDBACK tab; read in the 🛡 Admin panel (or with .github/workflows/feedback.yml).
 GameConfig.Feedback = {
+	-- What kind of message it is (the Info Board's chips). Vote: how it counts as 👍 / 👎.
+	Kinds = {
+		{ Id = "Idea", Label = "💡 IDEA", Vote = 0 },
+		{ Id = "Bug", Label = "🐞 BUG", Vote = 0 },
+		{ Id = "Love", Label = "❤ LOVE IT", Vote = 1 },
+		{ Id = "Dislike", Label = "😕 NOT FUN", Vote = -1 },
+	},
+	AdminDays = 7, -- how far back the Admin panel reads
+	AdminMax = 150, -- newest entries shown there
 	StoreName = "PlayerFeedback",
 	MaxLength = 280, -- characters per message
 	MaxPerDay = 400, -- entries kept per UTC day (one DataStore key per day)
