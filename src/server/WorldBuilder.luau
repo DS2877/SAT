@@ -170,6 +170,10 @@ local function groundAt(x: number, z: number, from: number?): Vector3
 	params.IgnoreWater = true
 	local origin = Vector3.new(x, from or 300, z)
 	local result = workspace:Raycast(origin, Vector3.new(0, -((from or 300) + 60), 0), params)
+	if not result and from then
+		-- Nothing under a low start (it began inside something): look from high above instead.
+		result = workspace:Raycast(Vector3.new(x, 300, z), Vector3.new(0, -360, 0), params)
+	end
 	return if result then result.Position else Vector3.new(x, WorldLayout.GroundY, z)
 end
 

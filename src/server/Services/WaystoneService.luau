@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
+local WorldLayout = require(Shared.Config.WorldLayout)
 local Regions = require(Shared.Config.Regions)
 local Net = require(Shared.Net)
 
@@ -53,7 +54,20 @@ end
 
 -- Where the root part goes so the feet land ON the ground at `destination` (re-measured
 -- now, so terrain or props can never swallow you), whatever the avatar's size.
-local function landingFor(destination: Vector3, character: Model, root: BasePart): Vector3
+-- Is `position` inside solid terrain?
+local function buried(position: Vector3): boolean
+	local ok, materials, occupancies = pcall(function()
+		local region = Region3.new(position - Vector3.new(0.1, 0.1, 0.1), position + Vector3.new(0.1, 0.1, 0.1)):ExpandToGrid(4)
+		return workspace.Terrain:ReadVoxels(region, 4)
+	end)
+	if not ok or not materials then
+		return false
+	end
+	local material = materials[1][1][1]
+	return material ~= Enum.Material.Air and material ~= Enum.Material.Water and occupancies[1][1][1] >= 0.5
+end
+
+local function landingFor(destination: Vector3, character: Model, root: BasePart, minY: number?): Vector3
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	local exclude: { Instance } = {}
@@ -67,6 +81,17 @@ local function landingFor(destination: Vector3, character: Model, root: BasePart
 	-- From a little above (not 60 up: a sign or canopy overhead must not become the "ground").
 	local hit = workspace:Raycast(destination + Vector3.new(0, 12, 0), Vector3.new(0, -40, 0), params)
 	local ground = if hit then hit.Position else destination
+	-- The stored spot can end up INSIDE the ground (the glacier and the isles sit high; a spot
+	-- measured wrong at build time lands under them). Buried, or nothing solid below it? Take
+	-- the real surface from high above instead.
+	-- (Each Deep South stone also knows its region's height - the glacier ~40, the isles ~60 -
+	-- so a landing far below that is wrong too: under the glacier or down in the sea.)
+	if buried(ground + Vector3.new(0, 1.5, 0)) or not hit or (minY and ground.Y < minY) then
+		local top = workspace:Raycast(destination + Vector3.new(0, 150, 0), Vector3.new(0, -300, 0), params)
+		if top then
+			ground = top.Position
+		end
+	end
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	local hip = if humanoid then humanoid.HipHeight else 2
 	return ground + Vector3.new(0, hip + root.Size.Y / 2 + 1, 0)
@@ -97,7 +122,13 @@ local function travel(player: Player, stone: BasePart)
 		return
 	end
 	lastTravel[player] = now
-	character:PivotTo(CFrame.new(landingFor(destination, character, root)) * root.CFrame.Rotation)
+	local minY = nil
+	for _, region in WorldLayout.Waystones.Regions do
+		if region.Area == area then
+			minY = region.Stone.Y - 8
+		end
+	end
+	character:PivotTo(CFrame.new(landingFor(destination, character, root, minY)) * root.CFrame.Rotation)
 	root.AssemblyLinearVelocity = Vector3.zero
 	Net.Fire("Feedback", player, { Type = "Warp", Area = area })
 	local where = if area == "District" then "TREASURE DISTRICT" else Regions.Info[area].Title
