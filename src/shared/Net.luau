@@ -45,6 +45,7 @@ Net.ClientToServer = {
 	"RedeemCode", -- (text) a code typed on the Info Board (Config/Codes)
 	"RecheckGroup", -- after the community join prompt: re-check membership (+10% income)
 	"AdminAction", -- (action table) from the 🛡 Admin panel; admins only (Services/AdminService)
+	"LikeAskSeen", -- (stage 1/2, done) the "like the game" card was shown (Controllers/LikeAsk)
 }
 
 local FOLDER_NAME = "Remotes"

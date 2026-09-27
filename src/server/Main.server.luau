@@ -112,6 +112,16 @@ Net.On("TutorialProgress", function(player, step)
 	end
 end, 2)
 
+-- The "like the game" card (Controllers/LikeAsk): remember it was shown, so it never nags.
+Net.On("LikeAskSeen", function(player, stage, done)
+	if stage == 1 or stage == 2 then
+		PlayerData.Milestone(player, "LikeAsk" .. stage)
+	end
+	if done == true then
+		PlayerData.Milestone(player, "LikeAskDone")
+	end
+end, 2)
+
 Players.PlayerAdded:Connect(function(player)
 	player.CharacterAdded:Connect(function(character)
 		local humanoid = character:WaitForChild("Humanoid") :: Humanoid
