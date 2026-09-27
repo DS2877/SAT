@@ -946,11 +946,33 @@ local function dressAscensionShop(district: Folder)
 		if gadget.AscensionShop and i < #ASC_PLINTHS then
 			i += 1
 			local at = base * CFrame.new(ASC_PLINTHS[i], 2.7, 12 / 2 - 3)
-			local mini = GadgetModels.Minis[gadget.Id]
-			if mini then
-				mini(at, shop :: Folder)
+			-- The weapon, bigger than on a shelf, on top of its plinth.
+			local model = Instance.new("Model")
+			model.Name = "AscItem_" .. gadget.Id
+			if GadgetModels.Build(gadget.Id, at, model) then
+				model.WorldPivot = at
+				model:ScaleTo(1.7)
 			end
-			billboardSign(part({ Name = "AscItemAnchor", Size = Vector3.new(0.2, 0.2, 0.2), CFrame = at * CFrame.new(0, 3.2, 0), Transparency = 1, CanCollide = false, CanQuery = false, Parent = shop }), ("%s %s"):format(gadget.Icon, gadget.Name:upper()), ("✨ ASCENSION %d"):format(gadget.RequiredAscension or 0), Color3.fromRGB(220, 180, 255), 30, 0)
+			model.Parent = shop
+			-- A small plaque on the plinth's front (no floating labels filling the room).
+			local plaque = part({ Name = "AscPlaque", Size = Vector3.new(2.3, 1.05, 0.1), CFrame = base * CFrame.new(ASC_PLINTHS[i], 1.45, 12 / 2 - 3 - 1.3), Color = Color3.fromRGB(60, 40, 90), Material = Enum.Material.SmoothPlastic, CanCollide = false, Parent = shop })
+			local gui = Instance.new("SurfaceGui")
+			gui.Face = Enum.NormalId.Front
+			gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+			gui.PixelsPerStud = 90
+			gui.LightInfluence = 0.2
+			gui.Parent = plaque
+			for line, text in { ("%s %s"):format(gadget.Icon, gadget.Name:upper()), ("✨ ASCENSION %d"):format(gadget.RequiredAscension or 0) } do
+				local label = Instance.new("TextLabel")
+				label.BackgroundTransparency = 1
+				label.Position = UDim2.fromScale(0.04, if line == 1 then 0.06 else 0.56)
+				label.Size = UDim2.fromScale(0.92, if line == 1 then 0.5 else 0.36)
+				label.Font = Enum.Font.GothamBlack
+				label.TextScaled = true
+				label.TextColor3 = if line == 1 then Color3.fromRGB(255, 225, 140) else Color3.fromRGB(215, 175, 255)
+				label.Text = text
+				label.Parent = gui
+			end
 		end
 	end
 end
