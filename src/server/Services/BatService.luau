@@ -95,7 +95,9 @@ local function place(player: Player)
 	local data = PlayerData.Get(player)
 	local sheathed = data ~= nil and data.Settings.SheatheBat == true
 	local carrying = (player:GetAttribute("CarryingUid") or 0) ~= 0
-	local inHand = not carrying and not sheathed
+	-- A gadget in your hand (GadgetService: attribute HeldGadget) puts the bat on your back.
+	local holdingGadget = (player:GetAttribute("HeldGadget") or "") ~= ""
+	local inHand = not carrying and not sheathed and not holdingGadget
 	if not inHand and tool.Parent ~= backpack then
 		humanoid:UnequipTools()
 		tool.Parent = backpack

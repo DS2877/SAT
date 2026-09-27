@@ -1639,6 +1639,25 @@ test("new weapons: trap for all, premium ones behind Ascension and kept through 
 	check(string.find(gadgets, "(data.Ascension or 0) < (def.RequiredAscension or 0)", 1, true) ~= nil, "buying checks the Ascension level")
 end)
 
+test("gadgets: hold it, then tap the screen to use it", function()
+	for _, def in Gadgets.List do
+		check(def.Use == "Self" or def.Use == "Aim" or def.Use == "Place", def.Id .. " says how it's used")
+		check(type(def.Hint) == "string" and #def.Hint > 5, def.Id .. " has a hint")
+		if def.Use == "Place" then
+			check((def.PlaceRange or 0) >= 15, def.Id .. " can be placed a fair way off")
+		end
+	end
+	local fs = require("@lune/fs")
+	check(string.find(fs.readFile("src/shared/Net.luau"), '"HoldGadget"', 1, true) ~= nil, "the hold remote exists")
+	local service = fs.readFile("src/server/Services/GadgetService.luau")
+	check(string.find(service, "local function onHold", 1, true) ~= nil, "gadgets go into your hand")
+	check(string.find(service, "local function onUse(player: Player, slot: any, aim: any, point: any)", 1, true) ~= nil, "use takes the tapped point")
+	local bat = fs.readFile("src/server/Services/BatService.luau")
+	check(string.find(bat, "HeldGadget", 1, true) ~= nil, "the bat goes on your back while you hold a gadget")
+	local W = require("../src/shared/Config/WorldLayout")
+	check(math.abs(W.Shop.Z - W.BatShop.Z) < 5 and W.Shop.X > 0 and W.BatShop.X < 0, "the Gadget Shop faces the Bat Shop across the avenue")
+end)
+
 print(("%d passed, %d failed"):format(passed, failed))
 if failed > 0 then
 	error("tests failed")

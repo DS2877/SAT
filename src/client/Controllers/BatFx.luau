@@ -122,6 +122,34 @@ local function swing(player: Player)
 	end)
 end
 
+-- USING A GADGET: a quick overhand throw / point with the gadget arm (every client sees it).
+local throwing: { [Model]: boolean } = {}
+local function throw(player: Player)
+	local character = player.Character
+	if not character or throwing[character] or swinging[character] then
+		return
+	end
+	local shoulder = jointsOf(character)
+	local base = shoulder and shoulder.Get()
+	if not shoulder or not base then
+		return
+	end
+	throwing[character] = true
+	local up = TweenInfo.new(0.09, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+	local down = TweenInfo.new(0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	TweenService:Create(shoulder.Target, up, { [shoulder.Property] = turned(base, -150) }):Play()
+	task.delay(0.09, function()
+		TweenService:Create(shoulder.Target, down, { [shoulder.Property] = turned(base, 40) }):Play()
+		task.delay(0.2, function()
+			TweenService:Create(shoulder.Target, TweenInfo.new(0.18), { [shoulder.Property] = base }):Play()
+			task.delay(0.2, function()
+				throwing[character] = nil
+			end)
+		end)
+	end)
+end
+BatFx.Throw = throw
+
 -- Your own swing starts the moment you press SLAP (HUD), not after the server round trip.
 local lastLocalSwing = 0
 function BatFx.SwingLocal()
@@ -207,6 +235,11 @@ function BatFx.Init()
 			end
 		elseif payload.Type == "SlapImpact" and typeof(payload.Position) == "Vector3" then
 			impact(payload.Position, payload.BatId, payload.Result)
+		elseif payload.Type == "GadgetUsed" then
+			local other = Players:GetPlayerByUserId(payload.UserId)
+			if other then
+				throw(other)
+			end
 		elseif payload.Type == "BatBought" then
 			Sounds.Play("BigReward")
 		end

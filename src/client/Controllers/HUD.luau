@@ -26,6 +26,7 @@ local Sounds = require(UI.Sounds)
 local MusicController = require(script.Parent.MusicController)
 local ClientState = require(script.Parent.Parent.ClientState)
 local Notifications = require(script.Parent.Notifications)
+local GadgetAim = require(script.Parent.GadgetAim)
 local BatFx = require(script.Parent.BatFx)
 
 local HUD = {}
@@ -947,7 +948,8 @@ local function refreshSlots()
 			aimed = true
 		end
 	end
-	refs.Reticle.Visible = aimed
+	refs.Reticle.Visible = aimed and false -- aiming is by tapping now (Controllers/GadgetAim)
+	GadgetAim.Refresh()
 	refs.Drop.Visible = carrying ~= nil
 	-- BAT: HIDE while it's in your hand, DRAW while it's on your back; gone while carrying.
 	local sheathed = data.Settings ~= nil and data.Settings.SheatheBat == true
@@ -1084,6 +1086,7 @@ function HUD.Attack()
 	if ClientState.Carrying() and not GameConfig.Combat.CarrierCanAttack then
 		return
 	end
+	GadgetAim.Release() -- SLAP puts a held gadget away (the server does too)
 	lastSwing = os.clock()
 	-- The slap itself goes first: a visual hiccup must never cost you the hit.
 	Net.Get("Attack"):FireServer()
@@ -1101,6 +1104,8 @@ function HUD.SheatheBat()
 	end
 end
 
+-- A gadget slot: take it in hand (or put it away) - then tap the world to use it
+-- (Controllers/GadgetAim).
 function HUD.UseGadget(slot: number)
 	local data = ClientState.Data
 	if not data then
@@ -1112,20 +1117,10 @@ function HUD.UseGadget(slot: number)
 		HUD.ShowStatus("GET GADGETS AT THE 🛒 GADGET SHOP", nil, Theme.Color.Info, 2)
 		return
 	end
-	local def = Gadgets.Get(id)
-	if not def then
+	if not Gadgets.Get(id) then
 		return
 	end
-	if (ClientState.Cooldowns[id] or 0) > workspace:GetServerTimeNow() then
-		Sounds.Play("Error")
-		return
-	end
-	if ClientState.Carrying() and not def.CanUseWhileCarrying then
-		Sounds.Play("Error")
-		return
-	end
-	-- Aim = camera centre (works the same on touch, mouse and gamepad).
-	Net.Get("UseGadget"):FireServer(slot, workspace.CurrentCamera.CFrame.LookVector)
+	GadgetAim.Toggle(slot)
 end
 
 local function onExtractionState(payload)
@@ -1162,6 +1157,7 @@ function HUD.Init(screenGui: ScreenGui)
 	buildExtractionBar()
 	buildReticle()
 	buildActions()
+	GadgetAim.Init(gui, refs.Slots, refs.Attack.Parent :: GuiObject)
 
 	ClientState.DataChanged:Connect(function(data, previous)
 		refreshStats(data, previous)
@@ -1182,7 +1178,12 @@ function HUD.Init(screenGui: ScreenGui)
 			return
 		end
 		local key = input.KeyCode
-		if key == Enum.KeyCode.F or key == Enum.KeyCode.ButtonR2 or input.UserInputType == Enum.UserInputType.MouseButton1 then
+		if input.UserInputType == Enum.UserInputType.MouseButton1 and GadgetAim.IsHolding() then
+			-- Holding a gadget: a click uses it where you clicked.
+			GadgetAim.UseAt(Vector2.new(input.Position.X, input.Position.Y))
+		elseif key == Enum.KeyCode.ButtonR2 and GadgetAim.IsHolding() then
+			GadgetAim.UseAt(workspace.CurrentCamera.ViewportSize / 2 - game:GetService("GuiService"):GetGuiInset())
+		elseif key == Enum.KeyCode.F or key == Enum.KeyCode.ButtonR2 or input.UserInputType == Enum.UserInputType.MouseButton1 then
 			HUD.Attack()
 		elseif key == Enum.KeyCode.One or key == Enum.KeyCode.ButtonL1 then
 			HUD.UseGadget(1)

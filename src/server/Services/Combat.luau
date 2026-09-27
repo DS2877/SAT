@@ -34,6 +34,8 @@ local lastAttack: { [Player]: number } = {}
 
 -- Guardian hook: set by GuardianService to let players bonk guardians. (attacker, rootPart) -> boolean
 Combat.TryHitGuardian = nil :: ((Player, BasePart) -> boolean)?
+-- Called first on every SLAP (GadgetService: puts a held gadget away, the bat comes out).
+Combat.BeforeAttack = nil :: ((Player) -> ())?
 -- Placed-gadget hook (GadgetService): a slap near a rival's cannon dents it.
 Combat.TryHitPlaced = nil :: ((Player, BasePart) -> boolean)?
 
@@ -254,6 +256,9 @@ local function onAttack(attacker: Player)
 		return
 	end
 	lastAttack[attacker] = now
+	if Combat.BeforeAttack then
+		Combat.BeforeAttack(attacker)
+	end
 	BatService.Draw(attacker) -- a sheathed bat comes out on the first SLAP
 	local bat = BatService.Get(attacker)
 

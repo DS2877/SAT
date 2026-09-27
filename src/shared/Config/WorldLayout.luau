@@ -27,8 +27,10 @@ WorldLayout.Gym = {
 	LaneSpacing = 7, -- along +Z within a row
 }
 
-WorldLayout.Shop = Vector3.new(70, 10, 215)
--- Bat Shop: across the avenue from the Gadget Shop, between the gym and the gate.
+-- THE SHOPPING STREET: on the walk from the fountain to the gate, the Bat Shop (west) and the
+-- Gadget Shop (east) face each other across the avenue - gear up on the way out. Further up
+-- the east side, the Ascension corner: the Altar and the Ascension Shop side by side.
+WorldLayout.Shop = Vector3.new(46, 10, 165)
 WorldLayout.BatShop = Vector3.new(-46, 10, 165)
 -- Island map just inside the gate, beside the avenue, facing players on their way out.
 WorldLayout.MapBoard = {
@@ -51,13 +53,13 @@ WorldLayout.Waystones = {
 }
 -- Leaderboards: arc behind the fountain, facing the spawn
 WorldLayout.Leaderboards = { Radius = 40, SpreadDegrees = 100 }
-WorldLayout.AscensionAltar = Vector3.new(58, 10, 160)
+WorldLayout.AscensionAltar = Vector3.new(54, 10, 198)
 -- Info Board (news, roadmap, events + sign-ups): beside the spawn pavilion, facing the
 -- walk from the pavilion to the fountain so every arriving player sees it.
 WorldLayout.InfoBoard = { Position = Vector3.new(-36, 10, 270), Facing = Vector3.new(0, 10, 270) }
--- Ascension Shop (premium, Ascension-locked gadgets - opening soon): across the pavilion from
--- the Info Board, facing the same walk.
-WorldLayout.AscensionShop = { Position = Vector3.new(40, 10, 262), Facing = Vector3.new(0, 10, 262) }
+-- Ascension Shop (premium, Ascension-locked weapons): beside the Ascension Altar on the east
+-- side of the avenue, facing it.
+WorldLayout.AscensionShop = { Position = Vector3.new(52, 10, 226), Facing = Vector3.new(0, 10, 226) }
 
 -- Exits are big, easy-to-hit circles (radius 17 safe / 14-15 dangerous / 13 secret).
 WorldLayout.ExtractionZones = {

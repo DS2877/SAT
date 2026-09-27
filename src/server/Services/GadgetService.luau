@@ -19,6 +19,8 @@ local TreasureService = require(script.Parent.TreasureService)
 local Combat = require(script.Parent.Combat)
 local Analytics = require(script.Parent.Analytics)
 local Decoys = require(script.Parent.Decoys)
+local BatService = require(script.Parent.BatService)
+local GadgetModels = require(script.Parent.Parent.World.GadgetModels)
 
 local GadgetService = {}
 
@@ -51,6 +53,57 @@ local function weldVisual(root: BasePart, part: BasePart, offset: CFrame)
 end
 
 local Effects = {}
+
+local function characterExclusions(): { Instance }
+	local exclude: { Instance } = {}
+	for _, p in Players:GetPlayers() do
+		if p.Character then
+			table.insert(exclude, p.Character)
+		end
+	end
+	for _, name in { "Treasures", "Guardians" } do
+		local folder = workspace:FindFirstChild(name)
+		if folder then
+			table.insert(exclude, folder)
+		end
+	end
+	return exclude
+end
+
+-- Where a tap lands, clamped to `maxRange` from the player (same height rules as the ground).
+local function tappedGround(root: BasePart, point: Vector3?, maxRange: number): Vector3
+	local target = point or (root.Position + root.CFrame.LookVector * math.min(6, maxRange))
+	local flat = Vector3.new(target.X - root.Position.X, 0, target.Z - root.Position.Z)
+	if flat.Magnitude > maxRange then
+		flat = flat.Unit * maxRange
+	end
+	local at = root.Position + flat
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = characterExclusions()
+	local top = math.max(at.Y, target.Y) + 12
+	local hit = workspace:Raycast(Vector3.new(at.X, top, at.Z), Vector3.new(0, -60, 0), params)
+	return if hit then hit.Position else Vector3.new(at.X, target.Y, at.Z)
+end
+GadgetService.TappedGround = tappedGround
+
+-- The rival closest to a tapped point (within `radius`): tapping on or near someone locks on.
+local function rivalAt(owner: Player, point: Vector3?, radius: number): (Player?, BasePart?)
+	if not point then
+		return nil, nil
+	end
+	local best, bestRoot, bestDistance = nil, nil, radius
+	for _, other in Players:GetPlayers() do
+		local otherRoot = Combat.RootOf(other)
+		if other ~= owner and otherRoot then
+			local distance = (otherRoot.Position - point).Magnitude
+			if distance <= bestDistance then
+				best, bestRoot, bestDistance = other, otherRoot, distance
+			end
+		end
+	end
+	return best, bestRoot
+end
 
 function Effects.speed_soda(player: Player, def, root: BasePart): boolean
 	local t = token(player, "SpeedSoda")
@@ -120,16 +173,26 @@ function Effects.balloon(player: Player, def, root: BasePart): boolean
 	return true
 end
 
-function Effects.bubble_blaster(player: Player, def, root: BasePart): boolean
+function Effects.bubble_blaster(player: Player, def, root: BasePart, aim: Vector3?, point: Vector3?): boolean
 	if Zones.InSafeZone(root.Position) then
 		Net.Fire("Notify", player, { Kind = "Toast", Text = "No bubbles in the District", Tone = "Warn" })
 		return false
 	end
-	local look = root.CFrame.LookVector
+	local flatAim = if aim then Vector3.new(aim.X, 0, aim.Z) else Vector3.zero
+	local look = if flatAim.Magnitude > 0.1 then flatAim.Unit else root.CFrame.LookVector
 	local target: Player? = nil
 	local bestScore = math.huge
 	local now = os.clock()
+	-- Tapped on (or near) someone: that's the target.
+	local tappedPlayer, tappedRoot = rivalAt(player, point, 12)
+	if tappedPlayer and tappedRoot and (tappedRoot.Position - root.Position).Magnitude <= def.Range * 1.3 and not Combat.IsPvPProtected(tappedPlayer) and now >= (trapImmuneUntil[tappedPlayer] or 0) then
+		target = tappedPlayer
+		bestScore = -math.huge
+	end
 	for _, other in Players:GetPlayers() do
+		if bestScore == -math.huge then
+			break
+		end
 		if other ~= player and not Combat.IsPvPProtected(other) and now >= (trapImmuneUntil[other] or 0) then
 			local otherRoot = Combat.RootOf(other)
 			if otherRoot then
@@ -276,8 +339,8 @@ local function cosmeticPart(props): Part
 end
 
 -- DECOY DUCK: waddles away carrying a convincing fake treasure tag. Guardians chase it; a bonk pops it.
-function Effects.decoy_duck(player: Player, def, root: BasePart): boolean
-	local look = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
+function Effects.decoy_duck(player: Player, def, root: BasePart, aim: Vector3?): boolean
+	local look = if aim then Vector3.new(aim.X, 0, aim.Z) else Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
 	local direction = if look.Magnitude > 0.1 then look.Unit else Vector3.new(0, 0, -1)
 	local model = Instance.new("Model")
 	model.Name = "DecoyDuck"
@@ -460,32 +523,10 @@ function Effects.disguise(player: Player, def, root: BasePart): boolean
 	return true
 end
 
-local function characterExclusions(): { Instance }
-	local exclude: { Instance } = {}
-	for _, p in Players:GetPlayers() do
-		if p.Character then
-			table.insert(exclude, p.Character)
-		end
-	end
-	for _, name in { "Treasures", "Guardians" } do
-		local folder = workspace:FindFirstChild(name)
-		if folder then
-			table.insert(exclude, folder)
-		end
-	end
-	return exclude
-end
 
 -- BEE BOX: a swarm zone in front of the thrower. Slows + stings everyone else inside.
-function Effects.bee_box(player: Player, def, root: BasePart): boolean
-	local look = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
-	local direction = if look.Magnitude > 0.1 then look.Unit else Vector3.new(0, 0, -1)
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = characterExclusions()
-	local aimPoint = root.Position + direction * def.ThrowDistance
-	local hit = workspace:Raycast(aimPoint + Vector3.new(0, 20, 0), Vector3.new(0, -60, 0), params)
-	local center = if hit then hit.Position else aimPoint
+function Effects.bee_box(player: Player, def, root: BasePart, _aim: Vector3?, point: Vector3?): boolean
+	local center = tappedGround(root, point or (root.Position + root.CFrame.LookVector * def.ThrowDistance), def.PlaceRange or def.ThrowDistance)
 	if Zones.InSafeZone(center) then
 		Net.Fire("Notify", player, { Kind = "Toast", Text = "No bees in the District", Tone = "Warn" })
 		return false
@@ -556,7 +597,7 @@ function Effects.bee_box(player: Player, def, root: BasePart): boolean
 end
 
 -- BOOMERANG: ranged bonk along the camera aim. Counts as a qualifying hit (can Shake/Knock).
-function Effects.boomerang(player: Player, def, root: BasePart, aim: Vector3?): boolean
+function Effects.boomerang(player: Player, def, root: BasePart, aim: Vector3?, point: Vector3?): boolean
 	if not aim then
 		return false
 	end
@@ -568,7 +609,15 @@ function Effects.boomerang(player: Player, def, root: BasePart, aim: Vector3?): 
 	local target: Player? = nil
 	local targetRoot: BasePart? = nil
 	local bestScore = math.huge
+	local tappedPlayer, tappedRoot = rivalAt(player, point, 12)
+	if tappedPlayer and tappedRoot and (tappedRoot.Position - origin).Magnitude <= def.Range * 1.3 and not workspace:Raycast(origin, tappedRoot.Position - origin, params) then
+		target, targetRoot, bestScore = tappedPlayer, tappedRoot, -math.huge
+		aim = (tappedRoot.Position - origin).Unit
+	end
 	for _, other in Players:GetPlayers() do
+		if bestScore == -math.huge then
+			break
+		end
 		local otherRoot = Combat.RootOf(other)
 		if other ~= player and otherRoot then
 			local offset = otherRoot.Position - origin
@@ -716,8 +765,8 @@ end
 -- carrier drops the treasure. Two per player; the third replaces the oldest.
 local traps: { [Player]: { Model } } = {}
 
-function Effects.bear_trap(player: Player, def, root: BasePart): boolean
-	local center = groundAhead(root, 4)
+function Effects.bear_trap(player: Player, def, root: BasePart, _aim: Vector3?, point: Vector3?): boolean
+	local center = if point then tappedGround(root, point, def.PlaceRange) else groundAhead(root, 4)
 	if noPlacingHere(player, center, "traps") then
 		return false
 	end
@@ -791,8 +840,8 @@ end
 -- slaps break it. One per player (a new one replaces the old).
 local cannons: { [Player]: any } = {}
 
-function Effects.auto_cannon(player: Player, def, root: BasePart): boolean
-	local center = groundAhead(root, 5)
+function Effects.auto_cannon(player: Player, def, root: BasePart, _aim: Vector3?, point: Vector3?): boolean
+	local center = if point then tappedGround(root, point, def.PlaceRange) else groundAhead(root, 5)
 	if noPlacingHere(player, center, "cannons") then
 		return false
 	end
@@ -886,7 +935,7 @@ local function tryHitPlaced(attacker: Player, attackerRoot: BasePart): boolean
 end
 
 -- FREEZE RAY: aimed beam; the target is frozen solid (can't move), and a carrier drops the loot.
-function Effects.freeze_ray(player: Player, def, root: BasePart, aim: Vector3?): boolean
+function Effects.freeze_ray(player: Player, def, root: BasePart, aim: Vector3?, point: Vector3?): boolean
 	if not aim then
 		return false
 	end
@@ -898,7 +947,14 @@ function Effects.freeze_ray(player: Player, def, root: BasePart, aim: Vector3?):
 	local target: Player? = nil
 	local targetRoot: BasePart? = nil
 	local bestScore = math.huge
+	local tappedPlayer, tappedRoot = rivalAt(player, point, 12)
+	if tappedPlayer and tappedRoot and now >= (trapImmuneUntil[tappedPlayer] or 0) and (tappedRoot.Position - origin).Magnitude <= def.Range * 1.3 and not workspace:Raycast(origin, tappedRoot.Position - origin, params) then
+		target, targetRoot, bestScore = tappedPlayer, tappedRoot, -math.huge
+	end
 	for _, other in Players:GetPlayers() do
+		if bestScore == -math.huge then
+			break
+		end
 		local otherRoot = Combat.RootOf(other)
 		if other ~= player and otherRoot and now >= (trapImmuneUntil[other] or 0) then
 			local offset = otherRoot.Position - origin
@@ -937,8 +993,8 @@ function Effects.freeze_ray(player: Player, def, root: BasePart, aim: Vector3?):
 end
 
 -- TORNADO: a twister that tears ahead; everyone it touches is flung (carriers drop).
-function Effects.tornado(player: Player, def, root: BasePart): boolean
-	local look = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
+function Effects.tornado(player: Player, def, root: BasePart, aim: Vector3?): boolean
+	local look = if aim then Vector3.new(aim.X, 0, aim.Z) else Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
 	local direction = if look.Magnitude > 0.1 then look.Unit else Vector3.new(0, 0, -1)
 	local position = groundAhead(root, 3)
 	if noPlacingHere(player, position, "tornadoes") then
@@ -997,8 +1053,8 @@ function Effects.tornado(player: Player, def, root: BasePart): boolean
 end
 
 -- THUNDER TOTEM: plant it; lightning strikes every rival around it, three times.
-function Effects.thunder_totem(player: Player, def, root: BasePart): boolean
-	local center = groundAhead(root, 0)
+function Effects.thunder_totem(player: Player, def, root: BasePart, _aim: Vector3?, point: Vector3?): boolean
+	local center = if point then tappedGround(root, point, def.PlaceRange) else groundAhead(root, 0)
 	if noPlacingHere(player, center, "totems") then
 		return false
 	end
@@ -1035,11 +1091,104 @@ function Effects.thunder_totem(player: Player, def, root: BasePart): boolean
 	return true
 end
 
+-- HOLDING A GADGET: tap a slot and it's in your hand (a Tool, so the arm holds it out; the
+-- bat goes on your back). Then tap the screen to use it (UseGadget with the tapped point).
+-- Tap the slot again, or SLAP, to put it away.
+local held: { [Player]: { Slot: number, Id: string, Tool: Tool } } = {}
+
+local function unhold(player: Player)
+	local current = held[player]
+	held[player] = nil
+	if current and current.Tool.Parent then
+		current.Tool:Destroy()
+	end
+	if player.Parent then
+		player:SetAttribute("HeldGadget", "")
+		BatService.Place(player)
+	end
+end
+GadgetService.Unhold = unhold
+
+local function buildHeldTool(id: string): Tool
+	local tool = Instance.new("Tool")
+	tool.Name = "Gadget"
+	tool.CanBeDropped = false
+	tool.ManualActivationOnly = true -- the client decides what a tap means
+	tool.RequiresHandle = true
+	local handle = Instance.new("Part")
+	handle.Name = "Handle"
+	handle.Size = Vector3.new(0.5, 0.5, 0.5)
+	handle.Transparency = 1
+	handle.CanCollide = false
+	handle.CanQuery = false
+	handle.CanTouch = false
+	handle.Massless = true
+	handle.Parent = tool
+	local model = Instance.new("Model")
+	model.Name = "Look"
+	-- The shelf model, standing up out of the fist and a little bigger than on the shelf.
+	GadgetModels.Build(id, CFrame.new(0, -0.35, -0.2), model)
+	pcall(function()
+		model.WorldPivot = CFrame.new()
+		model:ScaleTo(1.25)
+	end)
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.Anchored = false
+			d.CanCollide = false
+			d.CanQuery = false
+			d.CanTouch = false
+			d.Massless = true
+			d.CastShadow = false
+			local weld = Instance.new("WeldConstraint")
+			weld.Part0 = handle
+			weld.Part1 = d
+			weld.Parent = d
+		end
+	end
+	model.Parent = tool
+	return tool
+end
+
+local function onHold(player: Player, slot: any)
+	if type(slot) ~= "number" or slot ~= math.floor(slot) or slot < 0 or slot > GameConfig.Gadgets.Slots then
+		return
+	end
+	local data = PlayerData.Get(player)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	if slot == 0 or not data or not humanoid or not backpack then
+		unhold(player)
+		return
+	end
+	local id = data.EquippedGadgets[slot] or ""
+	local def = Gadgets.Get(id)
+	if not def or not data.OwnedGadgets[id] or (held[player] and held[player].Id == id) then
+		unhold(player)
+		return
+	end
+	if TreasureService.GetCarrying(player) and not def.CanUseWhileCarrying then
+		Net.Fire("Notify", player, { Kind = "Toast", Text = ("Can't use %s while carrying"):format(def.Name:upper()), Tone = "Warn" })
+		return
+	end
+	if held[player] then
+		held[player].Tool:Destroy()
+	end
+	local tool = buildHeldTool(id)
+	tool.Parent = backpack
+	held[player] = { Slot = slot, Id = id, Tool = tool }
+	player:SetAttribute("HeldGadget", id)
+	humanoid:EquipTool(tool)
+	BatService.Place(player)
+end
+
+
 local function sendCooldowns(player: Player)
 	Net.Fire("GadgetState", player, { Cooldowns = cooldowns[player] or {} })
 end
 
-local function onUse(player: Player, slot: any, aim: any)
+local function onUse(player: Player, slot: any, aim: any, point: any)
 	if type(slot) ~= "number" or slot ~= math.floor(slot) or slot < 1 or slot > GameConfig.Gadgets.Slots then
 		return
 	end
@@ -1072,14 +1221,21 @@ local function onUse(player: Player, slot: any, aim: any)
 		})
 		return
 	end
+	-- The tapped point (from the holder's screen): the direction to it is the aim.
+	local tapped: Vector3? = nil
+	if typeof(point) == "Vector3" and point.X == point.X and (point - root.Position).Magnitude < 500 then
+		tapped = point
+	end
 	local aimDirection: Vector3? = nil
-	if typeof(aim) == "Vector3" and aim.Magnitude > 0.5 and aim.Magnitude < 1.5 then
+	if tapped and (tapped - root.Position).Magnitude > 1 then
+		aimDirection = (tapped - (root.Position + Vector3.new(0, 1.5, 0))).Unit
+	elseif typeof(aim) == "Vector3" and aim.Magnitude > 0.5 and aim.Magnitude < 1.5 then
 		aimDirection = aim.Unit
 	end
 	if def.NeedsAim and not aimDirection then
 		return
 	end
-	if effect(player, def, root, aimDirection) then
+	if effect(player, def, root, aimDirection, tapped) then
 		playerCooldowns[id] = now + def.Cooldown
 		sendCooldowns(player)
 		Net.FireAll("Feedback", { Type = "GadgetUsed", UserId = player.UserId, GadgetId = id })
@@ -1160,6 +1316,17 @@ end
 function GadgetService.Init()
 	Combat.TryHitPlaced = tryHitPlaced
 	Net.On("UseGadget", onUse, 6)
+	Net.On("HoldGadget", onHold, 8)
+	-- SLAP puts the gadget away (the bat comes out); a carried treasure takes the hands of
+	-- gadgets you can't use while carrying.
+	Combat.BeforeAttack = unhold
+	TreasureService.PickedUp:Connect(function(player)
+		local current = held[player]
+		local def = current and Gadgets.Get(current.Id)
+		if def and not def.CanUseWhileCarrying then
+			unhold(player)
+		end
+	end)
 	Net.On("BuyGadget", onBuy, 3)
 	Net.On("EquipGadget", onEquip, 5)
 	PlayerData.Loaded:Connect(function(player)
@@ -1177,6 +1344,7 @@ function GadgetService.Init()
 	end)
 	Players.PlayerRemoving:Connect(function(player)
 		disguises[player] = nil
+		held[player] = nil
 		cooldowns[player] = nil
 		trapImmuneUntil[player] = nil
 		effectTokens[player] = nil
@@ -1196,6 +1364,8 @@ function GadgetService.Init()
 		player.CharacterAdded:Connect(function()
 			-- Invalidate running effects; Movement clears its temporary modifiers itself.
 			effectTokens[player] = nil
+			held[player] = nil
+			player:SetAttribute("HeldGadget", "")
 			if disguises[player] then
 				endDisguise(player)
 			end

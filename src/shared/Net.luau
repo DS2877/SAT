@@ -26,7 +26,8 @@ Net.ServerToClient = {
 Net.ClientToServer = {
 	"ClientReady",
 	"Attack",
-	"UseGadget",
+	"UseGadget", -- (slot, aimDirection, tappedPoint) while holding it
+	"HoldGadget", -- (slot) take gadget `slot` in your hand; 0 = put it away (bat back)
 	"BuyGadget",
 	"EquipGadget",
 	"BuyBat", -- (batId) at the Bat Shop
