@@ -950,7 +950,7 @@ local function refreshSlots()
 	end
 	refs.Reticle.Visible = aimed and false -- aiming is by tapping now (Controllers/GadgetAim)
 	GadgetAim.Refresh()
-	refs.Drop.Visible = carrying ~= nil
+	refs.Drop.Visible = carrying
 	-- BAT: HIDE while it's in your hand, DRAW while it's on your back; gone while carrying.
 	local sheathed = data.Settings ~= nil and data.Settings.SheatheBat == true
 	refs.Sheathe.Visible = not carrying
