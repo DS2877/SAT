@@ -1,5 +1,5 @@
 -- What an Ascension wipes (pure, unit-tested). You start the grind over - Strength back to the
--- start, ALL Cash gone, every gadget gone and every Vault treasure gone EXCEPT your best one
+-- start, ALL Cash gone, every gadget gone (Ascension Shop gadgets stay) and every Vault treasure gone EXCEPT your best one
 -- (the Heirloom, moved to pedestal 1) - in exchange for a permanent income + training
 -- multiplier. Kept: Vault size, the Heirloom, Collection (+ set bonuses), benches, titles,
 -- cosmetics, stats.
@@ -24,8 +24,9 @@ function AscensionReset.Heirlooms(displays, count: number, incomeOf: (string) ->
 end
 
 -- Mutates `data` in place. `cfg` = GameConfig. `incomeOf` (slot value -> $/s) picks the
--- Heirloom; without it the Vault is left untouched.
-function AscensionReset.Apply(data, newLevel: number, title: string, cfg, incomeOf: ((string) -> number)?)
+-- Heirloom; without it the Vault is left untouched. `keepGadget(id)`: gadgets that survive
+-- (the Ascension Shop's).
+function AscensionReset.Apply(data, newLevel: number, title: string, cfg, incomeOf: ((string) -> number)?, keepGadget: ((string) -> boolean)?)
 	data.Strength = cfg.Strength.Start
 	data.Ascension = newLevel
 	if cfg.Ascension.ResetsCash then
@@ -42,8 +43,24 @@ function AscensionReset.Apply(data, newLevel: number, title: string, cfg, income
 		end
 	end
 	if cfg.Ascension.ResetsGadgets then
-		data.OwnedGadgets = {}
-		data.EquippedGadgets = { "", "", "" }
+		-- Ascension Shop gadgets are kept (and stay equipped); the rest are reset.
+		local kept = {}
+		for id in data.OwnedGadgets do
+			if keepGadget and keepGadget(id) then
+				kept[id] = true
+			end
+		end
+		local equipped = {}
+		for _, id in data.EquippedGadgets do
+			if kept[id] then
+				table.insert(equipped, id)
+			end
+		end
+		data.OwnedGadgets = kept
+		data.EquippedGadgets = {}
+		for i = 1, cfg.Gadgets.Slots do
+			data.EquippedGadgets[i] = equipped[i] or ""
+		end
 	end
 	if not table.find(data.Titles, title) then
 		table.insert(data.Titles, title)

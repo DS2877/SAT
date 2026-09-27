@@ -850,7 +850,7 @@ test("first join gets defaults", function()
 	check(data.Cash == 0 and data.Strength == GameConfig.Strength.Start and data.Ascension == 0, "starting stats")
 	check(data.Vault.Tier == 1, "vault tier 1")
 	check(data.Vault.Stored == 0, "no uncollected earnings")
-	check(#data.EquippedGadgets == 3, "three gadget slots")
+	check(#data.EquippedGadgets == GameConfig.Gadgets.Slots and GameConfig.Gadgets.Slots == 6, "six gadget slots")
 end)
 
 test("partial / old saves are reconciled, never wiped", function()
@@ -924,9 +924,9 @@ test("bats: a free starter, 3 cash upgrades, 7 more behind Ascension, each slapp
 		check(bat.Tier == i, bat.Id .. " tier in order")
 		check(bat.Price > prev.Price, bat.Id .. " costs more than the last")
 		check(bat.Knockback > prev.Knockback, bat.Id .. " slaps further than the last")
-		check(bat.Range >= prev.Range and bat.Range <= 14, bat.Id .. " reach grows a little (a generous melee hitbox)")
+		check(bat.Range >= prev.Range and bat.Range <= 20, bat.Id .. " reach grows a little (a big, forgiving hitbox)")
 	end
-	check(Bats.List[1].Range >= 10 and Bats.List[1].Range <= 12, "starter bat has a generous hitbox")
+	check(Bats.List[1].Range >= 15 and Bats.List[1].Range <= 17, "starter bat has a big hitbox")
 	-- Held like a Roblox tool: Handle = GripFrame * Grip:Inverse(), grip frame +Y up, -Z forward.
 	local handle = Bats.Grip:Inverse()
 	local axis = handle:VectorToWorldSpace(roblox.Vector3.new(0, 1, 0))
@@ -1067,7 +1067,14 @@ test("gadget config", function()
 			check(def.Price >= 0 and def.Cooldown > 0, "valid price/cooldown " .. def.Id)
 		end
 	end
-	check(#Gadgets.List == 8, "8 gadgets designed")
+	check(#Gadgets.List == 13, "13 gadgets designed")
+	for _, def in Gadgets.List do
+		if def.AscensionShop then
+			check((def.RequiredAscension or 0) >= 1 and def.Price >= 1000000, def.Id .. " is an Ascension Shop prize")
+		end
+	end
+	check(Gadgets.Get("bear_trap") ~= nil and not Gadgets.Get("bear_trap").AscensionShop, "the bear trap is for everyone")
+	check(Gadgets.Get("auto_cannon") ~= nil and Gadgets.Get("auto_cannon").AscensionShop, "the cannon is behind Ascension")
 	check(implemented >= 2, "at least 2 gadgets implemented")
 	check(Gadgets.Get("speed_soda").CanUseWhileCarrying, "soda usable while carrying")
 	check(not Gadgets.Get("bubble_blaster").CanUseWhileCarrying, "bubble blaster is chaser-only")
@@ -1606,6 +1613,30 @@ test("the trophy pedestal shows your best treasure automatically", function()
 	check(Economy.AutoTrophy(displays, 5, get) == true and displays.Trophy == rich.Id and displays["1"] == cheap.Id, "a better one swaps places with the trophy")
 	local schema = require("../src/shared/Logic/DataSchema")
 	check(schema.Default().Settings.AutoTrophy == true, "auto is on by default")
+end)
+
+test("new weapons: trap for all, premium ones behind Ascension and kept through it", function()
+	local data = DataSchema.Migrate(nil)
+	data.OwnedGadgets = { speed_soda = true, bear_trap = true, auto_cannon = true }
+	data.EquippedGadgets = { "speed_soda", "auto_cannon", "bear_trap", "", "", "" }
+	AscensionReset.Apply(data, 2, "Ascended", GameConfig, function()
+		return 1
+	end, function(id)
+		local def = Gadgets.Get(id)
+		return def ~= nil and def.AscensionShop == true
+	end)
+	check(data.OwnedGadgets.auto_cannon == true and data.OwnedGadgets.speed_soda == nil, "Ascension Shop gadgets survive an Ascension, the rest reset")
+	check(data.EquippedGadgets[1] == "auto_cannon" and #data.EquippedGadgets == GameConfig.Gadgets.Slots, "the kept one stays equipped")
+	local fs = require("@lune/fs")
+	local combat = fs.readFile("src/server/Services/Combat.luau")
+	check(string.find(combat, "closestRecent(", 1, true) ~= nil, "slaps are lag-tolerant (recent positions count)")
+	local gadgets = fs.readFile("src/server/Services/GadgetService.luau")
+	for _, def in Gadgets.List do
+		if def.Implemented then
+			check(string.find(gadgets, "function Effects." .. def.Id .. "(", 1, true) ~= nil, "effect exists: " .. def.Id)
+		end
+	end
+	check(string.find(gadgets, "(data.Ascension or 0) < (def.RequiredAscension or 0)", 1, true) ~= nil, "buying checks the Ascension level")
 end)
 
 print(("%d passed, %d failed"):format(passed, failed))

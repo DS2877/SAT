@@ -869,6 +869,8 @@ local function buildInfoBoard(district: Folder)
 	return readerPrompt
 end
 
+local ASC_PLINTHS = { -7.2, -2.4, 2.4, 7.2 } -- x of the display plinths (one per premium gadget)
+
 -- ASCENSION SHOP: a small marble-and-gold boutique with a purple crystal roof. Sealed with a
 -- glowing barrier ("OPENING SOON") until GameConfig.AscensionShop.Enabled.
 local function buildAscensionShop(district: Folder)
@@ -902,10 +904,11 @@ local function buildAscensionShop(district: Folder)
 	crystalLight.Brightness = 1.2
 	crystalLight.Range = 20
 	crystalLight.Parent = crystal
-	-- Inside: empty display plinths waiting for the premium gadgets, softly lit.
-	for _, x in { -6, 0, 6 } do
+	-- Inside: a softly lit display plinth for each premium gadget (dressAscensionShop puts the
+	-- little models on top).
+	for _, x in ASC_PLINTHS do
 		cylinder((base * CFrame.new(x, 1.6, depth / 2 - 3)).Position, 2.2, 2.4, { Name = "AscShopPlinth", Color = marble, Material = Enum.Material.Marble, Parent = shop })
-		local glow = part({ Name = "AscShopGlow", Shape = Enum.PartType.Ball, Size = Vector3.new(0.8, 0.8, 0.8), CFrame = base * CFrame.new(x, 3.4, depth / 2 - 3), Color = Color3.fromRGB(210, 160, 255), Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = shop })
+		local glow = part({ Name = "AscShopGlow", Shape = Enum.PartType.Ball, Size = Vector3.new(0.5, 0.5, 0.5), CFrame = base * CFrame.new(x, 5.2, depth / 2 - 3), Color = Color3.fromRGB(210, 160, 255), Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = shop })
 		local light = Instance.new("PointLight")
 		light.Color = Color3.fromRGB(200, 150, 255)
 		light.Brightness = 0.7
@@ -966,12 +969,57 @@ local GADGET_MINIS = {
 			part({ Name = "MiniBoomerang", Size = Vector3.new(0.9, 0.12, 0.28), CFrame = at * CFrame.new(sx * 0.3, 0.8, 0) * CFrame.Angles(0, 0, math.rad(sx * 30)), Color = Color3.fromRGB(190, 110, 255), Material = Enum.Material.SmoothPlastic, Parent = f })
 		end
 	end,
+	bear_trap = function(at: CFrame, f: Folder)
+		part({ Name = "MiniTrapPlate", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.12, 1.3, 1.3), CFrame = at * CFrame.new(0, 0.1, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(90, 88, 84), Material = Enum.Material.Metal, Parent = f })
+		for _, sz in { -1, 1 } do
+			part({ Name = "MiniTrapJaw", Size = Vector3.new(1.2, 0.1, 0.35), CFrame = at * CFrame.new(0, 0.3, sz * 0.4) * CFrame.Angles(math.rad(sz * 55), 0, 0), Color = Color3.fromRGB(180, 175, 170), Material = Enum.Material.Metal, Parent = f })
+		end
+	end,
+	auto_cannon = function(at: CFrame, f: Folder)
+		part({ Name = "MiniCannonBase", Size = Vector3.new(1.1, 0.35, 1.1), CFrame = at * CFrame.new(0, 0.2, 0), Color = Color3.fromRGB(110, 72, 42), Material = Enum.Material.WoodPlanks, Parent = f })
+		part({ Name = "MiniCannonBarrel", Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.3, 0.55, 0.55), CFrame = at * CFrame.new(0, 0.65, 0) * CFrame.Angles(0, math.rad(90), math.rad(20)), Color = Color3.fromRGB(45, 45, 52), Material = Enum.Material.Metal, Parent = f })
+	end,
+	freeze_ray = function(at: CFrame, f: Folder)
+		part({ Name = "MiniRay", Size = Vector3.new(0.45, 0.45, 1.3), CFrame = at * CFrame.new(0, 0.8, 0), Color = Color3.fromRGB(200, 230, 255), Material = Enum.Material.Metal, Parent = f })
+		part({ Name = "MiniRayTip", Shape = Enum.PartType.Ball, Size = Vector3.new(0.5, 0.5, 0.5), CFrame = at * CFrame.new(0, 0.8, -0.75), Color = Color3.fromRGB(120, 220, 255), Material = Enum.Material.Neon, Parent = f })
+		part({ Name = "MiniRayGrip", Size = Vector3.new(0.25, 0.6, 0.3), CFrame = at * CFrame.new(0, 0.35, 0.3), Color = Color3.fromRGB(40, 50, 70), Parent = f })
+	end,
+	tornado = function(at: CFrame, f: Folder)
+		for i = 0, 3 do
+			local w = 0.4 + i * 0.3
+			part({ Name = "MiniTwister", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.35, w, w), CFrame = at * CFrame.new(0, 0.25 + i * 0.4, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(190, 195, 205), Transparency = 0.2, Parent = f })
+		end
+	end,
+	thunder_totem = function(at: CFrame, f: Folder)
+		part({ Name = "MiniTotem", Size = Vector3.new(0.4, 1.3, 0.4), CFrame = at * CFrame.new(0, 0.65, 0), Color = Color3.fromRGB(70, 60, 90), Material = Enum.Material.Slate, Parent = f })
+		part({ Name = "MiniTotemOrb", Shape = Enum.PartType.Ball, Size = Vector3.new(0.6, 0.6, 0.6), CFrame = at * CFrame.new(0, 1.5, 0), Color = Color3.fromRGB(255, 240, 120), Material = Enum.Material.Neon, Parent = f })
+	end,
 	decoy_duck = function(at: CFrame, f: Folder)
 		part({ Name = "MiniDuck", Shape = Enum.PartType.Ball, Size = Vector3.new(1, 0.8, 1.2), CFrame = at * CFrame.new(0, 0.45, 0), Color = Color3.fromRGB(255, 220, 60), Parent = f })
 		part({ Name = "MiniDuckHead", Shape = Enum.PartType.Ball, Size = Vector3.new(0.55, 0.55, 0.55), CFrame = at * CFrame.new(0, 0.95, -0.35), Color = Color3.fromRGB(255, 220, 60), Parent = f })
 		part({ Name = "MiniDuckBeak", Size = Vector3.new(0.3, 0.12, 0.3), CFrame = at * CFrame.new(0, 0.9, -0.68), Color = Color3.fromRGB(255, 140, 40), Parent = f })
 	end,
 }
+
+-- The premium gadgets on the Ascension Shop's plinths (with their Ascension level).
+local function dressAscensionShop(district: Folder)
+	local layout = WorldLayout.AscensionShop
+	local y = WorldLayout.District.Center.Y + 1
+	local base = CFrame.lookAt(Vector3.new(layout.Position.X, y, layout.Position.Z), Vector3.new(layout.Facing.X, y, layout.Facing.Z))
+	local shop = district:FindFirstChild("AscensionShop") or district
+	local i = 0
+	for _, gadget in Gadgets.List do
+		if gadget.AscensionShop and i < #ASC_PLINTHS then
+			i += 1
+			local at = base * CFrame.new(ASC_PLINTHS[i], 2.7, 12 / 2 - 3)
+			local mini = GADGET_MINIS[gadget.Id]
+			if mini then
+				mini(at, shop :: Folder)
+			end
+			billboardSign(part({ Name = "AscItemAnchor", Size = Vector3.new(0.2, 0.2, 0.2), CFrame = at * CFrame.new(0, 3.2, 0), Transparency = 1, CanCollide = false, CanQuery = false, Parent = shop }), ("%s %s"):format(gadget.Icon, gadget.Name:upper()), ("✨ ASCENSION %d"):format(gadget.RequiredAscension or 0), Color3.fromRGB(220, 180, 255), 30, 0)
+		end
+	end
+end
 
 -- GADGET SHOP: a proper tinkerer's workshop - tiled floor, brick walls, a teal-and-cream
 -- awning under a sloped roof, a lit sign, shelves with a little model of every gadget on a
@@ -1022,9 +1070,15 @@ local function buildShop(district: Folder)
 	signText.Text = "🛒 GADGET SHOP"
 	signText.Parent = signGui
 	-- Shelves on the back wall: every gadget as a little model on a plaque.
-	local count = #Gadgets.List
+	local shelved = {}
+	for _, gadget in Gadgets.List do
+		if not gadget.AscensionShop then
+			table.insert(shelved, gadget)
+		end
+	end
+	local count = #shelved
 	local perShelf = math.ceil(count / 2)
-	for i, gadget in Gadgets.List do
+	for i, gadget in shelved do
 		local row = if i <= perShelf then 0 else 1
 		local col = if row == 0 then i - 1 else i - 1 - perShelf
 		local x = -width / 2 + 2.5 + col * (width - 5) / math.max(perShelf - 1, 1)
@@ -2177,6 +2231,7 @@ function WorldBuilder.Build()
 	local batShopPrompt = buildBatShop(district)
 	local infoBoardPrompt = buildInfoBoard(district)
 	local ascensionShopPrompt = buildAscensionShop(district)
+	dressAscensionShop(district)
 	local altarPrompt = buildAscensionAltar(district)
 	local plots = buildVaultPlots(district)
 	local leaderboards = buildLeaderboards(district)

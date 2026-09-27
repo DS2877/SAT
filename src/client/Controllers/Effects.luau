@@ -317,6 +317,34 @@ function handlers.Bubbled(payload)
 	HUD.ShowStatus("BUBBLED!", ("by %s"):format(tostring(payload.By)), Theme.Color.Info, payload.Duration or 2)
 end
 
+function handlers.Trapped(payload)
+	Sounds.Play("Knocked")
+	HUD.ShowStatus("🪤 TRAPPED!", "Stuck for a moment", Theme.Color.Danger, payload.Duration or 2.5)
+end
+
+function handlers.Frozen(payload)
+	Sounds.Play("Splash")
+	HUD.ShowStatus("❄ FROZEN!", ("by %s"):format(tostring(payload.By)), Theme.Color.Info, payload.Duration or 3)
+end
+
+function handlers.TrapSnap(payload)
+	if typeof(payload.Position) == "Vector3" then
+		Sounds.PlayAt("BatHit", payload.Position)
+	end
+end
+
+function handlers.CannonFire(payload)
+	if typeof(payload.Position) == "Vector3" then
+		Sounds.PlayAt("Launch", payload.Position)
+	end
+end
+
+function handlers.Thunder(payload)
+	if typeof(payload.Position) == "Vector3" then
+		Sounds.PlayAt("Knocked", payload.Position)
+	end
+end
+
 function handlers.BubbleShot(payload)
 	if typeof(payload.From) == "Vector3" and typeof(payload.To) == "Vector3" then
 		beam(payload.From, payload.To, Color3.fromRGB(150, 220, 255))

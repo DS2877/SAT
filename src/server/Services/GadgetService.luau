@@ -608,6 +608,433 @@ function Effects.boomerang(player: Player, def, root: BasePart, aim: Vector3?): 
 	return true
 end
 
+-- PLACED & AREA WEAPONS ------------------------------------------------------------------
+-- Bear Trap (everyone), and the Ascension Shop: Auto-Cannon, Freeze Ray, Tornado, Thunder Totem.
+-- Everything placed lives in workspace.PlacedGadgets; cannons can be slapped apart.
+
+local placedFolder: Folder? = nil
+local function placed(): Folder
+	if not placedFolder or not placedFolder.Parent then
+		local f = Instance.new("Folder")
+		f.Name = "PlacedGadgets"
+		f.Parent = workspace
+		placedFolder = f
+	end
+	return placedFolder :: Folder
+end
+
+local function solid(props): Part
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	for key, value in props do
+		(p :: any)[key] = value
+	end
+	return p
+end
+
+-- Ground a few studs in front of the player (or right under them).
+local function groundAhead(root: BasePart, distance: number): Vector3
+	local look = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
+	local direction = if look.Magnitude > 0.1 then look.Unit else Vector3.new(0, 0, -1)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = characterExclusions()
+	local at = root.Position + direction * distance
+	local hit = workspace:Raycast(at + Vector3.new(0, 6, 0), Vector3.new(0, -30, 0), params)
+	return if hit then hit.Position else at - Vector3.new(0, 3, 0)
+end
+
+-- A weapon hit on `victim` from `from`: the same rules as a slap (a carrier is knocked and
+-- drops the treasure). Returns the hit result, or nil if the victim can't be hit.
+local function strike(owner: Player, victim: Player, from: Vector3, power: number): string?
+	if victim == owner or not Combat.CanPlayerHit(owner, victim) then
+		return nil
+	end
+	local result = Combat.ApplyHit(victim, { Attacker = owner, Damage = 0, From = from, Power = power })
+	if owner.Parent then
+		Net.Fire("Feedback", owner, { Type = "HitConfirm", Result = result })
+	end
+	return result
+end
+
+-- Rivals near `position` (not the owner, not protected), nearest first.
+local function rivalsNear(owner: Player, position: Vector3, radius: number): { { Player: Player, Root: BasePart, Distance: number } }
+	local list = {}
+	for _, other in Players:GetPlayers() do
+		local otherRoot = Combat.RootOf(other)
+		if other ~= owner and otherRoot and not Combat.IsPvPProtected(other) then
+			local distance = (otherRoot.Position - position).Magnitude
+			if distance <= radius then
+				table.insert(list, { Player = other, Root = otherRoot, Distance = distance })
+			end
+		end
+	end
+	table.sort(list, function(a, b)
+		return a.Distance < b.Distance
+	end)
+	return list
+end
+
+local function hold(victim: Player, key: string, seconds: number)
+	local t = token(victim, key)
+	Movement.SetLock(victim, key, true)
+	task.delay(seconds, function()
+		if tokenValid(victim, key, t) then
+			Movement.SetLock(victim, key, false)
+		end
+	end)
+end
+
+local function noPlacingHere(player: Player, position: Vector3, what: string): boolean
+	if Zones.InSafeZone(position) then
+		Net.Fire("Notify", player, { Kind = "Toast", Text = ("No %s in the District"):format(what), Tone = "Warn" })
+		return true
+	end
+	return false
+end
+
+-- Slappable placed gadgets (cannons): { Model, Owner, Health, Position }.
+local breakables: { any } = {}
+
+local function removeBreakable(entry)
+	local index = table.find(breakables, entry)
+	if index then
+		table.remove(breakables, index)
+	end
+	if entry.Model.Parent then
+		entry.Model:Destroy()
+	end
+end
+
+-- BEAR TRAP: a steel trap on the ground. The first rival to step in is stuck in place, and a
+-- carrier drops the treasure. Two per player; the third replaces the oldest.
+local traps: { [Player]: { Model } } = {}
+
+function Effects.bear_trap(player: Player, def, root: BasePart): boolean
+	local center = groundAhead(root, 4)
+	if noPlacingHere(player, center, "traps") then
+		return false
+	end
+	local list = traps[player] or {}
+	traps[player] = list
+	while #list >= def.MaxActive do
+		local oldest = table.remove(list, 1)
+		if oldest then
+			oldest:Destroy()
+		end
+	end
+	local model = Instance.new("Model")
+	model.Name = "BearTrap"
+	local steel = Color3.fromRGB(90, 88, 84)
+	solid({ Name = "Plate", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.25, 3.6, 3.6), CFrame = CFrame.new(center + Vector3.new(0, 0.12, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = steel, Material = Enum.Material.DiamondPlate, Parent = model })
+	local jaws = {}
+	for _, side in { -1, 1 } do
+		local jaw = solid({ Name = "Jaw", Size = Vector3.new(3.4, 0.2, 0.9), CFrame = CFrame.new(center + Vector3.new(0, 0.3, side * 1.2)) * CFrame.Angles(math.rad(side * 60), 0, 0), Color = Color3.fromRGB(150, 145, 140), Material = Enum.Material.Metal, Parent = model })
+		for i = -1, 1 do
+			solid({ Name = "Tooth", Size = Vector3.new(0.25, 0.5, 0.25), CFrame = jaw.CFrame * CFrame.new(i * 1.1, 0.3, -side * 0.35), Color = Color3.fromRGB(210, 205, 200), Material = Enum.Material.Metal, Parent = model })
+		end
+		table.insert(jaws, jaw)
+	end
+	solid({ Name = "Trigger", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.2, 1, 1), CFrame = CFrame.new(center + Vector3.new(0, 0.3, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(200, 60, 50), Material = Enum.Material.SmoothPlastic, Parent = model })
+	model.Parent = placed()
+	table.insert(list, model)
+
+	task.spawn(function()
+		local started = os.clock()
+		while model.Parent and os.clock() - started < def.Lifetime do
+			for _, other in Players:GetPlayers() do
+				local otherRoot = Combat.RootOf(other)
+				if other ~= player and otherRoot and not Combat.IsPvPProtected(other) then
+					local offset = otherRoot.Position - center
+					if Vector3.new(offset.X, 0, offset.Z).Magnitude <= def.TriggerRadius and math.abs(offset.Y) < 6 then
+						-- SNAP!
+						for i, jaw in jaws do
+							local side = if i == 1 then -1 else 1
+							jaw.CFrame = CFrame.new(center + Vector3.new(0, 1, side * 0.3)) * CFrame.Angles(math.rad(side * 10), 0, 0)
+						end
+						hold(other, "BearTrap", def.HoldDuration)
+						strike(player, other, center, def.Power)
+						Net.Fire("Feedback", other, { Type = "Trapped", Duration = def.HoldDuration })
+						Net.FireAll("Feedback", { Type = "TrapSnap", Position = center })
+						if player.Parent then
+							Net.Fire("Notify", player, { Kind = "Toast", Text = ("🪤 Your trap caught %s!"):format(other.DisplayName), Tone = "Reward" })
+						end
+						task.delay(def.HoldDuration, function()
+							model:Destroy()
+						end)
+						local index = table.find(list, model)
+						if index then
+							table.remove(list, index)
+						end
+						return
+					end
+				end
+			end
+			task.wait(0.1)
+		end
+		local index = table.find(list, model)
+		if index then
+			table.remove(list, index)
+		end
+		model:Destroy()
+	end)
+	return true
+end
+
+-- AUTO-CANNON: a turret that shoots the nearest rival in range for Duration seconds. Three
+-- slaps break it. One per player (a new one replaces the old).
+local cannons: { [Player]: any } = {}
+
+function Effects.auto_cannon(player: Player, def, root: BasePart): boolean
+	local center = groundAhead(root, 5)
+	if noPlacingHere(player, center, "cannons") then
+		return false
+	end
+	if cannons[player] then
+		removeBreakable(cannons[player])
+	end
+	local model = Instance.new("Model")
+	model.Name = "AutoCannon"
+	local wood = Color3.fromRGB(110, 72, 42)
+	local iron = Color3.fromRGB(45, 45, 52)
+	solid({ Name = "Base", Size = Vector3.new(4, 1.2, 4), CFrame = CFrame.new(center + Vector3.new(0, 0.6, 0)), Color = wood, Material = Enum.Material.WoodPlanks, CanCollide = true, CanQuery = true, Parent = model })
+	for _, side in { -1, 1 } do
+		solid({ Name = "Wheel", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 2.6, 2.6), CFrame = CFrame.new(center + Vector3.new(side * 2.2, 1.3, 0)), Color = wood, Material = Enum.Material.Wood, Parent = model })
+	end
+	local pivot = CFrame.new(center + Vector3.new(0, 2.4, 0))
+	local barrel = solid({ Name = "Barrel", Shape = Enum.PartType.Cylinder, Size = Vector3.new(4, 1.6, 1.6), CFrame = pivot * CFrame.Angles(0, math.rad(90), 0) * CFrame.new(-1.2, 0, 0), Color = iron, Material = Enum.Material.Metal, Parent = model })
+	local flag = solid({ Name = "OwnerFlag", Size = Vector3.new(0.12, 1.2, 1.8), CFrame = CFrame.new(center + Vector3.new(-1.6, 3.6, 1.6)), Color = Color3.fromRGB(220, 60, 60), Material = Enum.Material.Fabric, Parent = model })
+	local tag = Instance.new("BillboardGui")
+	tag.Size = UDim2.fromOffset(160, 26)
+	tag.StudsOffset = Vector3.new(0, 3, 0)
+	tag.MaxDistance = 90
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(1, 1)
+	label.Font = Enum.Font.FredokaOne
+	label.TextScaled = true
+	label.TextColor3 = Color3.fromRGB(255, 120, 100)
+	label.TextStrokeTransparency = 0.2
+	label.Text = ("💣 %s'S CANNON"):format(player.DisplayName:upper())
+	label.Parent = tag
+	tag.Parent = flag
+	model.Parent = placed()
+	local entry = { Model = model, Owner = player, Health = def.Health, Position = center }
+	table.insert(breakables, entry)
+	cannons[player] = entry
+
+	task.spawn(function()
+		local started = os.clock()
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		while model.Parent and player.Parent and os.clock() - started < def.Duration do
+			local muzzle = pivot.Position
+			params.FilterDescendantsInstances = { model, placed(), table.unpack(characterExclusions()) }
+			for _, candidate in rivalsNear(player, muzzle, def.Range) do
+				local target = candidate.Root.Position
+				if not workspace:Raycast(muzzle, target - muzzle, params) and Combat.CanPlayerHit(player, candidate.Player) then
+					-- Swing the barrel round and fire.
+					local aim = CFrame.lookAt(muzzle, target)
+					barrel.CFrame = aim * CFrame.new(0, 0, -1.2) * CFrame.Angles(0, math.rad(90), 0)
+					local ball = solid({ Name = "Cannonball", Shape = Enum.PartType.Ball, Size = Vector3.new(1.3, 1.3, 1.3), CFrame = CFrame.new(muzzle), Color = Color3.fromRGB(25, 25, 30), Material = Enum.Material.Metal, Parent = placed() })
+					local flight = math.clamp(candidate.Distance / 90, 0.12, 0.45)
+					game:GetService("TweenService"):Create(ball, TweenInfo.new(flight, Enum.EasingStyle.Linear), { CFrame = CFrame.new(target) }):Play()
+					Net.FireAll("Feedback", { Type = "CannonFire", Position = muzzle })
+					local victim = candidate.Player
+					task.delay(flight, function()
+						ball:Destroy()
+						local victimRoot = Combat.RootOf(victim)
+						if victimRoot and (victimRoot.Position - target).Magnitude < 9 then
+							strike(player, victim, muzzle, def.Power)
+						end
+					end)
+					break
+				end
+			end
+			task.wait(def.FireInterval)
+		end
+		if cannons[player] == entry then
+			cannons[player] = nil
+		end
+		removeBreakable(entry)
+	end)
+	return true
+end
+
+-- A slap near a placed cannon (not your own) dents it; enough slaps and it breaks.
+local function tryHitPlaced(attacker: Player, attackerRoot: BasePart): boolean
+	for _, entry in breakables do
+		if entry.Owner ~= attacker and (entry.Position - attackerRoot.Position).Magnitude <= GameConfig.Combat.AttackRange + 2 then
+			entry.Health -= 1
+			Net.FireAll("Feedback", { Type = "SlapImpact", Position = entry.Position + Vector3.new(0, 2, 0), BatId = "", Result = "Hit" })
+			if entry.Health <= 0 then
+				Net.Fire("Notify", attacker, { Kind = "Toast", Text = "💥 Cannon destroyed!", Tone = "Reward" })
+				removeBreakable(entry)
+			else
+				Net.Fire("Notify", attacker, { Kind = "Toast", Text = ("💣 Cannon hit! %d more"):format(entry.Health), Tone = "Info" })
+			end
+			return true
+		end
+	end
+	return false
+end
+
+-- FREEZE RAY: aimed beam; the target is frozen solid (can't move), and a carrier drops the loot.
+function Effects.freeze_ray(player: Player, def, root: BasePart, aim: Vector3?): boolean
+	if not aim then
+		return false
+	end
+	local origin = root.Position + Vector3.new(0, 1.5, 0)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = characterExclusions()
+	local now = os.clock()
+	local target: Player? = nil
+	local targetRoot: BasePart? = nil
+	local bestScore = math.huge
+	for _, other in Players:GetPlayers() do
+		local otherRoot = Combat.RootOf(other)
+		if other ~= player and otherRoot and now >= (trapImmuneUntil[other] or 0) then
+			local offset = otherRoot.Position - origin
+			local distance = offset.Magnitude
+			local alignment = if distance > 0.1 then aim:Dot(offset.Unit) else 0
+			if distance <= def.Range and alignment >= def.AimDot and not workspace:Raycast(origin, offset, params) then
+				local score = distance * (2 - alignment)
+				if score < bestScore then
+					target, targetRoot, bestScore = other, otherRoot, score
+				end
+			end
+		end
+	end
+	local endPoint = if targetRoot then targetRoot.Position else origin + aim * def.Range
+	local beam = solid({ Name = "FreezeBeam", Size = Vector3.new(0.5, 0.5, (endPoint - origin).Magnitude), CFrame = CFrame.lookAt((origin + endPoint) / 2, endPoint), Color = Color3.fromRGB(150, 230, 255), Material = Enum.Material.Neon, Transparency = 0.2, Parent = placed() })
+	task.delay(0.25, function()
+		beam:Destroy()
+	end)
+	if not target or not targetRoot or not Combat.CanPlayerHit(player, target) then
+		Net.Fire("Notify", player, { Kind = "Toast", Text = "Missed - aim right at them", Tone = "Warn" })
+		return true
+	end
+	local victim = target :: Player
+	trapImmuneUntil[victim] = now + def.FreezeDuration + def.Immunity
+	strike(player, victim, origin, 12)
+	hold(victim, "Frozen", def.FreezeDuration)
+	local ice = cosmeticPart({ Name = "IceBlock", Shape = Enum.PartType.Block, Size = Vector3.new(5, 7, 5), Color = Color3.fromRGB(170, 225, 255), Material = Enum.Material.Glass })
+	ice.Transparency = 0.35
+	weldVisual(targetRoot, ice, CFrame.new(0, -0.5, 0))
+	ice.Parent = victim.Character
+	Net.Fire("Feedback", victim, { Type = "Frozen", Duration = def.FreezeDuration, By = player.DisplayName })
+	task.delay(def.FreezeDuration, function()
+		ice:Destroy()
+	end)
+	return true
+end
+
+-- TORNADO: a twister that tears ahead; everyone it touches is flung (carriers drop).
+function Effects.tornado(player: Player, def, root: BasePart): boolean
+	local look = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
+	local direction = if look.Magnitude > 0.1 then look.Unit else Vector3.new(0, 0, -1)
+	local position = groundAhead(root, 3)
+	if noPlacingHere(player, position, "tornadoes") then
+		return false
+	end
+	local model = Instance.new("Model")
+	model.Name = "Tornado"
+	local rings = {}
+	for i = 0, 5 do
+		local w = 3 + i * 1.7
+		local ring = solid({ Name = "Funnel", Shape = Enum.PartType.Cylinder, Size = Vector3.new(2.2, w, w), Color = Color3.fromRGB(190, 195, 205), Material = Enum.Material.SmoothPlastic, Transparency = 0.45 + i * 0.05, Parent = model })
+		table.insert(rings, { Part = ring, Height = 1.2 + i * 2.2 })
+	end
+	local dust = Instance.new("ParticleEmitter")
+	dust.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	dust.Color = ColorSequence.new(Color3.fromRGB(200, 200, 205))
+	dust.Size = NumberSequence.new(3, 7)
+	dust.Transparency = NumberSequence.new(0.5, 1)
+	dust.Lifetime = NumberRange.new(0.8, 1.4)
+	dust.Rate = 30
+	dust.Speed = NumberRange.new(4, 8)
+	dust.SpreadAngle = Vector2.new(180, 30)
+	dust.Parent = rings[1].Part
+	model.Parent = placed()
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	task.spawn(function()
+		local started = os.clock()
+		local hit: { [Player]: boolean } = {}
+		local spin = 0
+		while os.clock() - started < def.Duration do
+			params.FilterDescendantsInstances = { model, table.unpack(characterExclusions()) }
+			local nextPosition = position + direction * def.Speed * 0.05
+			local ground = workspace:Raycast(nextPosition + Vector3.new(0, 10, 0), Vector3.new(0, -30, 0), params)
+			if ground and ground.Position.Y - position.Y < 6 then
+				position = ground.Position
+			else
+				break -- a wall or a cliff stops it
+			end
+			spin += 0.6
+			for _, ring in rings do
+				ring.Part.CFrame = CFrame.new(position + Vector3.new(0, ring.Height, 0)) * CFrame.Angles(0, spin, math.rad(90))
+			end
+			for _, candidate in rivalsNear(player, position + Vector3.new(0, 3, 0), def.Radius) do
+				if not hit[candidate.Player] then
+					hit[candidate.Player] = true
+					strike(player, candidate.Player, position - direction * 3, def.Power)
+					Net.Fire("Feedback", candidate.Player, { Type = "Knockback", Direction = direction, Power = 10, Lift = def.Lift })
+				end
+			end
+			task.wait(0.05)
+		end
+		model:Destroy()
+	end)
+	return true
+end
+
+-- THUNDER TOTEM: plant it; lightning strikes every rival around it, three times.
+function Effects.thunder_totem(player: Player, def, root: BasePart): boolean
+	local center = groundAhead(root, 0)
+	if noPlacingHere(player, center, "totems") then
+		return false
+	end
+	local model = Instance.new("Model")
+	model.Name = "ThunderTotem"
+	solid({ Name = "Pole", Size = Vector3.new(1.2, 6, 1.2), CFrame = CFrame.new(center + Vector3.new(0, 3, 0)), Color = Color3.fromRGB(70, 60, 90), Material = Enum.Material.Slate, Parent = model })
+	local orb = solid({ Name = "Orb", Shape = Enum.PartType.Ball, Size = Vector3.new(2, 2, 2), CFrame = CFrame.new(center + Vector3.new(0, 6.8, 0)), Color = Color3.fromRGB(255, 240, 120), Material = Enum.Material.Neon, Parent = model })
+	local glow = Instance.new("PointLight")
+	glow.Color = Color3.fromRGB(255, 240, 150)
+	glow.Range = 20
+	glow.Brightness = 2
+	glow.Parent = orb
+	local ring = solid({ Name = "Reach", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.2, def.Radius * 2, def.Radius * 2), CFrame = CFrame.new(center + Vector3.new(0, 0.2, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(255, 230, 90), Material = Enum.Material.Neon, Transparency = 0.8, Parent = model })
+	model.Parent = placed()
+	task.spawn(function()
+		task.wait(def.Warmup)
+		for _ = 1, def.Strikes do
+			for _, candidate in rivalsNear(player, center, def.Radius) do
+				local at = candidate.Root.Position
+				local bolt = solid({ Name = "Lightning", Size = Vector3.new(0.8, 80, 0.8), CFrame = CFrame.new(at + Vector3.new(0, 40, 0)) * CFrame.Angles(0, 0, math.rad(math.random(-6, 6))), Color = Color3.fromRGB(255, 250, 200), Material = Enum.Material.Neon, Parent = placed() })
+				task.delay(0.2, function()
+					bolt:Destroy()
+				end)
+				strike(player, candidate.Player, center, def.Power)
+			end
+			Net.FireAll("Feedback", { Type = "Thunder", Position = center })
+			ring.Transparency = 0.5
+			task.wait(0.15)
+			ring.Transparency = 0.8
+			task.wait(def.StrikeInterval)
+		end
+		model:Destroy()
+	end)
+	return true
+end
+
 local function sendCooldowns(player: Player)
 	Net.Fire("GadgetState", player, { Cooldowns = cooldowns[player] or {} })
 end
@@ -683,6 +1110,10 @@ local function onBuy(player: Player, id: any)
 	if not def or not def.Implemented or not data or data.OwnedGadgets[id] then
 		return
 	end
+	if (data.Ascension or 0) < (def.RequiredAscension or 0) then
+		Net.Fire("Notify", player, { Kind = "Toast", Text = ("Needs ASCENSION %d"):format(def.RequiredAscension), Tone = "Warn" })
+		return
+	end
 	if not PlayerData.TrySpend(player, def.Price) then
 		Net.Fire("Notify", player, { Kind = "Toast", Text = "Not enough Cash", Tone = "Warn" })
 		return
@@ -693,7 +1124,7 @@ local function onBuy(player: Player, id: any)
 	PlayerData.Milestone(player, "FirstGadgetBought") -- tutorials key off milestones: Ascension wipes gadgets, not these
 	-- Auto-equip into the first empty slot so a purchase is immediately usable.
 	for i = 1, GameConfig.Gadgets.Slots do
-		if data.EquippedGadgets[i] == "" then
+		if (data.EquippedGadgets[i] or "") == "" then
 			equip(player, id, i)
 			break
 		end
@@ -727,6 +1158,7 @@ local function onEquip(player: Player, id: any, slot: any)
 end
 
 function GadgetService.Init()
+	Combat.TryHitPlaced = tryHitPlaced
 	Net.On("UseGadget", onUse, 6)
 	Net.On("BuyGadget", onBuy, 3)
 	Net.On("EquipGadget", onEquip, 5)
@@ -748,6 +1180,17 @@ function GadgetService.Init()
 		cooldowns[player] = nil
 		trapImmuneUntil[player] = nil
 		effectTokens[player] = nil
+		local playerTraps = traps[player]
+		if playerTraps then
+			for _, model in playerTraps do
+				model:Destroy()
+			end
+		end
+		traps[player] = nil
+		if cannons[player] then
+			removeBreakable(cannons[player])
+			cannons[player] = nil
+		end
 	end)
 	Players.PlayerAdded:Connect(function(player)
 		player.CharacterAdded:Connect(function()

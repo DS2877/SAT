@@ -76,8 +76,11 @@ world.BatShopPrompt.Triggered:Connect(function(player)
 	Net.Fire("OpenMenu", player, { Menu = "Bats", Anchor = (world.BatShopPrompt.Parent :: BasePart).Position })
 end)
 world.AscensionShopPrompt.Triggered:Connect(function(player)
-	-- Opens with GameConfig.AscensionShop.Enabled (menu to come); for now a teaser.
-	Net.Fire("Notify", player, { Kind = "Toast", Text = "✨ Opening soon: premium gadgets for Ascended heisters", Tone = "Info" })
+	if GameConfig.AscensionShop.Enabled then
+		Net.Fire("OpenMenu", player, { Menu = "AscensionShop", Anchor = (world.AscensionShopPrompt.Parent :: BasePart).Position })
+	else
+		Net.Fire("Notify", player, { Kind = "Toast", Text = "✨ Opening soon: premium gadgets for Ascended heisters", Tone = "Info" })
+	end
 end)
 world.InfoBoardPrompt.Triggered:Connect(function(player)
 	Net.Fire("OpenMenu", player, { Menu = "News", Anchor = (world.InfoBoardPrompt.Parent :: BasePart).Position })

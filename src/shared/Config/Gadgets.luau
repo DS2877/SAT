@@ -1,6 +1,8 @@
 -- Gadget definitions. Implemented=false gadgets are designed but not yet sold.
 -- CARRIER = RUN / ESCAPE (CanUseWhileCarrying = true)
 -- CHASER = STOP / CONTROL (CanUseWhileCarrying = false)
+-- AscensionShop = true: sold in the ASCENSION SHOP (not the Gadget Shop), needs
+-- RequiredAscension, and is KEPT when you Ascend. Placed gadgets live in workspace.PlacedGadgets.
 
 local Gadgets = {}
 
@@ -124,6 +126,95 @@ Gadgets.List = {
 		CanUseWhileCarrying = true,
 		Implemented = true,
 		Description = "A duck carrying a FAKE treasure waddles off. Guardians and players chase it.",
+	},
+	{
+		Id = "bear_trap",
+		Name = "Bear Trap",
+		Role = "Trap",
+		Icon = "🪤",
+		Price = 12000,
+		Cooldown = 12,
+		Lifetime = 60, -- seconds it waits on the ground
+		MaxActive = 2, -- a third one replaces your oldest
+		TriggerRadius = 3.2,
+		HoldDuration = 2.5, -- snapped: stuck in place this long
+		Power = 25, -- a small jolt (a carrier is knocked and DROPS the treasure)
+		CanUseWhileCarrying = true,
+		Implemented = true,
+		Description = "Drop it on a path. Whoever steps in is stuck - and drops their treasure.",
+	},
+	-- ASCENSION SHOP ------------------------------------------------------------------
+	{
+		Id = "auto_cannon",
+		Name = "Auto-Cannon",
+		Role = "Turret",
+		Icon = "💣",
+		Price = 8000000,
+		RequiredAscension = 1,
+		AscensionShop = true,
+		Cooldown = 75,
+		Duration = 45, -- it guards the spot this long
+		Range = 42,
+		FireInterval = 1.3,
+		Power = 80,
+		Health = 3, -- slaps to break it
+		CanUseWhileCarrying = false,
+		Implemented = true,
+		Description = "Place a cannon that blasts anyone who comes close for 45 s. Guard your route!",
+	},
+	{
+		Id = "freeze_ray",
+		Name = "Freeze Ray",
+		Role = "Control",
+		Icon = "❄",
+		Price = 60000000,
+		RequiredAscension = 2,
+		AscensionShop = true,
+		Cooldown = 20,
+		Range = 70,
+		AimDot = 0.94,
+		FreezeDuration = 3,
+		Immunity = 5,
+		CanUseWhileCarrying = false,
+		NeedsAim = true,
+		Implemented = true,
+		Description = "Aim and freeze a player solid for 3 s. Frozen carriers drop their loot.",
+	},
+	{
+		Id = "tornado",
+		Name = "Tornado",
+		Role = "Area Launch",
+		Icon = "🌪",
+		Price = 500000000,
+		RequiredAscension = 3,
+		AscensionShop = true,
+		Cooldown = 40,
+		Speed = 24,
+		Duration = 3.2, -- travels about 75 studs
+		Radius = 7,
+		Power = 130,
+		Lift = 60,
+		CanUseWhileCarrying = false,
+		Implemented = true,
+		Description = "Unleash a twister that tears ahead and flings everyone in its way.",
+	},
+	{
+		Id = "thunder_totem",
+		Name = "Thunder Totem",
+		Role = "Area Strike",
+		Icon = "⚡",
+		Price = 2500000000,
+		RequiredAscension = 4,
+		AscensionShop = true,
+		Cooldown = 60,
+		Radius = 30,
+		Strikes = 3,
+		StrikeInterval = 1.6,
+		Warmup = 1,
+		Power = 95,
+		CanUseWhileCarrying = false,
+		Implemented = true,
+		Description = "Plant a totem: lightning hits EVERY rival around you, three times.",
 	},
 }
 

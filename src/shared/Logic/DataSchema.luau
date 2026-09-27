@@ -19,7 +19,7 @@ function DataSchema.Default()
 		},
 		OwnedGadgets = {}, -- [gadgetId] = true
 		OwnedBenches = {}, -- [benchTierId] = true (free tiers need no entry)
-		EquippedGadgets = { "", "", "" },
+		EquippedGadgets = { "", "", "", "", "", "" },
 		OwnedBats = {}, -- [batId] = true (the Wooden Bat is free and needs no entry)
 		EquippedBat = "wooden_bat",
 		OwnedCosmetics = {},
@@ -120,7 +120,7 @@ function DataSchema.Migrate(data)
 	if data.EquippedBat == "" then
 		data.EquippedBat = "wooden_bat"
 	end
-	for i = 1, 3 do
+	for i = 1, 6 do -- (GameConfig.Gadgets.Slots; older saves had 3)
 		if type(data.EquippedGadgets[i]) ~= "string" then
 			data.EquippedGadgets[i] = ""
 		end

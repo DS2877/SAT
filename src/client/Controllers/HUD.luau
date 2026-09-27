@@ -1,5 +1,5 @@
 -- Default HUD: stats (top-left), objective / carried treasure (top-centre), navigation hint,
--- extraction bar, danger status, action cluster (attack + 3 gadget slots, bottom-right).
+-- extraction bar, danger status, action cluster (attack + 6 gadget slots, bottom-right).
 -- Event-driven: rebuilds only on state changes; a light 10 Hz loop handles nav + cooldowns.
 
 local Players = game:GetService("Players")
@@ -405,7 +405,9 @@ local function buildExtractionBar()
 	refs.ExtZone = Kit.label({ Text = "", Position = UDim2.fromOffset(0, 50), Size = UDim2.new(1, 0, 0, 18), Font = Theme.Font.Black, TextSize = Theme.TextSize.Small, TextColor3 = Theme.Color.TextDim, Parent = frame })
 end
 
--- Action cluster: attack + 3 gadget slots, clear of the mobile jump button.
+-- Action cluster: SLAP + the bat button on its arc, and the 6 gadget slots as a 2x3 grid to
+-- the left of SLAP (1-3 on the bottom row, nearest the thumb; 4-6 above), clear of the
+-- mobile jump button. DROP takes the bat button's spot while you carry (the bat is away then).
 local function buildActions()
 	local right = if isTouch then 175 else 24
 	local cluster = Kit.new("Frame", {
@@ -413,7 +415,7 @@ local function buildActions()
 		BackgroundTransparency = 1,
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -right, 1, -18),
-		Size = UDim2.fromOffset(310, 240),
+		Size = UDim2.fromOffset(310, 200),
 		Parent = gui,
 	})
 	local attack = Kit.button({
@@ -458,8 +460,8 @@ local function buildActions()
 		Name = "Drop",
 		Silent = true,
 		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -230, 1, -6),
-		Size = UDim2.fromOffset(72, 72),
+		Position = UDim2.new(1, 18, 1, -130),
+		Size = UDim2.fromOffset(64, 64),
 		BackgroundColor3 = Theme.Color.ButtonAlt,
 		TextColor3 = Theme.Color.Text,
 		Radius = Theme.Radius.Round,
@@ -469,25 +471,21 @@ local function buildActions()
 		HUD.DropTreasure()
 	end)
 	Kit.stroke(Theme.Color.Warn, 2, 0.2).Parent = drop
-	Kit.label({ Text = "📦", Size = UDim2.new(1, 0, 0, 34), Position = UDim2.fromOffset(0, 8), TextSize = 28, Parent = drop })
+	Kit.label({ Text = "📦", Size = UDim2.new(1, 0, 0, 30), Position = UDim2.fromOffset(0, 6), TextSize = 24, Parent = drop })
 	Kit.label({ Text = if isTouch then "DROP" else "DROP [G]", Size = UDim2.new(1, 0, 0, 16), Position = UDim2.new(0, 0, 1, -24), TextSize = 12, Font = Theme.Font.Black, Parent = drop })
 	refs.Drop = drop
 
 	refs.Slots = {}
-	-- Gadgets arc around SLAP (radius 128 from its centre, at 180 / 145 / 110 degrees) with
-	-- the BAT button at 74 (radius 124): at least 9 px of clear space between any two buttons.
-	local positions = {
-		UDim2.new(1, -142, 1, -14),
-		UDim2.new(1, -119, 1, -87),
-		UDim2.new(1, -58, 1, -134),
-	}
+	local SIZE, GAP = 58, 8
 	for slot = 1, GameConfig.Gadgets.Slots do
+		local col = (slot - 1) % 3 -- 0 = leftmost
+		local rowIndex = (slot - 1) // 3 -- 0 = bottom row
 		local button = Kit.button({
 			Name = "Gadget" .. slot,
 			Silent = true,
 			AnchorPoint = Vector2.new(1, 1),
-			Position = positions[slot],
-			Size = UDim2.fromOffset(68, 68),
+			Position = UDim2.new(1, -(96 + 14 + (2 - col) * (SIZE + GAP)), 1, -(rowIndex * (SIZE + GAP))),
+			Size = UDim2.fromOffset(SIZE, SIZE),
 			BackgroundColor3 = Theme.Color.Panel,
 			BackgroundTransparency = Theme.Transparency.Panel,
 			Radius = Theme.Radius.Round,
@@ -497,7 +495,7 @@ local function buildActions()
 			HUD.UseGadget(slot)
 		end)
 		Kit.stroke(Theme.Color.Gold, 2, 0.4).Parent = button
-		local icon = Kit.label({ Name = "Icon", Text = "+", Size = UDim2.fromScale(1, 1), TextSize = 32, Parent = button })
+		local icon = Kit.label({ Name = "Icon", Text = "+", Size = UDim2.fromScale(1, 1), TextSize = 28, Parent = button })
 		local cooldown = Kit.new("Frame", {
 			Name = "Cooldown",
 			Size = UDim2.fromScale(1, 1),
@@ -1192,6 +1190,12 @@ function HUD.Init(screenGui: ScreenGui)
 			HUD.UseGadget(2)
 		elseif key == Enum.KeyCode.Three or key == Enum.KeyCode.ButtonY then
 			HUD.UseGadget(3)
+		elseif key == Enum.KeyCode.Four or key == Enum.KeyCode.ButtonX then
+			HUD.UseGadget(4)
+		elseif key == Enum.KeyCode.Five or key == Enum.KeyCode.DPadLeft then
+			HUD.UseGadget(5)
+		elseif key == Enum.KeyCode.Six or key == Enum.KeyCode.DPadRight then
+			HUD.UseGadget(6)
 		elseif key == Enum.KeyCode.G or key == Enum.KeyCode.DPadDown then
 			HUD.DropTreasure()
 		elseif key == Enum.KeyCode.H then

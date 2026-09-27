@@ -1,5 +1,6 @@
--- Gadget shop (opened at the shop counter in the District): BUY -> OWNED -> EQUIP to slot
--- 1/2/3. No upgrade trees.
+-- Gadget shop (opened at the shop counter in the District): BUY -> OWNED -> EQUIP. No upgrade
+-- trees. The same list, filtered, is the ASCENSION SHOP (premium gadgets, Ascension-locked):
+-- Menus/AscensionShop calls Shop.BuildList(root, true).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -8,13 +9,15 @@ local GameConfig = require(Shared.Config.GameConfig)
 local Gadgets = require(Shared.Config.Gadgets)
 local Net = require(Shared.Net)
 
+local ClientState = require(script.Parent.Parent.ClientState)
+
 local UI = script.Parent.Parent.UI
 local Theme = require(UI.Theme)
 local Kit = require(UI.Kit)
 
 local Shop = {}
 
-function Shop.Build(root: Frame)
+function Shop.BuildList(root: Frame, premium: boolean)
 	local scroller = Kit.new("ScrollingFrame", {
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
@@ -27,6 +30,9 @@ function Shop.Build(root: Frame)
 
 	local rows = {}
 	for index, def in Gadgets.List do
+		if (def.AscensionShop == true) ~= premium then
+			continue
+		end
 		local row = Kit.panel({
 			LayoutOrder = if def.Implemented then index else 100 + index,
 			Size = UDim2.new(1, -8, 0, 96),
@@ -98,49 +104,73 @@ function Shop.Build(root: Frame)
 		}, function()
 			Net.Get("BuyGadget"):FireServer(def.Id)
 		end)
-		local equipRow = Kit.new("Frame", {
+		-- One EQUIP / UNEQUIP toggle (6 slots don't fit as buttons on a phone): equips into the
+		-- first free slot, or the last slot when all six are full.
+		local equipped: number? = nil
+		local equipButton = Kit.button({
 			AnchorPoint = Vector2.new(1, 1),
 			Position = UDim2.fromScale(1, 1),
-			Size = UDim2.fromOffset(170, 46),
-			BackgroundTransparency = 1,
+			Size = UDim2.fromOffset(150, 46),
+			Text = "EQUIP",
 			Visible = false,
 			Parent = actions,
-		}, { Kit.list(Enum.FillDirection.Horizontal, 6, Enum.HorizontalAlignment.Right) })
-		local slotButtons = {}
-		for slot = 1, GameConfig.Gadgets.Slots do
-			slotButtons[slot] = Kit.button({
-				LayoutOrder = slot,
-				Size = UDim2.fromOffset(52, 46),
-				Text = tostring(slot),
-				BackgroundColor3 = Theme.Color.ButtonAlt,
-				TextColor3 = Theme.Color.Text,
-				Parent = equipRow,
-			}, function()
-				Net.Get("EquipGadget"):FireServer(def.Id, slot)
-			end)
-		end
-		rows[def.Id] = { Price = price, Buy = buy, EquipRow = equipRow, Slots = slotButtons, Def = def }
+		}, function()
+			local data = ClientState.Data
+			if not data then
+				return
+			end
+			if equipped then
+				Net.Get("EquipGadget"):FireServer("", equipped)
+				return
+			end
+			local slot = GameConfig.Gadgets.Slots
+			for i = 1, GameConfig.Gadgets.Slots do
+				if (data.EquippedGadgets[i] or "") == "" then
+					slot = i
+					break
+				end
+			end
+			Net.Get("EquipGadget"):FireServer(def.Id, slot)
+		end)
+		rows[def.Id] = {
+			Price = price,
+			Buy = buy,
+			Equip = equipButton,
+			SetEquipped = function(slot: number?)
+				equipped = slot
+			end,
+			Def = def,
+		}
 	end
 
 	local function refresh(data)
 		for id, row in rows do
 			local def = row.Def
 			local owned = data.OwnedGadgets[id] == true
+			local locked = (data.Ascension or 0) < (def.RequiredAscension or 0)
 			if not def.Implemented then
 				row.Price.Text = "SOON"
 				row.Price.TextColor3 = Theme.Color.TextDim
 				row.Buy.Visible = false
-				row.EquipRow.Visible = false
+				row.Equip.Visible = false
 			elseif owned then
-				row.Price.Text = "OWNED • EQUIP TO SLOT"
+				local slot = table.find(data.EquippedGadgets, id)
+				row.SetEquipped(slot)
+				row.Price.Text = if slot then ("OWNED • IN SLOT %d"):format(slot) else "OWNED"
 				row.Price.TextColor3 = Theme.Color.Gold
 				row.Buy.Visible = false
-				row.EquipRow.Visible = true
-				for slot, button in row.Slots do
-					local equipped = data.EquippedGadgets[slot] == id
-					button.BackgroundColor3 = if equipped then Theme.Color.Button else Theme.Color.ButtonAlt
-					button.TextColor3 = if equipped then Theme.Color.ButtonText else Theme.Color.Text
-				end
+				row.Equip.Visible = true
+				row.Equip.Text = if slot then "UNEQUIP" else "EQUIP"
+				row.Equip.BackgroundColor3 = if slot then Theme.Color.ButtonAlt else Theme.Color.Button
+				row.Equip.TextColor3 = if slot then Theme.Color.Text else Theme.Color.ButtonText
+			elseif locked then
+				row.Price.Text = Kit.formatCash(def.Price)
+				row.Price.TextColor3 = Theme.Color.TextDim
+				row.Buy.Visible = true
+				row.Buy.BackgroundColor3 = Theme.Color.Disabled
+				row.Buy.TextColor3 = Theme.Color.TextDim
+				row.Buy.Text = ("🔒 ASCENSION %d"):format(def.RequiredAscension)
+				row.Equip.Visible = false
 			else
 				local affordable = data.Cash >= def.Price
 				row.Price.Text = Kit.formatCash(def.Price)
@@ -149,12 +179,16 @@ function Shop.Build(root: Frame)
 				row.Buy.BackgroundColor3 = if affordable then Theme.Color.Safe else Theme.Color.Disabled
 				row.Buy.TextColor3 = if affordable then Color3.fromRGB(10, 40, 16) else Theme.Color.TextDim
 				row.Buy.Text = if affordable then "BUY" else ("NEED %s"):format(Kit.shortCash(def.Price - data.Cash))
-				row.EquipRow.Visible = false
+				row.Equip.Visible = false
 			end
 		end
 	end
 
 	return { Refresh = refresh }
+end
+
+function Shop.Build(root: Frame)
+	return Shop.BuildList(root, false)
 end
 
 return Shop

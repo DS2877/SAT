@@ -264,9 +264,9 @@ GameConfig.Extraction = {
 }
 
 GameConfig.Combat = {
-	AttackRange = 12, -- bat reach on guardians (players: each bat's Range, Config/Bats)
+	AttackRange = 16, -- bat reach on guardians (players: each bat's Range, Config/Bats)
 	AttackCooldown = 0.7,
-	AttackArcDot = -0.15, -- a wide swing: anything in front or beside you (dot of look vector)
+	AttackArcDot = -0.45, -- a huge swing: anything in front, beside, even a bit behind you
 	PvPDamage = 8,
 	KnockbackPower = 45, -- guardians and gadgets; bat slaps use the bat's own Knockback (Config/Bats)
 	ShakenShove = 0.45, -- a carrier's first slap: a short shove (x the bat's knockback)...
@@ -325,8 +325,7 @@ GameConfig.Training = {
 -- each locked behind an Ascension level. The building is in; the shop opens when Enabled is
 -- true and Items are filled in (same shape as Config/Gadgets entries + RequiredAscension).
 GameConfig.AscensionShop = {
-	Enabled = false,
-	Items = {},
+	Enabled = true, -- items: Config/Gadgets entries with AscensionShop = true
 }
 
 GameConfig.Vault = {
@@ -503,7 +502,7 @@ GameConfig.Events = {
 }
 
 GameConfig.Gadgets = {
-	Slots = 3,
+	Slots = 6,
 }
 
 GameConfig.Data = {

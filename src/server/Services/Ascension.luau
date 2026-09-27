@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
 local Treasures = require(Shared.Config.Treasures)
+local Gadgets = require(Shared.Config.Gadgets)
 local AscensionReset = require(Shared.Logic.AscensionReset)
 local Economy = require(Shared.Logic.Economy)
 local Net = require(Shared.Net)
@@ -45,6 +46,9 @@ local function onAscend(player: Player)
 			local id, mutation = Economy.DecodeSlot(value)
 			local def = id and Treasures.Get(id)
 			return if def then Economy.Income(def, mutation) else 0
+		end, function(id)
+			local gadget = Gadgets.Get(id)
+			return gadget ~= nil and gadget.AscensionShop == true
 		end)
 	end)
 	VaultService.Render(player)

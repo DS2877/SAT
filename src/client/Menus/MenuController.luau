@@ -42,6 +42,13 @@ local MENUS = {
 		Subtitle = "Buy gadgets • equip up to 3 on your action bar",
 		Accent = Color3.fromRGB(30, 190, 170),
 	},
+	AscensionShop = {
+		Module = script.Parent.AscensionShop,
+		Title = "ASCENSION SHOP",
+		Icon = "✨",
+		Subtitle = "Premium weapons • each needs an Ascension level • kept when you Ascend",
+		Accent = Color3.fromRGB(150, 80, 230),
+	},
 	Bats = {
 		Module = script.Parent.Bats,
 		Title = "BAT SHOP",

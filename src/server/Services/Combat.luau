@@ -6,6 +6,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
@@ -33,6 +34,43 @@ local lastAttack: { [Player]: number } = {}
 
 -- Guardian hook: set by GuardianService to let players bonk guardians. (attacker, rootPart) -> boolean
 Combat.TryHitGuardian = nil :: ((Player, BasePart) -> boolean)?
+-- Placed-gadget hook (GadgetService): a slap near a rival's cannon dents it.
+Combat.TryHitPlaced = nil :: ((Player, BasePart) -> boolean)?
+
+-- LAG-TOLERANT SLAPS: where everyone was over the last moment (server view, 10x a second).
+-- A slap lands if the target is in reach NOW or was a fraction of a second ago - what the
+-- attacker saw on their screen - so a hit that looked right on a phone counts.
+local HISTORY_SECONDS = 0.35
+local history: { [Player]: { { At: number, Position: Vector3 } } } = {}
+
+local function recordPositions()
+	local now = os.clock()
+	for _, player in Players:GetPlayers() do
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if root then
+			local list = history[player] or {}
+			history[player] = list
+			table.insert(list, { At = now, Position = root.Position })
+			while #list > 0 and now - list[1].At > HISTORY_SECONDS do
+				table.remove(list, 1)
+			end
+		end
+	end
+end
+
+-- Closest the victim has been to `from` (now or recently), and that position.
+local function closestRecent(victim: Player, current: Vector3, from: Vector3): (number, Vector3)
+	local best, bestAt = (current - from).Magnitude, current
+	local samples = history[victim]
+	for _, sample in (samples or {}) :: { { At: number, Position: Vector3 } } do
+		local d = (sample.Position - from).Magnitude
+		if d < best then
+			best, bestAt = d, sample.Position
+		end
+	end
+	return best, bestAt
+end
 
 local function stateFor(player: Player): Stability.State
 	local st = states[player]
@@ -230,8 +268,8 @@ local function onAttack(attacker: Player)
 		if other ~= attacker then
 			local otherRoot = rootOf(other)
 			if otherRoot then
-				local offset = otherRoot.Position - root.Position
-				local distance = offset.Magnitude
+				local distance, seenAt = closestRecent(other, otherRoot.Position, root.Position)
+				local offset = seenAt - root.Position
 				if distance <= range and distance < bestDistance then
 					local flat = Vector3.new(offset.X, 0, offset.Z)
 					local facing = if flat.Magnitude > 0.1 then look:Dot(flat.Unit) else 1
@@ -259,6 +297,9 @@ local function onAttack(attacker: Player)
 	if Decoys.PopNear(root.Position + look * 3, range, attacker) then
 		return
 	end
+	if Combat.TryHitPlaced and Combat.TryHitPlaced(attacker, root) then
+		return
+	end
 	if Combat.TryHitGuardian then
 		Combat.TryHitGuardian(attacker, root)
 	end
@@ -273,6 +314,14 @@ end
 
 function Combat.Init()
 	Net.On("Attack", onAttack, 4)
+	local sinceSample = 0
+	RunService.Heartbeat:Connect(function(dt)
+		sinceSample += dt
+		if sinceSample >= 0.1 then
+			sinceSample = 0
+			recordPositions()
+		end
+	end)
 	Players.PlayerAdded:Connect(function(player)
 		player:SetAttribute("Stability", "Stable")
 		player.CharacterAdded:Connect(function()
@@ -284,6 +333,7 @@ function Combat.Init()
 	Players.PlayerRemoving:Connect(function(player)
 		states[player] = nil
 		lastAttack[player] = nil
+		history[player] = nil
 	end)
 end
 
