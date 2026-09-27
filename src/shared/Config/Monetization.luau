@@ -98,10 +98,11 @@ Monetization.Products = {
 }
 
 -- VAULT SKIN game passes (Config/VaultSkins, Menus/VaultSkins): cosmetic only. Diamond Royale
--- is the flex - buy-only and pricey on purpose.
+-- is the flex - buy-only and pricey on purpose. Created 2026-09-27 by the "Monetization setup"
+-- workflow.
 Monetization.SkinPasses = {
 	SkinCandy = {
-		Id = 0,
+		Id = 1998603106,
 		Price = 149,
 		Icon = "🍭",
 		Name = "Candy Kingdom Vault",
@@ -109,7 +110,7 @@ Monetization.SkinPasses = {
 		Skin = "candy",
 	},
 	SkinNeon = {
-		Id = 0,
+		Id = 1999095051,
 		Price = 199,
 		Icon = "⚡",
 		Name = "Neon Cyber Vault",
@@ -117,7 +118,7 @@ Monetization.SkinPasses = {
 		Skin = "neon",
 	},
 	SkinCrypt = {
-		Id = 0,
+		Id = 1998441032,
 		Price = 199,
 		Icon = "👻",
 		Name = "Haunted Crypt Vault",
@@ -125,7 +126,7 @@ Monetization.SkinPasses = {
 		Skin = "crypt",
 	},
 	SkinPirate = {
-		Id = 0,
+		Id = 1999497076,
 		Price = 249,
 		Icon = "🏴",
 		Name = "Pirate's Cove Vault",
@@ -133,7 +134,7 @@ Monetization.SkinPasses = {
 		Skin = "pirate",
 	},
 	SkinDragon = {
-		Id = 0,
+		Id = 1998842998,
 		Price = 399,
 		Icon = "🐉",
 		Name = "Dragon's Hoard Vault",
@@ -141,7 +142,7 @@ Monetization.SkinPasses = {
 		Skin = "dragon",
 	},
 	SkinDiamond = {
-		Id = 0,
+		Id = 1999167032,
 		Price = 1999,
 		Icon = "💎",
 		Name = "Diamond Royale Vault",
