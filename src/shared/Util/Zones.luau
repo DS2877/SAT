@@ -18,12 +18,20 @@ function Zones.FlatDistance(a: Vector3, b: Vector3): number
 	return flatDistance(a, b)
 end
 
--- Returns the extraction zone definition containing `position`, if any.
+-- Returns the extraction zone definition containing `position`, if any: a cylinder over the
+-- shrine. Tall enough that standing on the dais, jumping on it or stepping on its obelisk
+-- bases always counts, but not a floor above or a cave below it. (Measured against both the
+-- ground the server found and the configured height, so a bad measurement can't disable it.)
 function Zones.ExtractionZoneAt(position: Vector3)
 	for _, zone in WorldLayout.ExtractionZones do
 		local zonePos = zone.ResolvedPosition or zone.Position
-		if flatDistance(position, zonePos) <= zone.Radius and math.abs(position.Y - zonePos.Y) <= 12 then
-			return zone
+		if flatDistance(position, zonePos) <= zone.Radius then
+			for _, y in { zonePos.Y, zone.Position.Y } do
+				local dy = position.Y - y
+				if dy >= -8 and dy <= 18 then
+					return zone
+				end
+			end
 		end
 	end
 	return nil

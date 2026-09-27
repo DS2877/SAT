@@ -6,8 +6,9 @@ local TerrainGen = {}
 
 local RES = 4
 local HALF = 608 -- the main generated square is [-HALF, HALF] on X and Z
--- The Deep South strip, generated too: x -384..384, z -1312..-608 (whole 64-stud chunks).
-local SOUTH_STRIP = { X0 = -384, Z0 = -1312, CellsX = 192, CellsZ = 176 }
+-- The Deep South strip, generated too: x -384..384, z -1504..-608 (whole 64-stud chunks) - the
+-- glacier and the sea under the Starfall Isles.
+local SOUTH_STRIP = { X0 = -384, Z0 = -1504, CellsX = 192, CellsZ = 224 }
 local Y_MIN = -28
 local Y_MAX = 72
 local GROUND = 10
@@ -64,12 +65,22 @@ TerrainGen.FLAT_ZONES = {
 	{ 70, -905, 6, 10 },
 	{ 40, -975, 6, 10 },
 	{ 150, -985, 6, 10 },
-	{ -25, -1015, 6, 10 },
+	{ 60, -1040, 6, 10 },
+	{ -150, -1040, 6, 10 },
+	{ -30, -1080, 6, 10 },
+	{ 175, -1045, 6, 10 },
+	{ -185, -1090, 6, 10 },
+	{ 90, -1100, 6, 10 },
 	{ -145, -985, 30, 12 }, -- the frozen lake
 	{ -3, -900, 17, 10 }, -- ice arch over the trail
 	{ 0, -1003, 17, 10 }, -- ice arch over the trail
-	{ 8, -1218, 8, 6 }, -- (the Observatory, secret: over the sea)
-	{ -122, -1240, 8, 6 }, -- (the Rift, secret: over the sea)
+	{ 3, -1095, 17, 10 }, -- ice arch over the trail
+	{ -95, -1060, 30, 14 }, -- the Ice Cathedral
+	{ 135, -1080, 30, 14 }, -- the Icefall + hunters' lodge
+	{ 200, -930, 6, 10 }, -- the far east shelf
+	{ -205, -975, 6, 10 }, -- the far west shelf
+	{ 10, -1388, 8, 6 }, -- (the Observatory, secret: over the sea)
+	{ -140, -1400, 8, 6 }, -- (the Rift, secret: over the sea)
 }
 
 -- FROSTPEAK peaks: extra-tall hills in a ring around the frozen lake.
@@ -272,10 +283,11 @@ end
 TerrainGen.SOUTH = {
 	ChannelStart = -430, -- the main island fades into sea from here...
 	Start = -505, -- ...and the peninsula begins here
-	End = -1005, -- its southern tip (Starfall Isles float beyond)
+	End = -1125, -- its southern tip (Starfall Isles float beyond)
 	HalfWidth = 215,
+	RimeWiden = 40, -- the glacier spreads wider than the lowlands
 	RimeStart = -790, -- the glacier rises from here
-	StarStart = -1045, -- the Starfall Isles begin past the glacier tip
+	StarStart = -1165, -- the Starfall Isles begin past the glacier tip
 	PlateauHeight = 40,
 	-- Rimeheart's crevasses (z of each; World/DeepSouth/Rime.CREVASSES): no relief near them.
 	CrevasseZ = { -880, -950 },
@@ -305,6 +317,7 @@ function TerrainGen.SouthHeight(x: number, z: number): (number?, number)
 		return nil, 1
 	end
 	local half = S.HalfWidth + noise2(0, z, 1 / 90, 131) * 30 + noise2(x, z, 1 / 60, 137) * 12
+	half += S.RimeWiden * smoothstep((S.RimeStart - z) / 60)
 	local north = smoothstep((S.Start + 25 - z) / 60)
 	local southEnd = smoothstep((z - (S.End - 55)) / 70)
 	half *= math.min(north, southEnd)

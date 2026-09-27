@@ -165,12 +165,17 @@ local function placeMarker(record: Record, ground: Vector3)
 end
 
 -- Safety net: a treasure must never end up inside the ground or under water (terrain that
--- changed after a spot was measured, a spot measured through a gap, a drop on a slope...).
--- If the terrain cell just above `base` is solid or water, lift it onto the surface. Air
--- pockets (caves, crypts, inside buildings) are left alone.
+-- changed after a spot was measured, a spot measured through a gap, a drop on a slope, a
+-- storm strike in a hollow...), however deep it is. Terrain-only rays: one down from high
+-- above finds the terrain's top surface; if that is above `base`, one up from `base` tells a
+-- cave (it meets a ceiling: leave it, crypts and tunnels are meant to be under ground) from
+-- solid ground or water (no ceiling: lift it onto the top).
 local surfaceParams = RaycastParams.new()
 surfaceParams.FilterType = Enum.RaycastFilterType.Exclude
 surfaceParams.IgnoreWater = false
+local terrainParams = RaycastParams.new()
+terrainParams.FilterType = Enum.RaycastFilterType.Include
+terrainParams.IgnoreWater = false
 local function refreshSurfaceFilter()
 	local exclude: { Instance } = { folder, markerFolder }
 	for _, p in Players:GetPlayers() do
@@ -182,24 +187,20 @@ local function refreshSurfaceFilter()
 end
 
 local function unburied(base: Vector3): Vector3
-	local probe = base + Vector3.new(0, 1.5, 0)
-	local ok, materials, occupancies = pcall(function()
-		local region = Region3.new(probe - Vector3.new(0.1, 0.1, 0.1), probe + Vector3.new(0.1, 0.1, 0.1)):ExpandToGrid(4)
-		return workspace.Terrain:ReadVoxels(region, 4)
-	end)
-	if not ok or not materials then
+	terrainParams.FilterDescendantsInstances = { workspace.Terrain }
+	local top = workspace:Raycast(base + Vector3.new(0, 150, 0), Vector3.new(0, -151, 0), terrainParams)
+	if not top or top.Position.Y <= base.Y + 0.3 then
 		return base
 	end
-	local material = materials[1][1][1]
-	if material == Enum.Material.Air or occupancies[1][1][1] < 0.6 then
-		return base
+	local rise = top.Position.Y - base.Y
+	local ceiling = workspace:Raycast(base + Vector3.new(0, 0.5, 0), Vector3.new(0, rise, 0), terrainParams)
+	if ceiling and ceiling.Distance > 1 and ceiling.Position.Y < top.Position.Y - 0.5 then
+		return base -- a cave, a crypt, a tunnel
 	end
+	-- Buried: onto the top (and onto anything built there, like a floor or a bridge).
 	refreshSurfaceFilter()
-	local hit = workspace:Raycast(base + Vector3.new(0, 60, 0), Vector3.new(0, -60, 0), surfaceParams)
-	if hit and hit.Position.Y > base.Y + 0.5 then
-		return hit.Position
-	end
-	return base
+	local hit = workspace:Raycast(top.Position + Vector3.new(0, 6, 0), Vector3.new(0, -7, 0), surfaceParams)
+	return if hit then hit.Position else top.Position
 end
 
 -- On a slope (a dune, a ridge, a hillside) a big treasure would sink into the uphill side:

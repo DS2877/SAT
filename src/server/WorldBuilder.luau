@@ -1830,6 +1830,18 @@ local function buildExtractionZones()
 	local colors = { Safe = C.Safe, Dangerous = C.Danger, Secret = C.Secret }
 	for _, zone in WorldLayout.ExtractionZones do
 		local ground = groundAt(zone.Position.X, zone.Position.Z, zone.RayFrom)
+		if not zone.RayFrom then
+			-- Out in the open the shrine stands on the terrain, never on a roof, a branch or a
+			-- prop that happens to be above it.
+			local terrainOnly = RaycastParams.new()
+			terrainOnly.FilterType = Enum.RaycastFilterType.Include
+			terrainOnly.FilterDescendantsInstances = { workspace.Terrain }
+			terrainOnly.IgnoreWater = true
+			local hit = workspace:Raycast(Vector3.new(zone.Position.X, 300, zone.Position.Z), Vector3.new(0, -360, 0), terrainOnly)
+			if hit and ground.Y - hit.Position.Y > 3 then
+				ground = hit.Position
+			end
+		end
 		zone.ResolvedPosition = ground
 		local color = colors[zone.Category]
 		local zf = folder(zone.Id, zonesFolder)

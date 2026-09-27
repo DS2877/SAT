@@ -30,9 +30,9 @@ local MapView = {}
 
 MapView.WIDTH, MapView.HEIGHT = 960, 540
 
-local K = 0.5625 -- px per stud
-local Z0 = 420 -- world z at the left edge
-local X0 = -480 -- world x at the top edge
+local K = 0.5 -- px per stud
+local Z0 = 440 -- world z at the left edge (the right edge is z -1480, past the last isle)
+local X0 = -540 -- world x at the top edge
 local ISLAND_R = 455
 local LOOT_TIERS = { "Common", "Uncommon", "Rare", "Epic", "Legendary" }
 local INK = Color3.fromRGB(20, 22, 34)
@@ -47,20 +47,22 @@ local CARDS = {
 	Ruins = { 250, -170 },
 	Falls = { 110, -320 },
 	Ember = { 175, -600 },
-	Rime = { 0, -915 },
-	Star = { 200, -1160 },
+	Rime = { 0, -960 },
+	Star = { 250, -1330 },
 }
--- The Deep South bands (world z) and the isles (mirrors World/DeepSouth).
-local SOUTH = { Ember = { -505, -790 }, Rime = { -790, -1045 }, HalfX = 215 }
+-- The Deep South bands (world z, half width in x) and the isles (mirrors World/DeepSouth).
+local SOUTH = { Ember = { -505, -790 }, Rime = { -790, -1165 }, Half = { Ember = 215, Rime = 250 } }
 local ISLES = {
-	Landing = { 0, -1085, 24 },
-	Garden = { -72, -1120, 17 },
-	Moonstone = { 72, -1122, 17 },
-	Skyport = { 120, -1190, 19 },
-	Starwell = { -60, -1180, 17 },
-	Observatory = { 8, -1218, 16 },
+	Landing = { 0, -1215, 36 },
+	Garden = { -94, -1260, 26 },
+	Moonstone = { 94, -1263, 26 },
+	Skyport = { 156, -1352, 28 },
+	Starwell = { -78, -1338, 26 },
+	Observatory = { 10, -1388, 22 },
+	CometReef = { -195, -1225, 24 },
+	NebulaShelf = { 200, -1230, 24 },
 }
-local LIGHT_BRIDGES = { { "Landing", "Garden" }, { "Moonstone", "Skyport" }, { "Observatory", "Moonstone" } }
+local LIGHT_BRIDGES = { { "Landing", "Garden" }, { "Moonstone", "Skyport" }, { "Observatory", "Moonstone" }, { "Garden", "CometReef" }, { "Moonstone", "NebulaShelf" } }
 -- The main road south, from the Falls up the cliff, over the ridge and down the spine.
 local SPINE = {
 	{ 0, -270 },
@@ -73,8 +75,10 @@ local SPINE = {
 	{ 12, -786 },
 	{ 0, -852 },
 	{ -5, -915 },
-	{ 0, -1030 },
-	{ 0, -1085 },
+	{ 0, -1040 },
+	{ 4, -1095 },
+	{ 0, -1150 },
+	{ 0, -1215 },
 }
 local EXIT_COLORS = { Safe = Color3.fromRGB(80, 230, 110), Dangerous = Color3.fromRGB(255, 150, 40), Secret = Color3.fromRGB(190, 110, 255) }
 
@@ -275,8 +279,8 @@ function MapView.Build(parent: Frame)
 		local z1, z2 = SOUTH[area][1], SOUTH[area][2]
 		bands[area] = Kit.new("Frame", {
 			Name = area,
-			Position = at(-SOUTH.HalfX, z1),
-			Size = UDim2.fromOffset((z1 - z2) * K, SOUTH.HalfX * 2 * K),
+			Position = at(-SOUTH.Half[area], z1),
+			Size = UDim2.fromOffset((z1 - z2) * K, SOUTH.Half[area] * 2 * K),
 			BackgroundColor3 = rgb(Regions.Info[area].Color):Lerp(Color3.fromRGB(30, 26, 40), 0.4),
 			BorderSizePixel = 0,
 			ZIndex = 2,
@@ -288,14 +292,14 @@ function MapView.Build(parent: Frame)
 	blob(cinder, UDim2.fromScale(0.5, 0.5), 60 * K, Color3.fromRGB(255, 110, 30), 4)
 	line(canvas, at(120, -700), at(-20, -600), 3, Color3.fromRGB(255, 110, 30), 0.1, 3)
 	for _, z in { -880, -950 } do
-		line(canvas, at(-SOUTH.HalfX + 10, z), at(SOUTH.HalfX - 10, z - 12), 3, Color3.fromRGB(20, 40, 70), 0, 3)
+		line(canvas, at(-SOUTH.Half.Rime + 30, z), at(SOUTH.Half.Rime - 30, z - 12), 3, Color3.fromRGB(20, 40, 70), 0, 3)
 	end
 	-- The Starfall Isles over the night sea.
 	for _, pair in LIGHT_BRIDGES do
 		local a, b = ISLES[pair[1]], ISLES[pair[2]]
 		line(canvas, at(a[1], a[2]), at(b[1], b[2]), 2, Color3.fromRGB(160, 220, 255), 0.2, 3)
 	end
-	line(canvas, at(14, -1022), at(0, -1085), 2, Color3.fromRGB(160, 220, 255), 0.2, 3)
+	line(canvas, at(14, -1142), at(0, -1215), 2, Color3.fromRGB(160, 220, 255), 0.2, 3)
 	for _, isle in ISLES do
 		local b = blob(canvas, at(isle[1], isle[2]), isle[3] * 2 * K, Color3.fromRGB(120, 170, 110), 4)
 		Kit.stroke(Color3.fromRGB(200, 170, 255), 1.5, 0.3).Parent = b
@@ -362,7 +366,7 @@ function MapView.Build(parent: Frame)
 	for _, area in { "Ember", "Rime" } do
 		veil(area, bands[area].Position, bands[area].Size)
 	end
-	veil("Star", at(-160, -1050), UDim2.fromOffset((1286 - 1050) * K, 320 * K))
+	veil("Star", at(-260, -1170), UDim2.fromOffset((1480 - 1170) * K, 520 * K))
 
 	-- REGION CARDS ---------------------------------------------------------------------------------
 	local cardLayer = Kit.new("Frame", { Name = "Cards", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 20, Parent = canvas })

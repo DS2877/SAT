@@ -23,6 +23,7 @@ local Net = require(Shared.Net)
 
 local TreasureService = require(script.Parent.TreasureService)
 local Combat = require(script.Parent.Combat)
+local TerrainGen = require(script.Parent.Parent.World.TerrainGen)
 
 local RegionStorms = {}
 
@@ -131,6 +132,18 @@ local function projectile(stormId: string, color: Color3, parent: Instance): Bas
 	return bomb
 end
 
+-- Storm loot only lands on open ground: never at the bottom of a crevasse, in a lava river's
+-- trench or a hot spring (all carved below the natural surface), nor in the sea.
+local function openGround(ground: Vector3): boolean
+	if ground.Y < 1 then
+		return false
+	end
+	if ground.Z < WorldLayout.DeepSouth.StarStart then
+		return true -- the isles are parts over the sea: whatever the strike hit is an island
+	end
+	return ground.Y >= TerrainGen.Height(ground.X, ground.Z) - 2.5
+end
+
 local function impact(storm, stormId: string, ground: Vector3, color: Color3, parent: Instance)
 	local blast = Instance.new("Explosion")
 	blast.Position = ground + Vector3.new(0, 1, 0)
@@ -159,7 +172,7 @@ local function impact(storm, stormId: string, ground: Vector3, color: Color3, pa
 			end
 		end
 	end
-	if rng:NextNumber() < storm.LootChance then
+	if rng:NextNumber() < storm.LootChance and openGround(ground) then
 		local def = rollLoot(storm)
 		if def then
 			TreasureService.SpawnFalling(def, ground, 6, 0.35, LOOT_LIFETIME, storm.Area)
@@ -222,8 +235,8 @@ function RegionStorms.Run(stormId: string, publish, groundAt: (Vector3) -> Vecto
 	local storm = GameConfig.Events.Storms[stormId]
 	local centre = if stormId == "Eruption"
 		then Vector3.new(-100, 100, -650)
-		elseif stormId == "Blizzard" then Vector3.new(0, 40, -915)
-		else Vector3.new(0, 60, -1150)
+		elseif stormId == "Blizzard" then Vector3.new(0, 40, -960)
+		else Vector3.new(0, 60, -1290)
 	local site = { Area = storm.Area, Name = storm.Site, Position = centre }
 	publish(stormId, storm.Name, site, workspace:GetServerTimeNow() + storm.Duration)
 	Net.FireAll("Notify", { Kind = "Banner", Title = ("%s %s!"):format(storm.Icon, storm.Name), Text = storm.Text, Tone = "Danger" })

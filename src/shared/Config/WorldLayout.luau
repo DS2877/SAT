@@ -47,7 +47,7 @@ WorldLayout.Waystones = {
 	Regions = {
 		{ Area = "Ember", Name = "ASHEN CAMP", Stone = Vector3.new(10, 10, -540) },
 		{ Area = "Rime", Name = "GLACIER GORGE", Stone = Vector3.new(14, 40, -862) },
-		{ Area = "Star", Name = "LANDING ISLE", Stone = Vector3.new(-12, 60, -1076) },
+		{ Area = "Star", Name = "LANDING ISLE", Stone = Vector3.new(-14, 60, -1196) },
 	},
 }
 -- Leaderboards: arc behind the fountain, facing the spawn
@@ -113,8 +113,8 @@ WorldLayout.ExtractionZones = {
 		Id = "skyport",
 		Name = "Skyport",
 		Category = "Secret",
-		Position = Vector3.new(120, 55, -1190),
-		Radius = 13,
+		Position = Vector3.new(156, 55, -1352),
+		Radius = 14,
 		RayFrom = 80,
 	},
 }
@@ -164,11 +164,11 @@ WorldLayout.LaunchPads = {
 	{ Name = "Witch Geyser", Position = Vector3.new(308, 10, 165), Target = Vector3.new(330, 39.5, 144), Color = { 200, 120, 255 } },
 	-- The Deep South (World/DeepSouth).
 	{ Name = "Cinder Vent", Position = Vector3.new(-15, 22, -665), Target = Vector3.new(-76, 111, -650), Color = { 255, 120, 40 } },
-	{ Name = "Starfall Launch", Position = Vector3.new(0, 40, -1036), Target = Vector3.new(0, 61, -1085), Color = { 190, 140, 255 }, RequiredAscension = 3 },
-	{ Name = "Moonstone Updraft", Position = Vector3.new(16, 60, -1098), Target = Vector3.new(66, 81, -1118), Color = { 150, 220, 255 } },
-	{ Name = "Starwell Updraft", Position = Vector3.new(-74, 72, -1132), Target = Vector3.new(-62, 96, -1172), Color = { 255, 230, 160 } },
-	{ Name = "Observatory Updraft", Position = Vector3.new(-48, 95, -1190), Target = Vector3.new(2, 121, -1212), Color = { 150, 220, 255 } },
-	{ Name = "???", Position = Vector3.new(-71, 95, -1191), Target = Vector3.new(-120, 111, -1238), Color = { 190, 90, 255 } },
+	{ Name = "Starfall Launch", Position = Vector3.new(0, 40, -1156), Target = Vector3.new(0, 61, -1200), Color = { 190, 140, 255 }, RequiredAscension = 3 },
+	{ Name = "Moonstone Updraft", Position = Vector3.new(24, 60, -1228), Target = Vector3.new(80, 81, -1256), Color = { 150, 220, 255 } },
+	{ Name = "Starwell Updraft", Position = Vector3.new(-91, 72, -1278), Target = Vector3.new(-81, 96, -1324), Color = { 255, 230, 160 } },
+	{ Name = "Observatory Updraft", Position = Vector3.new(-59, 95, -1349), Target = Vector3.new(-2, 121, -1381), Color = { 150, 220, 255 } },
+	{ Name = "???", Position = Vector3.new(-93, 95, -1353), Target = Vector3.new(-136, 111, -1396), Color = { 190, 90, 255 } },
 }
 
 WorldLayout.Volcano = {
@@ -182,16 +182,16 @@ WorldLayout.Volcano = {
 WorldLayout.DeepSouth = {
 	EmberStart = -505, -- Emberfall: lava lowlands (Ascension 1)
 	RimeStart = -790, -- Rimeheart: the glacier (Ascension 2)
-	StarStart = -1045, -- Starfall Isles: floating islands beyond the glacier tip (Ascension 3)
+	StarStart = -1165, -- Starfall Isles: floating islands beyond the glacier tip (Ascension 3)
 	PlateauHeight = 40, -- Rimeheart's ice plateau
-	StarShore = Vector3.new(0, 42, -1012), -- where you wash up after falling from the isles
+	StarShore = Vector3.new(0, 42, -1132), -- where you wash up after falling from the isles
 	-- Where RegionGates sends you back to when you try to get into a region you haven't
 	-- unlocked, any way at all (walking, swimming, climbing): the start of the way in, on the
 	-- side you're allowed on.
 	Returns = {
 		Ember = Vector3.new(52, 90, -368), -- the top of the Ashen Pass (on the mountain terrace)
 		Rime = Vector3.new(16, 14, -772), -- the foot of the glacier climb (Emberfall side)
-		Star = Vector3.new(0, 42, -1010), -- the glacier tip, before the Starfall Rune Gate
+		Star = Vector3.new(0, 42, -1130), -- the glacier tip, before the Starfall Rune Gate
 	},
 }
 
@@ -222,8 +222,8 @@ WorldLayout.RegionHearts = {
 	Frost = Vector3.new(-290, 10, 250),
 	Falls = Vector3.new(20, 10, -270),
 	Ember = Vector3.new(60, 12, -650),
-	Rime = Vector3.new(0, 40, -915),
-	Star = Vector3.new(0, 60, -1085),
+	Rime = Vector3.new(0, 40, -960),
+	Star = Vector3.new(0, 60, -1240),
 }
 
 -- Treasure spawn points. WHAT spawns follows the region's danger (GameConfig.Treasure
@@ -311,11 +311,11 @@ WorldLayout.TreasureSpawns = {
 	{ Area = "Ember", Position = Vector3.new(115, 12, -560) }, -- the obsidian temple's altar
 	{ Area = "Ember", Position = Vector3.new(-40, 12, -545) },
 	{ Area = "Ember", Position = Vector3.new(160, 12, -600) },
-	{ Area = "Ember", Position = Vector3.new(95, 12, -655) },
+	{ Area = "Ember", Position = Vector3.new(80, 12, -680) }, -- (clear of the great lava river)
 	{ Area = "Ember", Position = Vector3.new(20, 12, -700) },
 	{ Area = "Ember", Position = Vector3.new(128, 12, -752) }, -- inside the Lava Outpost
 	{ Area = "Ember", Position = Vector3.new(-150, 12, -730) }, -- the mining camp
-	{ Area = "Ember", Position = Vector3.new(-195, 12, -625) },
+	{ Area = "Ember", Position = Vector3.new(-160, 12, -640) }, -- (inland: not on the west shore)
 	{ Area = "Ember", Position = Vector3.new(60, 12, -735) },
 	{ Area = "Ember", Position = Vector3.new(-40, 12, -778) }, -- the bathhouse
 	{ Area = "Ember", Position = Vector3.new(160, 12, -780) }, -- the Steamfields
@@ -331,15 +331,32 @@ WorldLayout.TreasureSpawns = {
 	{ Area = "Rime", Position = Vector3.new(40, 40, -975) },
 	{ Area = "Rime", Position = Vector3.new(-60, 40, -990) }, -- the igloo village
 	{ Area = "Rime", Position = Vector3.new(150, 40, -985) },
-	{ Area = "Rime", Position = Vector3.new(-25, 40, -1015) }, -- the glacier tip
+	{ Area = "Rime", Position = Vector3.new(-25, 40, -1015) },
+	{ Area = "Rime", Position = Vector3.new(200, 40, -930) }, -- the far east shelf
+	{ Area = "Rime", Position = Vector3.new(-205, 40, -975) }, -- the far west shelf
+	{ Area = "Rime", Position = Vector3.new(60, 40, -1040) },
+	{ Area = "Rime", Position = Vector3.new(-150, 40, -1040) },
+	{ Area = "Rime", Position = Vector3.new(-95, 40, -1072) }, -- inside the Ice Cathedral
+	{ Area = "Rime", Position = Vector3.new(-30, 40, -1080) },
+	{ Area = "Rime", Position = Vector3.new(175, 40, -1045) },
+	{ Area = "Rime", Position = Vector3.new(118, 40, -1072) }, -- at the foot of the Icefall
+	{ Area = "Rime", Position = Vector3.new(-185, 40, -1090) },
+	{ Area = "Rime", Position = Vector3.new(90, 40, -1100) }, -- the glacier tip
 	-- THE STARFALL ISLES
-	{ Area = "Star", Position = Vector3.new(8, 60, -1078) },
-	{ Area = "Star", Position = Vector3.new(-10, 60, -1094) },
-	{ Area = "Star", Position = Vector3.new(-78, 72, -1114) }, -- the Crystal Garden
-	{ Area = "Star", Position = Vector3.new(78, 80, -1126) }, -- Moonstone
-	{ Area = "Star", Position = Vector3.new(109, 55, -1179) }, -- the Skyport
-	{ Area = "Star", Position = Vector3.new(-52, 95, -1176) }, -- the Starwell
-	{ Area = "Star", Position = Vector3.new(-66, 95, -1172) },
+	{ Area = "Star", Position = Vector3.new(10, 60, -1205) },
+	{ Area = "Star", Position = Vector3.new(-14, 60, -1228) },
+	{ Area = "Star", Position = Vector3.new(18, 60, -1234) },
+	{ Area = "Star", Position = Vector3.new(-100, 72, -1254) }, -- the Crystal Garden
+	{ Area = "Star", Position = Vector3.new(-85, 72, -1270) },
+	{ Area = "Star", Position = Vector3.new(100, 80, -1258) }, -- Moonstone
+	{ Area = "Star", Position = Vector3.new(105, 80, -1275) },
+	{ Area = "Star", Position = Vector3.new(140, 55, -1336) }, -- the Skyport
+	{ Area = "Star", Position = Vector3.new(-68, 95, -1332) }, -- the Starwell
+	{ Area = "Star", Position = Vector3.new(-86, 95, -1328) },
+	{ Area = "Star", Position = Vector3.new(-190, 66, -1215) }, -- Comet Reef
+	{ Area = "Star", Position = Vector3.new(-185, 66, -1235) },
+	{ Area = "Star", Position = Vector3.new(205, 70, -1232) }, -- the Nebula Shelf
+	{ Area = "Star", Position = Vector3.new(192, 70, -1238) },
 }
 
 -- Open areas where events (Treasure Rain, ...) take place.
@@ -382,19 +399,25 @@ WorldLayout.GuardianSpawns = {
 	{ Type = "Salamander", Position = Vector3.new(170, 12, -645), PatrolRadius = 26 },
 	{ Type = "Salamander", Position = Vector3.new(-90, 12, -765), PatrolRadius = 22 },
 	-- RIMEHEART: each one keeps to its own strip of glacier between the crevasses (Range), so
-	-- none of them can tumble in. North strip z -835..-874, middle -886..-944, south -956..-1005.
+	-- none of them can tumble in. North strip z -835..-874, middle -886..-944, south -956..-1125.
 	{ Type = "IceWraith", Position = Vector3.new(-90, 40, -852), PatrolRadius = 16, Range = 18, RayFrom = 80 },
 	{ Type = "IceWraith", Position = Vector3.new(105, 40, -852), PatrolRadius = 16, Range = 18, RayFrom = 80 },
 	{ Type = "IceWraith", Position = Vector3.new(-40, 40, -918), PatrolRadius = 18, Range = 20, RayFrom = 80 },
 	{ Type = "IceWraith", Position = Vector3.new(55, 40, -912), PatrolRadius = 18, Range = 22, RayFrom = 80 },
 	{ Type = "GlacialTitan", Position = Vector3.new(35, 40, -980), PatrolRadius = 18, Range = 20, RayFrom = 80 },
 	{ Type = "GlacialTitan", Position = Vector3.new(-110, 40, -982), PatrolRadius = 18, Range = 20, RayFrom = 80 },
+	{ Type = "IceWraith", Position = Vector3.new(185, 40, -990), PatrolRadius = 16, Range = 18, RayFrom = 80 },
+	{ Type = "IceWraith", Position = Vector3.new(-60, 40, -1055), PatrolRadius = 20, Range = 24, RayFrom = 80 }, -- the Cathedral steps
+	{ Type = "GlacialTitan", Position = Vector3.new(100, 40, -1060), PatrolRadius = 20, Range = 24, RayFrom = 80 }, -- the Icefall
+	{ Type = "IceWraith", Position = Vector3.new(-160, 40, -1085), PatrolRadius = 16, Range = 20, RayFrom = 80 },
 	-- THE STARFALL ISLES: each one owns an island (Range keeps it on top, never off the edge)
-	{ Type = "StarSentinel", Position = Vector3.new(-72, 72, -1120), PatrolRadius = 9, Range = 12, RayFrom = 100 },
-	{ Type = "VoidWraith", Position = Vector3.new(72, 80, -1122), PatrolRadius = 9, Range = 12, RayFrom = 110 },
-	{ Type = "VoidWraith", Position = Vector3.new(-60, 95, -1180), PatrolRadius = 9, Range = 12, RayFrom = 130 },
-	{ Type = "VoidWraith", Position = Vector3.new(0, 60, -1097), PatrolRadius = 7, Range = 10, RayFrom = 100 }, -- the Landing's far side
-	{ Type = "StarSentinel", Position = Vector3.new(12, 120, -1222), PatrolRadius = 5, Range = 8, RayFrom = 128 }, -- the Observatory (under its dome ring)
+	{ Type = "StarSentinel", Position = Vector3.new(-92, 72, -1262), PatrolRadius = 13, Range = 17, RayFrom = 100 },
+	{ Type = "VoidWraith", Position = Vector3.new(92, 80, -1266), PatrolRadius = 13, Range = 17, RayFrom = 110 },
+	{ Type = "VoidWraith", Position = Vector3.new(-76, 95, -1342), PatrolRadius = 12, Range = 17, RayFrom = 130 },
+	{ Type = "VoidWraith", Position = Vector3.new(0, 60, -1228), PatrolRadius = 14, Range = 20, RayFrom = 100 }, -- the Landing's far side
+	{ Type = "StarSentinel", Position = Vector3.new(14, 120, -1392), PatrolRadius = 5, Range = 8, RayFrom = 128 }, -- the Observatory (under its dome ring)
+	{ Type = "StarSentinel", Position = Vector3.new(-192, 66, -1224), PatrolRadius = 10, Range = 14, RayFrom = 100 }, -- Comet Reef
+	{ Type = "VoidWraith", Position = Vector3.new(198, 70, -1222), PatrolRadius = 10, Range = 14, RayFrom = 100 }, -- the Nebula Shelf
 }
 
 return WorldLayout

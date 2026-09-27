@@ -13,6 +13,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
+local WorldLayout = require(Shared.Config.WorldLayout)
 local Zones = require(Shared.Util.Zones)
 
 local Props = require(script.Parent.Parent.Props)
@@ -461,6 +462,22 @@ function Ember.Build(terrain: Terrain, parent: Instance, rng: Random, groundAt, 
 	local root = Common.folder("Emberfall", parent)
 	local avoid = {}
 	local spawns = {}
+	-- Keep props off the loot spots, the guardians' homes and the exits (a boulder or a spire
+	-- on a loot spot would bury or hide the treasure).
+	for _, info in WorldLayout.TreasureSpawns do
+		if info.Area == "Ember" then
+			table.insert(avoid, { Vector2.new(info.Position.X, info.Position.Z), 12 })
+		end
+	end
+	for _, info in WorldLayout.GuardianSpawns do
+		local z = info.Position.Z
+		if z < WorldLayout.DeepSouth.EmberStart and z > WorldLayout.DeepSouth.RimeStart then
+			table.insert(avoid, { Vector2.new(info.Position.X, z), 8 })
+		end
+	end
+	for _, zone in WorldLayout.ExtractionZones do
+		table.insert(avoid, { Vector2.new(zone.Position.X, zone.Position.Z), zone.Radius + 6 })
+	end
 	buildCinder(terrain, root, rng)
 	local lit = { 0 }
 	for _, river in Ember.RIVERS do

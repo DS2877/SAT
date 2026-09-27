@@ -1110,7 +1110,7 @@ test("deep south: a channel, then Emberfall lowlands, then a high glacier", func
 	check(ember > 8 and ember < 40, ("Emberfall is lowland (h=%.1f)"):format(ember))
 	local glacier = TerrainGen.Height(0, -900)
 	check(glacier > 34 and glacier < 72, ("Rimeheart is a high plateau (h=%.1f)"):format(glacier))
-	check(TerrainGen.Height(0, -1150) < 0, "open sea under the Starfall Isles")
+	check(TerrainGen.Height(0, -1300) < 0 and TerrainGen.Height(0, -1130) > 34, "the glacier runs to its tip, open sea under the Starfall Isles")
 	check(TerrainGen.Height(300, -700) < 0, "the peninsula stays narrow")
 	check(TerrainGen.Biome(0, -640) == "Ember" and TerrainGen.Biome(0, -900) == "Rime", "south biomes")
 	for area, need in { Ember = 1, Rime = 2, Star = 3 } do
@@ -1542,6 +1542,136 @@ test("Rimeheart loot spots sit on level ground", function()
 	end
 	local source = require("@lune/fs").readFile("src/server/Services/TreasureService.luau")
 	check(string.find(source, "settled(unburied(", 1, true) ~= nil, "every treasure is lifted out of the ground")
+end)
+
+test("deep south loot spots stand on open ground", function()
+	local roblox = require("@lune/roblox") :: any
+	Vector3 = roblox.Vector3
+	local fs = require("@lune/fs")
+	local W = require("../src/shared/Config/WorldLayout")
+	local T = require("../src/server/World/TerrainGen")
+	local ember = fs.readFile("src/server/World/DeepSouth/Ember.luau")
+	-- Lava rivers (carved trenches) and hot springs (carved pools).
+	local rivers = {}
+	local block = string.match(ember, "Ember%.RIVERS = {(.-)\n}")
+	for line in string.gmatch(block or "", "[^\n]+") do
+		local path = {}
+		for x, z in string.gmatch(line, "Vector2%.new%((%-?%d+), (%-?%d+)%)") do
+			table.insert(path, { tonumber(x), tonumber(z) })
+		end
+		if #path > 1 then
+			table.insert(rivers, path)
+		end
+	end
+	check(#rivers >= 2, "found the lava rivers")
+	local pools = {}
+	for x, z, r in string.gmatch(string.match(ember, "local pools = (%b{})") or "", "{ (%-?%d+), (%-?%d+), (%d+) }") do
+		table.insert(pools, { tonumber(x), tonumber(z), tonumber(r) })
+	end
+	check(#pools >= 4, "found the hot springs")
+	local function toSegment(px, pz, a, b)
+		local dx, dz = b[1] - a[1], b[2] - a[2]
+		local t = math.clamp(((px - a[1]) * dx + (pz - a[2]) * dz) / (dx * dx + dz * dz), 0, 1)
+		return math.sqrt((px - a[1] - dx * t) ^ 2 + (pz - a[2] - dz * t) ^ 2)
+	end
+	local counts = {}
+	for _, t in W.TreasureSpawns do
+		if t.Area == "Ember" or t.Area == "Rime" then
+			counts[t.Area] = (counts[t.Area] or 0) + 1
+			local x, z = t.Position.X, t.Position.Z
+			local label = ("%s spot (%d, %d)"):format(t.Area, x, z)
+			local h = T.Height(x, z)
+			check(h > 6, label .. " is on land, not in the sea")
+			if t.Position.Y > 20 then -- (Emberfall's spots are measured from high above instead)
+				check(math.abs(h - t.Position.Y) < 6, ("%s is at the terrain's height (%.1f vs %d)"):format(label, h, t.Position.Y))
+			end
+			check(T.Biome(x, z) == t.Area, label .. " lies in its own region")
+			for _, river in rivers do
+				for i = 1, #river - 1 do
+					check(toSegment(x, z, river[i], river[i + 1]) > 14, label .. " is clear of the lava rivers")
+				end
+			end
+			for _, pool in pools do
+				check(math.sqrt((x - pool[1]) ^ 2 + (z - pool[2]) ^ 2) > pool[3] + 5, label .. " is clear of the hot springs")
+			end
+			for _, cz in T.SOUTH.CrevasseZ do
+				check(math.abs(z - cz) > 14, label .. " is clear of the crevasses")
+			end
+		end
+	end
+	check((counts.Rime or 0) >= 20, "Rimeheart has plenty of loot spots")
+	-- Props keep off the spots, and whatever lands buried is dug out, however deep.
+	check(string.find(ember, "for _, info in WorldLayout.TreasureSpawns do", 1, true) ~= nil, "Emberfall's props avoid its loot spots")
+	local service = fs.readFile("src/server/Services/TreasureService.luau")
+	check(string.find(service, "terrainParams.FilterType = Enum.RaycastFilterType.Include", 1, true) ~= nil, "the unbury check looks at the terrain itself")
+	local storms = fs.readFile("src/server/Services/RegionStorms.luau")
+	check(string.find(storms, "openGround(ground)", 1, true) ~= nil, "storm loot never lands in a hole")
+end)
+
+test("the Starfall Isles: every spot, guardian and updraft is on an island", function()
+	local roblox = require("@lune/roblox") :: any
+	Vector3 = roblox.Vector3
+	local fs = require("@lune/fs")
+	local W = require("../src/shared/Config/WorldLayout")
+	local isles = {}
+	for name, x, z, top, r in string.gmatch(fs.readFile("src/server/World/DeepSouth/Star.luau"), "(%w+) = { X = (%-?%d+), Z = (%-?%d+), Top = (%d+), R = (%d+) }") do
+		isles[name] = { X = tonumber(x), Z = tonumber(z), Top = tonumber(top), R = tonumber(r) }
+	end
+	local function isleAt(p: Vector3, margin: number)
+		for _, isle in isles do
+			local d = math.sqrt((p.X - isle.X) ^ 2 + (p.Z - isle.Z) ^ 2)
+			if d <= isle.R - margin and math.abs(p.Y - isle.Top) <= 1.5 then
+				return isle, d
+			end
+		end
+		return nil, 0
+	end
+	local count = 0
+	for _, t in W.TreasureSpawns do
+		if t.Area == "Star" then
+			count += 1
+			check(isleAt(t.Position, 4) ~= nil, ("Star spot (%d, %d) is on an island"):format(t.Position.X, t.Position.Z))
+		end
+	end
+	check(count >= 14, "the isles have plenty of loot spots")
+	for _, g in W.GuardianSpawns do
+		if g.Position.Z < W.DeepSouth.StarStart then
+			local isle, d = isleAt(g.Position, 0)
+			check(isle ~= nil and d + g.Range <= isle.R - 1, ("%s at (%d, %d) can't walk off its island"):format(g.Type, g.Position.X, g.Position.Z))
+		end
+	end
+	for _, pad in W.LaunchPads do
+		if pad.Target.Z < W.DeepSouth.StarStart then
+			check(isleAt(pad.Target - Vector3.new(0, 1, 0), 2) ~= nil, pad.Name .. " lands on an island")
+			if pad.Position.Z < W.DeepSouth.StarStart then
+				check(isleAt(pad.Position, 2) ~= nil, pad.Name .. " starts on an island")
+			end
+		end
+	end
+	for _, zone in W.ExtractionZones do
+		if zone.Position.Z < W.DeepSouth.StarStart then
+			check(isleAt(zone.Position, zone.Radius) ~= nil, zone.Id .. " fits on its island")
+		end
+	end
+	-- The map draws the same isles and the same glacier.
+	local map = fs.readFile("src/client/UI/MapView.luau")
+	for name, x, z, r in string.gmatch(map, "(%w+) = { (%-?%d+), (%-?%d+), (%d+) }") do
+		local isle = isles[name]
+		if isle then
+			check(isle.X == tonumber(x) and isle.Z == tonumber(z) and isle.R == tonumber(r), "the map's " .. name .. " matches the world")
+		end
+	end
+	check(string.find(map, ("Rime = { %d, %d }"):format(W.DeepSouth.RimeStart, W.DeepSouth.StarStart), 1, true) ~= nil, "the map's glacier ends where the isles begin")
+end)
+
+test("extraction zones count you anywhere on the shrine", function()
+	local roblox = require("@lune/roblox") :: any
+	Vector3 = roblox.Vector3
+	local fs = require("@lune/fs")
+	local source = fs.readFile("src/shared/Util/Zones.luau")
+	check(string.find(source, "dy >= -8 and dy <= 18", 1, true) ~= nil, "a tall cylinder, not a thin slice")
+	local builder = fs.readFile("src/server/WorldBuilder.luau")
+	check(string.find(builder, "terrainOnly.FilterDescendantsInstances = { workspace.Terrain }", 1, true) ~= nil, "open-air shrines stand on the terrain")
 end)
 
 test("admin panel: boosts, broadcasts and events, admins only", function()

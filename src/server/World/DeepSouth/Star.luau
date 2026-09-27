@@ -6,7 +6,12 @@
 --   Landing -> Moonstone (I3, updraft) -> Skyport (I4, light bridge: the Secret exit)
 --   Starwell -> THE OBSERVATORY (I6, updraft; secret) -> light bridge back down to Moonstone
 --   Starwell -> a hidden updraft behind the rocks -> THE RIFT (I7, secret) -> bridge back
+--   Crystal Garden -> light bridge -> COMET REEF (I8); Moonstone -> light bridge -> the
+--   NEBULA SHELF (I9)
 --   Landing -> the Homeward Bridge down to the glacier tip.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local WorldLayout = require(ReplicatedStorage.Shared.Config.WorldLayout)
 
 local Common = require(script.Parent.Common)
 
@@ -24,16 +29,48 @@ local CRYSTALS = { VIOLET, CYAN, GOLD, Color3.fromRGB(255, 150, 230) }
 
 -- Islands: centre x/z, top height, radius.
 Star.ISLES = {
-	Landing = { X = 0, Z = -1085, Top = 60, R = 24 },
-	Garden = { X = -72, Z = -1120, Top = 72, R = 17 },
-	Moonstone = { X = 72, Z = -1122, Top = 80, R = 17 },
-	Skyport = { X = 120, Z = -1190, Top = 55, R = 19 },
-	Starwell = { X = -60, Z = -1180, Top = 95, R = 17 },
-	Observatory = { X = 8, Z = -1218, Top = 120, R = 16 },
-	Rift = { X = -122, Z = -1240, Top = 110, R = 10 },
+	Landing = { X = 0, Z = -1215, Top = 60, R = 36 },
+	Garden = { X = -94, Z = -1260, Top = 72, R = 26 },
+	Moonstone = { X = 94, Z = -1263, Top = 80, R = 26 },
+	Skyport = { X = 156, Z = -1352, Top = 55, R = 28 },
+	Starwell = { X = -78, Z = -1338, Top = 95, R = 26 },
+	Observatory = { X = 10, Z = -1388, Top = 120, R = 22 },
+	Rift = { X = -140, Z = -1400, Top = 110, R = 14 },
+	CometReef = { X = -195, Z = -1225, Top = 66, R = 24 },
+	NebulaShelf = { X = 200, Z = -1230, Top = 70, R = 24 },
 }
 
-local function isle(parent: Instance, info, rng: Random)
+-- Loot spots and guardian homes on the isles: decoration keeps clear of them.
+local function clearSpots(): { Vector2 }
+	local spots = {}
+	for _, info in WorldLayout.TreasureSpawns do
+		if info.Area == "Star" then
+			table.insert(spots, Vector2.new(info.Position.X, info.Position.Z))
+		end
+	end
+	for _, info in WorldLayout.GuardianSpawns do
+		if info.Position.Z < WorldLayout.DeepSouth.StarStart then
+			table.insert(spots, Vector2.new(info.Position.X, info.Position.Z))
+		end
+	end
+	for _, pad in WorldLayout.LaunchPads do
+		if pad.Position.Z < WorldLayout.DeepSouth.StarStart then
+			table.insert(spots, Vector2.new(pad.Position.X, pad.Position.Z))
+			table.insert(spots, Vector2.new(pad.Target.X, pad.Target.Z))
+		end
+	end
+	return spots
+end
+local function isClear(spots: { Vector2 }, p: Vector3, margin: number): boolean
+	for _, s in spots do
+		if (Vector2.new(p.X, p.Z) - s).Magnitude < margin then
+			return false
+		end
+	end
+	return true
+end
+
+local function isle(parent: Instance, info, rng: Random, spots: { Vector2 })
 	local f = Common.folder("Isle", parent)
 	local top = Vector3.new(info.X, info.Top, info.Z)
 	cylinder(top - Vector3.new(0, 2, 0), 4, info.R * 2, { Name = "IsleTop", Color = MOSS, Material = Enum.Material.Grass, Parent = f })
@@ -65,14 +102,20 @@ local function isle(parent: Instance, info, rng: Random)
 		LightInfluence = 1,
 	})
 	-- Crystal clusters and a couple of star lamps on top.
-	for _ = 1, math.floor(info.R / 6) do
+	for _ = 1, math.floor(info.R / 5) do
 		local b = rng:NextNumber(0, 2 * math.pi)
 		local r = rng:NextNumber(info.R * 0.4, info.R * 0.8)
-		Common.crystals(f, top + Vector3.new(math.cos(b) * r, 0, math.sin(b) * r), rng, CRYSTALS, 0.9)
+		local at = top + Vector3.new(math.cos(b) * r, 0, math.sin(b) * r)
+		if isClear(spots, at, 8) then
+			Common.crystals(f, at, rng, CRYSTALS, 0.9)
+		end
 	end
-	for i = 1, 2 do
-		local b = i * math.pi + rng:NextNumber(-0.4, 0.4)
-		local p = top + Vector3.new(math.cos(b) * info.R * 0.75, 0, math.sin(b) * info.R * 0.75)
+	for i = 1, 3 do
+		local b = i * 2 * math.pi / 3 + rng:NextNumber(-0.4, 0.4)
+		local p = top + Vector3.new(math.cos(b) * info.R * 0.8, 0, math.sin(b) * info.R * 0.8)
+		if not isClear(spots, p, 5) then
+			continue
+		end
 		part({ Name = "LampPost", Size = Vector3.new(0.5, 5, 0.5), CFrame = CFrame.new(p + Vector3.new(0, 2.5, 0)), Color = GOLD, Material = Enum.Material.Metal, Parent = f })
 		local orb = part({ Name = "StarLamp", Shape = Enum.PartType.Ball, Size = Vector3.new(1.6, 1.6, 1.6), CFrame = CFrame.new(p + Vector3.new(0, 5.6, 0)), Color = Color3.fromRGB(255, 240, 200), Material = Enum.Material.Neon, CanCollide = false, Parent = f })
 		if i == 1 then
@@ -182,15 +225,56 @@ local function buildWell(parent: Instance)
 	-- Rocks hiding the Rift updraft on the far side.
 	for i = 1, 4 do
 		local a = math.rad(215) + i * 0.18
-		part({ Name = "HidingRock", Shape = Enum.PartType.Ball, Size = Vector3.new(5, 4.5, 5), CFrame = CFrame.new(c + Vector3.new(math.cos(a) * 11, 1.5, math.sin(a) * 11)), Color = ROCK, Material = Enum.Material.Slate, Parent = f })
+		part({ Name = "HidingRock", Shape = Enum.PartType.Ball, Size = Vector3.new(5, 4.5, 5), CFrame = CFrame.new(c + Vector3.new(math.cos(a) * 15, 1.5, math.sin(a) * 15)), Color = ROCK, Material = Enum.Material.Slate, Parent = f })
 	end
+end
+
+-- COMET REEF: a comet came down here and never left - a glowing core in a ring of shards.
+local function buildComet(parent: Instance, rng: Random)
+	local r = Star.ISLES.CometReef
+	local f = Common.folder("CometReef", parent)
+	local c = Vector3.new(r.X - 8, r.Top, r.Z - 6)
+	local core = part({ Name = "CometCore", Shape = Enum.PartType.Ball, Size = Vector3.new(7, 7, 7), CFrame = CFrame.new(c + Vector3.new(0, 1.8, 0)), Color = Color3.fromRGB(120, 230, 255), Material = Enum.Material.Neon, Parent = f })
+	light(core, CYAN, 30, 2)
+	emitter(core, { Texture = Common.SPARKLE, Color = ColorSequence.new(CYAN, Color3.new(1, 1, 1)), LightEmission = 1, Size = NumberSequence.new(0.8, 0), Lifetime = NumberRange.new(1.5, 2.5), Rate = 14, Speed = NumberRange.new(2, 5), SpreadAngle = Vector2.new(180, 180) })
+	part({ Name = "CometCrust", Shape = Enum.PartType.Ball, Size = Vector3.new(8.4, 5, 8.4), CFrame = CFrame.new(c + Vector3.new(0.8, 0.6, -0.6)), Color = Color3.fromRGB(60, 50, 80), Material = Enum.Material.Basalt, Parent = f })
+	for i = 1, 9 do
+		local a = i / 9 * 2 * math.pi
+		local h = rng:NextNumber(2.5, 5.5)
+		part({ Name = "CraterShard", Size = Vector3.new(1.6, h, 1.2), CFrame = CFrame.new(c + Vector3.new(math.cos(a) * 7.5, h / 2 - 0.4, math.sin(a) * 7.5)) * CFrame.Angles(math.cos(a) * 0.5, a, math.sin(a) * 0.5), Color = ROCK:Lerp(VIOLET, 0.3), Material = Enum.Material.Slate, Parent = f })
+	end
+	-- Its tail, frozen in the sky above.
+	part({ Name = "CometTail", Size = Vector3.new(1.2, 1.2, 70), CFrame = CFrame.lookAt(c + Vector3.new(30, 40, 20), c), Color = Color3.fromRGB(170, 240, 255), Material = Enum.Material.Neon, Transparency = 0.45, CanCollide = false, CanQuery = false, CastShadow = false, Parent = f })
+	Common.sign(f, Vector3.new(r.X, r.Top + 16, r.Z), "COMET REEF", nil, Color3.fromRGB(150, 230, 255))
+end
+
+-- THE NEBULA SHELF: arches of violet crystal and a slow swirl of star-dust.
+local function buildNebula(parent: Instance)
+	local n = Star.ISLES.NebulaShelf
+	local f = Common.folder("NebulaShelf", parent)
+	local c = Vector3.new(n.X, n.Top, n.Z)
+	for i = 0, 2 do
+		local a = i / 3 * 2 * math.pi + 0.6
+		local foot = c + Vector3.new(math.cos(a) * 15, 0, math.sin(a) * 15)
+		local across = Vector3.new(-math.sin(a), 0, math.cos(a)) * 4
+		for _, side in { -1, 1 } do
+			part({ Name = "NebulaArch", Size = Vector3.new(1.4, 12, 1.4), CFrame = CFrame.lookAt(foot + across * side + Vector3.new(0, 5.5, 0), foot + Vector3.new(0, 11, 0)) * CFrame.Angles(math.rad(90), 0, 0), Color = VIOLET, Material = Enum.Material.Glass, Transparency = 0.2, Parent = f })
+		end
+		local gem = part({ Name = "NebulaGem", Size = Vector3.new(1.6, 1.6, 1.6), CFrame = CFrame.new(foot + Vector3.new(0, 11.2, 0)) * CFrame.Angles(math.rad(45), 0, math.rad(45)), Color = Color3.fromRGB(255, 150, 230), Material = Enum.Material.Neon, CanCollide = false, Parent = f })
+		gem:SetAttribute("Spin", 1)
+		light(gem, Color3.fromRGB(230, 140, 255), 18, 1.2)
+	end
+	local swirl = part({ Name = "NebulaSwirl", Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(c + Vector3.new(0, 14, 0)), Transparency = 1, CanCollide = false, CanQuery = false, Parent = f })
+	emitter(swirl, { Texture = Common.SMOKE, Color = ColorSequence.new(Color3.fromRGB(190, 110, 255), Color3.fromRGB(110, 170, 255)), LightEmission = 0.6, Transparency = NumberSequence.new(0.6, 1), Size = NumberSequence.new(6, 12), Lifetime = NumberRange.new(5, 8), Rate = 3, Speed = NumberRange.new(0.5, 1), RotSpeed = NumberRange.new(-15, 15), SpreadAngle = Vector2.new(180, 180) })
+	Common.sign(f, c + Vector3.new(0, 16, 0), "THE NEBULA SHELF", nil, Color3.fromRGB(220, 170, 255))
 end
 
 -- Returns { Spawns, Avoid } - exact secret spawns.
 function Star.Build(parent: Instance, rng: Random)
 	local root = Common.folder("StarfallIsles", parent)
+	local spots = clearSpots()
 	for _, info in Star.ISLES do
-		isle(root, info, rng)
+		isle(root, info, rng, spots)
 	end
 	local I = Star.ISLES
 	local function link(a, b)
@@ -200,8 +284,12 @@ function Star.Build(parent: Instance, rng: Random)
 	link(I.Moonstone, I.Skyport)
 	link(I.Observatory, I.Moonstone)
 	link(I.Rift, I.Starwell)
+	link(I.Garden, I.CometReef)
+	link(I.Moonstone, I.NebulaShelf)
 	-- The Homeward Bridge down to the glacier tip.
-	Common.bridge(root, edgePoint(I.Landing, Vector3.new(14, 0, -1020)), Vector3.new(14, 41, -1022), 6, "Light")
+	Common.bridge(root, edgePoint(I.Landing, Vector3.new(14, 0, -1140)), Vector3.new(14, 41, -1142), 6, "Light")
+	buildComet(root, rng)
+	buildNebula(root)
 	buildMonolith(root)
 	buildWell(root)
 	buildSkyport(root)
@@ -210,7 +298,7 @@ function Star.Build(parent: Instance, rng: Random)
 		table.insert(spawns, built.Spawn)
 	end
 	-- Stardust drifting through the sky, and a few meteor streaks frozen in the distance.
-	Common.weather(root, Vector3.new(0, 170, -1150), Vector2.new(320, 240), {
+	Common.weather(root, Vector3.new(0, 170, -1300), Vector2.new(460, 300), {
 		Texture = Common.SPARKLE,
 		Color = ColorSequence.new(Color3.fromRGB(255, 240, 200), Color3.fromRGB(200, 170, 255)),
 		LightEmission = 1,
@@ -221,7 +309,7 @@ function Star.Build(parent: Instance, rng: Random)
 		SpreadAngle = Vector2.new(40, 40),
 	})
 	for _ = 1, 3 do
-		local p = Vector3.new(rng:NextNumber(-150, 150), rng:NextNumber(170, 230), rng:NextNumber(-1300, -1180))
+		local p = Vector3.new(rng:NextNumber(-200, 200), rng:NextNumber(170, 230), rng:NextNumber(-1460, -1300))
 		part({ Name = "MeteorTrail", Size = Vector3.new(0.6, 0.6, 40), CFrame = CFrame.new(p) * CFrame.Angles(math.rad(-35), rng:NextNumber(0, 6.28), 0), Color = Color3.fromRGB(255, 220, 160), Material = Enum.Material.Neon, Transparency = 0.3, CanCollide = false, CanQuery = false, CastShadow = false, Parent = root })
 	end
 	return { Spawns = spawns, Avoid = {} }

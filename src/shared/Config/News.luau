@@ -17,6 +17,14 @@ local News = {}
 
 News.Posts = {
 	{
+		Id = "2026-09-27-south",
+		Kind = "News",
+		Date = "Sep 27",
+		Icon = "❄",
+		Title = "A BIGGER DEEP SOUTH",
+		Body = "Rimeheart now runs much further south and wider: the Ice Cathedral, the Icefall and its hunters' lodge, ten new loot spots and more wraiths and titans. The Starfall Isles are bigger and spread out, with two new islands - Comet Reef and the Nebula Shelf. And no more treasure stuck under the snow.",
+	},
+	{
 		Id = "2026-09-27-launch",
 		Kind = "Announcement",
 		Date = "Sep 27",

@@ -27,10 +27,12 @@ DeepSouth.SPINE = {
 	Vector2.new(-5, -915),
 	Vector2.new(0, -950),
 	Vector2.new(0, -990),
-	Vector2.new(0, -1030),
+	Vector2.new(0, -1040),
+	Vector2.new(4, -1095),
+	Vector2.new(0, -1150),
 }
 
-local RING_SPOTS = { Vector2.new(43, -585), Vector2.new(52, -690), Vector2.new(25, -752), Vector2.new(-3, -908), Vector2.new(0, -985) }
+local RING_SPOTS = { Vector2.new(43, -585), Vector2.new(52, -690), Vector2.new(25, -752), Vector2.new(-3, -908), Vector2.new(0, -985), Vector2.new(2, -1060) }
 
 local function paintRoad(terrain: Terrain)
 	for i = 1, #DeepSouth.SPINE - 1 do

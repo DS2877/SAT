@@ -177,7 +177,7 @@ Regions.Secrets = {
 		Title = "THE OBSERVATORY",
 		Text = "The highest point in the world. The stars feel close enough to steal.",
 		Area = "Star",
-		Position = Vector3.new(8, 121, -1218),
+		Position = Vector3.new(10, 121, -1388),
 		Radius = 12,
 	},
 	{
@@ -185,7 +185,7 @@ Regions.Secrets = {
 		Title = "THE RIFT",
 		Text = "A crack in the sky. Something glitters on the other side.",
 		Area = "Star",
-		Position = Vector3.new(-122, 111, -1240),
+		Position = Vector3.new(-140, 111, -1400),
 		Radius = 10,
 	},
 }
