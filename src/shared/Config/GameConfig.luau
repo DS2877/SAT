@@ -591,6 +591,8 @@ GameConfig.Admin = {
 	BoostMinutes = { 5, 15, 30, 60 }, -- the duration buttons in the panel
 	MaxBoostMinutes = 120,
 	MaxBroadcast = 160, -- characters in an admin message
+	DropCounts = { 1, 3, 5 }, -- ✨ DROP A TREASURE: how many (per player for EVERYONE)
+	DropLifetime = 600, -- seconds a dropped treasure waits to be grabbed (nightfall clears it anyway)
 }
 
 -- LIKE GOAL: a community goal on the board by the spawn. When the game's likes reach the goal,

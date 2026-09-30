@@ -24,6 +24,7 @@ function DataSchema.Default()
 		EquippedBat = "wooden_bat",
 		OwnedCosmetics = {},
 		VaultSkin = "classic", -- Config/VaultSkins id (checked against what you've unlocked on join)
+		GiftedSkins = {}, -- [skinId] = true: vault skins an admin gave you (Services/AdminService)
 		Titles = {},
 		SelectedTitle = "",
 		LastOnline = 0, -- os.time() of the last moment the player was in a server (offline earnings)

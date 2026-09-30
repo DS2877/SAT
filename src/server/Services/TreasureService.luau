@@ -663,9 +663,11 @@ function TreasureService.SpawnFalling(
 	dropHeight: number,
 	fallTime: number,
 	lifetime: number,
-	area: string?
+	area: string?,
+	mutation: string? -- nil = roll one as usual, "" = none, a name = that one (admin drops)
 )
-	local record = spawnAt(nil, def, ground, rollMutation(area))
+	local chosen = if mutation == nil then rollMutation(area) elseif mutation == "" then nil else mutation
+	local record = spawnAt(nil, def, ground, chosen)
 	local landed = record.Handle.CFrame
 	record.Handle.CFrame = landed + Vector3.new(0, dropHeight, 0)
 	record.Prompt.Enabled = false

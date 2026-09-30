@@ -86,7 +86,7 @@ end
 local function rollRain(weights, area: string)
 	local perRarity = {}
 	local function eligible(def): boolean
-		return weights[def.Rarity] ~= nil and (def.SpawnArea == area or Rarities.Rank(def.Rarity) <= 2)
+		return weights[def.Rarity] ~= nil and not def.AdminOnly and (def.SpawnArea == area or Rarities.Rank(def.Rarity) <= 2)
 	end
 	for _, def in Treasures.List do
 		if eligible(def) then

@@ -655,7 +655,7 @@ local function nextTreasureGoal(data)
 	local best = nil
 	for _, def in Treasures.List do
 		local entry = data.Collection[def.Id]
-		if (not entry or not entry.Discovered) and def.Rarity ~= "Secret" then
+		if (not entry or not entry.Discovered) and def.Rarity ~= "Secret" and not def.AdminOnly then
 			if not best or def.Value < best.Value then
 				best = def
 			end

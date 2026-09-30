@@ -8,8 +8,13 @@
 --     and the top tiers get FLAIR on top: Epic orbiting gems, Legendary a golden halo,
 --     Mythic dark shards and flames, Divine wings, Secret black/white orbit rings, OG a crown
 --     and a ring of coins. (Clients spin and bob world treasure, so orbits really orbit.)
+--   * SIGNATURE: every treasure gives off its own particles (Config/Treasures Fx: coins popping
+--     out, leaves drifting, flames, snow, bubbles, souls, stars...), so a field of loot is alive.
 --   * MUTATION: re-skins the body (Silver/Gold metal, Diamond glass, Moonlit neon, Rainbow
---     cycling) and adds glow, a coloured light, sparks, glints and an outline.
+--     cycling) and makes it IMPOSSIBLE TO MISS: a rising ring of light at its feet, a storm of
+--     sparks in the mutation's colours, big star glints, its own extra effect (Gold rains coins,
+--     Diamond flashes, Moonlit sheds moonlight, Rainbow trails every colour), a light and an
+--     outline.
 
 local CollectionService = game:GetService("CollectionService")
 
@@ -293,11 +298,129 @@ local function flair(k: TreasureModels.Kit, handle: BasePart, def, display: bool
 	end
 end
 
--- MUTATIONS ---------------------------------------------------------------------------------
+-- SIGNATURE PARTICLES -----------------------------------------------------------------------
 
 local SPARKLE = "rbxasset://textures/particles/sparkles_main.dds"
+local SMOKE = "rbxasset://textures/particles/smoke_main.dds"
+local FIRE = "rbxasset://textures/particles/fire_main.dds"
+local WHITE = Color3.new(1, 1, 1)
 
-local function emitter(handle: BasePart, name: string, props)
+local function kp(t: number, v: number): NumberSequenceKeypoint
+	return NumberSequenceKeypoint.new(t, v)
+end
+local function pop(size: number): NumberSequence -- grows in, shrinks out
+	return NumberSequence.new({ kp(0, 0), kp(0.25, size), kp(1, 0) })
+end
+local function fade(from: number): NumberSequence
+	return NumberSequence.new({ kp(0, from), kp(1, 1) })
+end
+local function colors(...: Color3): ColorSequence
+	local list = { ... }
+	if #list == 1 then
+		return ColorSequence.new(list[1])
+	end
+	local keys = {}
+	for i, c in list do
+		table.insert(keys, ColorSequenceKeypoint.new((i - 1) / (#list - 1), c))
+	end
+	return ColorSequence.new(keys)
+end
+local FLICKER = NumberSequence.new({ kp(0, 1), kp(0.15, 0), kp(0.35, 0.7), kp(0.55, 0), kp(0.8, 0.5), kp(1, 1) })
+
+-- Fx kind -> emitters. `s` = the treasure's handle size (studs), `c` = its main colour.
+-- Rates are for treasure out in the world; showcase copies run at a fraction.
+local SIGNATURES: { [string]: (s: number, c: Color3) -> { { [string]: any } } } = {
+	Sparkle = function(s, c)
+		return { { Texture = SPARKLE, Color = colors(c:Lerp(WHITE, 0.5), WHITE), Size = pop(s * 0.2), Lifetime = NumberRange.new(0.6, 1.2), Rate = 7, Speed = NumberRange.new(0, s * 0.25), RotSpeed = NumberRange.new(-90, 90) } }
+	end,
+	Coins = function(s, _c)
+		return {
+			{ Texture = SPARKLE, Color = colors(Color3.fromRGB(255, 225, 90), Color3.fromRGB(255, 170, 30)), Size = NumberSequence.new(s * 0.14, s * 0.08), Lifetime = NumberRange.new(0.9, 1.3), Rate = 6, Speed = NumberRange.new(s * 1.2, s * 1.8), SpreadAngle = Vector2.new(30, 30), EmissionDirection = Enum.NormalId.Top, Acceleration = Vector3.new(0, -s * 3.2, 0), RotSpeed = NumberRange.new(-300, 300), Shape = Enum.ParticleEmitterShape.Box },
+			{ Texture = SPARKLE, Color = colors(Color3.fromRGB(255, 240, 160)), Size = pop(s * 0.28), Lifetime = NumberRange.new(0.3, 0.5), Rate = 3, Speed = NumberRange.new(0, 0) },
+		}
+	end,
+	Leaves = function(s, c)
+		return { { Texture = SMOKE, Color = colors(c:Lerp(Color3.fromRGB(90, 190, 70), 0.5), Color3.fromRGB(230, 150, 50)), Size = NumberSequence.new(s * 0.12, s * 0.1), Squash = NumberSequence.new(0.6), Transparency = NumberSequence.new({ kp(0, 0.1), kp(0.8, 0.2), kp(1, 1) }), Lifetime = NumberRange.new(2, 3), Rate = 5, Speed = NumberRange.new(s * 0.3, s * 0.6), EmissionDirection = Enum.NormalId.Top, SpreadAngle = Vector2.new(60, 60), Acceleration = Vector3.new(s * 0.3, -s * 0.5, 0), RotSpeed = NumberRange.new(-120, 120), Rotation = NumberRange.new(0, 360), LightEmission = 0 } }
+	end,
+	Notes = function(s, _c)
+		return { { Texture = SPARKLE, Color = colors(Color3.fromRGB(255, 230, 120), Color3.fromRGB(150, 220, 255)), Size = pop(s * 0.22), Lifetime = NumberRange.new(1.5, 2.2), Rate = 4, Speed = NumberRange.new(s * 0.15, s * 0.3), EmissionDirection = Enum.NormalId.Top, SpreadAngle = Vector2.new(40, 40), Acceleration = Vector3.new(0, s * 0.35, 0), RotSpeed = NumberRange.new(-60, 60) } }
+	end,
+	Fireflies = function(s, _c)
+		return { { Texture = SPARKLE, Color = colors(Color3.fromRGB(240, 255, 130), Color3.fromRGB(255, 220, 90)), Size = NumberSequence.new(s * 0.1), Transparency = FLICKER, Lifetime = NumberRange.new(2.5, 4), Rate = 7, Speed = NumberRange.new(s * 0.15, s * 0.45), Drag = 0.5, Acceleration = Vector3.new(0, s * 0.1, 0) } }
+	end,
+	Bubbles = function(s, c)
+		return { { Texture = SMOKE, Color = colors(c:Lerp(WHITE, 0.6), Color3.fromRGB(200, 240, 255)), Size = NumberSequence.new({ kp(0, s * 0.05), kp(1, s * 0.16) }), Transparency = NumberSequence.new({ kp(0, 0.2), kp(0.85, 0.4), kp(1, 1) }), Lifetime = NumberRange.new(1.5, 2.5), Rate = 7, Speed = NumberRange.new(s * 0.2, s * 0.4), EmissionDirection = Enum.NormalId.Top, SpreadAngle = Vector2.new(25, 25), Acceleration = Vector3.new(0, s * 0.3, 0), LightEmission = 0.3 } }
+	end,
+	Spores = function(s, c)
+		return {
+			{ Texture = SMOKE, Color = colors(c:Lerp(Color3.fromRGB(200, 120, 255), 0.4), Color3.fromRGB(150, 255, 150)), Size = NumberSequence.new({ kp(0, s * 0.06), kp(1, s * 0.2) }), Transparency = fade(0.3), Lifetime = NumberRange.new(2, 3), Rate = 6, Speed = NumberRange.new(s * 0.1, s * 0.3), Acceleration = Vector3.new(0, s * 0.2, 0), LightEmission = 0.6 },
+			{ Texture = SPARKLE, Color = colors(Color3.fromRGB(220, 160, 255)), Size = pop(s * 0.1), Lifetime = NumberRange.new(1, 1.6), Rate = 5, Speed = NumberRange.new(s * 0.1, s * 0.3) },
+		}
+	end,
+	Sand = function(s, _c)
+		return { { Texture = SMOKE, Color = colors(Color3.fromRGB(240, 210, 150), Color3.fromRGB(210, 170, 110)), Size = NumberSequence.new({ kp(0, s * 0.1), kp(1, s * 0.35) }), Transparency = fade(0.45), Lifetime = NumberRange.new(1.5, 2.5), Rate = 5, Speed = NumberRange.new(s * 0.2, s * 0.5), Acceleration = Vector3.new(s * 0.6, -s * 0.05, 0), LightEmission = 0 } }
+	end,
+	Souls = function(s, c)
+		return {
+			{ Texture = SMOKE, Color = colors(c:Lerp(Color3.fromRGB(150, 255, 190), 0.6), Color3.fromRGB(200, 255, 240)), Size = NumberSequence.new({ kp(0, s * 0.12), kp(1, s * 0.4) }), Transparency = NumberSequence.new({ kp(0, 1), kp(0.2, 0.45), kp(1, 1) }), Lifetime = NumberRange.new(2, 3), Rate = 3, Speed = NumberRange.new(s * 0.2, s * 0.4), EmissionDirection = Enum.NormalId.Top, SpreadAngle = Vector2.new(20, 20), Acceleration = Vector3.new(0, s * 0.3, 0), LightEmission = 0.8 },
+			{ Texture = SPARKLE, Color = colors(Color3.fromRGB(170, 255, 200)), Size = pop(s * 0.12), Lifetime = NumberRange.new(1, 1.6), Rate = 4, Speed = NumberRange.new(s * 0.2, s * 0.4) },
+		}
+	end,
+	Snow = function(s, _c)
+		return { { Texture = SPARKLE, Color = colors(WHITE, Color3.fromRGB(200, 235, 255)), Size = NumberSequence.new(s * 0.1), Transparency = NumberSequence.new({ kp(0, 1), kp(0.15, 0), kp(0.85, 0), kp(1, 1) }), Lifetime = NumberRange.new(2, 3), Rate = 10, Speed = NumberRange.new(s * 0.5, s * 0.9), EmissionDirection = Enum.NormalId.Top, SpreadAngle = Vector2.new(70, 70), Acceleration = Vector3.new(0, -s * 0.9, 0), Drag = 1, RotSpeed = NumberRange.new(-90, 90) } }
+	end,
+	Frost = function(s, _c)
+		return {
+			{ Texture = SMOKE, Color = colors(Color3.fromRGB(190, 240, 255)), Size = NumberSequence.new({ kp(0, s * 0.15), kp(1, s * 0.45) }), Transparency = fade(0.55), Lifetime = NumberRange.new(1.5, 2.5), Rate = 4, Speed = NumberRange.new(s * 0.1, s * 0.25), Acceleration = Vector3.new(0, -s * 0.15, 0), LightEmission = 0.4 },
+			{ Texture = SPARKLE, Color = colors(WHITE, Color3.fromRGB(160, 230, 255)), Size = pop(s * 0.2), Lifetime = NumberRange.new(0.4, 0.8), Rate = 6, Speed = NumberRange.new(0, s * 0.15), RotSpeed = NumberRange.new(-45, 45) },
+		}
+	end,
+	Flames = function(s, c)
+		return { { Texture = FIRE, Color = colors(Color3.fromRGB(255, 230, 120), c:Lerp(Color3.fromRGB(255, 90, 20), 0.5)), Size = NumberSequence.new({ kp(0, s * 0.3), kp(1, 0) }), Transparency = fade(0.2), Lifetime = NumberRange.new(0.5, 0.9), Rate = 16, Speed = NumberRange.new(s * 0.5, s * 0.9), EmissionDirection = Enum.NormalId.Top, SpreadAngle = Vector2.new(20, 20), Acceleration = Vector3.new(0, s * 0.8, 0), RotSpeed = NumberRange.new(-60, 60) } }
+	end,
+	Embers = function(s, _c)
+		return { { Texture = SPARKLE, Color = colors(Color3.fromRGB(255, 220, 110), Color3.fromRGB(255, 80, 20)), Size = NumberSequence.new(s * 0.08, 0), Lifetime = NumberRange.new(1, 1.8), Rate = 14, Speed = NumberRange.new(s * 0.8, s * 1.6), EmissionDirection = Enum.NormalId.Top, SpreadAngle = Vector2.new(35, 35), Drag = 1.5, Acceleration = Vector3.new(s * 0.2, s * 0.6, 0) } }
+	end,
+	Water = function(s, c)
+		return {
+			{ Texture = SPARKLE, Color = colors(c:Lerp(Color3.fromRGB(120, 200, 255), 0.5), WHITE), Size = NumberSequence.new(s * 0.1, s * 0.05), Squash = NumberSequence.new(-0.6), Lifetime = NumberRange.new(0.8, 1.2), Rate = 12, Speed = NumberRange.new(s * 1.0, s * 1.6), EmissionDirection = Enum.NormalId.Top, SpreadAngle = Vector2.new(30, 30), Acceleration = Vector3.new(0, -s * 3, 0) },
+			{ Texture = SMOKE, Color = colors(Color3.fromRGB(200, 235, 255)), Size = NumberSequence.new({ kp(0, s * 0.1), kp(1, s * 0.4) }), Transparency = fade(0.6), Lifetime = NumberRange.new(1, 1.5), Rate = 3, Speed = NumberRange.new(s * 0.1, s * 0.2), LightEmission = 0.3 },
+		}
+	end,
+	Lightning = function(s, _c)
+		return {
+			{ Texture = SPARKLE, Color = colors(WHITE, Color3.fromRGB(140, 220, 255)), Size = NumberSequence.new(s * 0.55, s * 0.2), Squash = NumberSequence.new(1.5), Lifetime = NumberRange.new(0.06, 0.14), Rate = 6, Speed = NumberRange.new(0, 0), Rotation = NumberRange.new(0, 360) },
+			{ Texture = SPARKLE, Color = colors(Color3.fromRGB(180, 230, 255)), Size = NumberSequence.new(s * 0.08, 0), Lifetime = NumberRange.new(0.3, 0.6), Rate = 14, Speed = NumberRange.new(s * 1.2, s * 2), Drag = 4 },
+		}
+	end,
+	Stars = function(s, c)
+		return {
+			{ Texture = SPARKLE, Color = colors(WHITE, c:Lerp(Color3.fromRGB(255, 240, 170), 0.5)), Size = pop(s * 0.26), Lifetime = NumberRange.new(0.8, 1.5), Rate = 8, Speed = NumberRange.new(s * 0.05, s * 0.25), RotSpeed = NumberRange.new(-120, 120), Rotation = NumberRange.new(0, 360) },
+			{ Texture = SPARKLE, Color = colors(Color3.fromRGB(200, 170, 255), Color3.fromRGB(150, 220, 255)), Size = NumberSequence.new(s * 0.06), Transparency = FLICKER, Lifetime = NumberRange.new(2, 3), Rate = 8, Speed = NumberRange.new(s * 0.1, s * 0.3), Drag = 0.5 },
+		}
+	end,
+	Void = function(s, _c)
+		return {
+			{ Texture = SMOKE, Color = colors(Color3.fromRGB(80, 30, 140), Color3.fromRGB(20, 5, 40)), Size = NumberSequence.new({ kp(0, s * 0.35), kp(1, s * 0.05) }), Transparency = NumberSequence.new({ kp(0, 1), kp(0.3, 0.35), kp(1, 0.9) }), Lifetime = NumberRange.new(1, 1.5), Rate = 8, Speed = NumberRange.new(s * 0.6, s * 0.9), ShapeInOut = Enum.ParticleEmitterShapeInOut.Inward, LightEmission = 0.2 },
+			{ Texture = SPARKLE, Color = colors(Color3.fromRGB(200, 120, 255)), Size = pop(s * 0.12), Lifetime = NumberRange.new(0.6, 1), Rate = 8, Speed = NumberRange.new(s * 0.5, s * 0.8), ShapeInOut = Enum.ParticleEmitterShapeInOut.Inward },
+		}
+	end,
+	Rainbow = function(s, _c)
+		return { { Texture = SPARKLE, Color = colors(Color3.fromRGB(255, 80, 80), Color3.fromRGB(255, 200, 60), Color3.fromRGB(90, 255, 110), Color3.fromRGB(80, 180, 255), Color3.fromRGB(210, 100, 255)), Size = pop(s * 0.22), Lifetime = NumberRange.new(1, 1.6), Rate = 14, Speed = NumberRange.new(s * 0.3, s * 0.8), RotSpeed = NumberRange.new(-180, 180) } }
+	end,
+	Magic = function(s, c)
+		return { { Texture = SPARKLE, Color = colors(c:Lerp(Color3.fromRGB(210, 120, 255), 0.5), Color3.fromRGB(255, 150, 230), Color3.fromRGB(150, 220, 255)), Size = pop(s * 0.18), Lifetime = NumberRange.new(1, 1.6), Rate = 10, Speed = NumberRange.new(s * 0.2, s * 0.5), EmissionDirection = Enum.NormalId.Top, SpreadAngle = Vector2.new(60, 60), Acceleration = Vector3.new(0, s * 0.3, 0), RotSpeed = NumberRange.new(-200, 200) } }
+	end,
+	Feathers = function(s, c)
+		return { { Texture = SMOKE, Color = colors(c:Lerp(WHITE, 0.6), WHITE), Size = NumberSequence.new(s * 0.14), Squash = NumberSequence.new(-1.2), Transparency = NumberSequence.new({ kp(0, 0.1), kp(0.8, 0.2), kp(1, 1) }), Lifetime = NumberRange.new(2.5, 3.5), Rate = 3, Speed = NumberRange.new(s * 0.4, s * 0.7), EmissionDirection = Enum.NormalId.Top, SpreadAngle = Vector2.new(70, 70), Acceleration = Vector3.new(s * 0.1, -s * 0.35, 0), RotSpeed = NumberRange.new(-90, 90), Rotation = NumberRange.new(0, 360), LightEmission = 0.2 } }
+	end,
+	Aurora = function(s, _c)
+		return { { Texture = SMOKE, Color = colors(Color3.fromRGB(80, 255, 170), Color3.fromRGB(0, 229, 255), Color3.fromRGB(180, 110, 255)), Size = NumberSequence.new({ kp(0, s * 0.15), kp(1, s * 0.5) }), Squash = NumberSequence.new(1), Transparency = NumberSequence.new({ kp(0, 1), kp(0.25, 0.4), kp(1, 1) }), Lifetime = NumberRange.new(1.8, 2.8), Rate = 6, Speed = NumberRange.new(s * 0.3, s * 0.6), EmissionDirection = Enum.NormalId.Top, SpreadAngle = Vector2.new(25, 25), LightEmission = 1 } }
+	end,
+}
+TreasureVisual.SIGNATURES = SIGNATURES
+
+local function makeEmitter(handle: BasePart, name: string, props, rateScale: number): ParticleEmitter
 	local e = Instance.new("ParticleEmitter")
 	e.Name = name
 	e.Texture = SPARKLE
@@ -308,9 +431,21 @@ local function emitter(handle: BasePart, name: string, props)
 	for key, value in props do
 		(e :: any)[key] = value
 	end
+	e.Rate *= rateScale
 	e.Parent = handle
 	return e
 end
+
+-- The treasure's own particles (Config/Treasures Fx; plain sparkle if it has none).
+function TreasureVisual.Signature(handle: BasePart, def, display: boolean)
+	local build = SIGNATURES[def.Fx or "Sparkle"] or SIGNATURES.Sparkle
+	local c = def.Color
+	for i, props in build(handle.Size.X, Color3.fromRGB(c[1], c[2], c[3])) do
+		makeEmitter(handle, "Signature" .. i, props, if display then 0.35 else 1)
+	end
+end
+
+-- MUTATIONS ---------------------------------------------------------------------------------
 
 local RAINBOW = ColorSequence.new({
 	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 70, 70)),
@@ -341,46 +476,111 @@ local function applyMutation(model: Model, handle: BasePart, mutation: string?, 
 		end
 	end
 	local s = handle.Size.X
-	local sparks = if info.Rainbow then RAINBOW else ColorSequence.new(sparkColor)
-	-- Sparks bursting off it...
-	emitter(handle, "MutationSparkles", {
+	local sparks = if info.Rainbow then RAINBOW else colors(sparkColor, color:Lerp(WHITE, 0.3))
+	local rate = if display then 0.4 else 1
+	-- A ring of light rising from its feet: the "this one is special" signal from across a field.
+	makeEmitter(handle, "MutationRing", {
 		Color = sparks,
-		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, s * 0.18), NumberSequenceKeypoint.new(1, 0) }),
-		Lifetime = NumberRange.new(0.5, 1.1),
-		Rate = if display then 10 else 26,
-		Speed = NumberRange.new(s * 0.4, s * 1.1),
-		Drag = 3,
-	})
-	-- ...big star glints flashing on its surface...
-	emitter(handle, "MutationGlint", {
+		Size = NumberSequence.new({ kp(0, s * 0.2), kp(1, 0) }),
+		Transparency = NumberSequence.new({ kp(0, 0), kp(0.7, 0.2), kp(1, 1) }),
+		Lifetime = NumberRange.new(0.9, 1.3),
+		Rate = 40,
+		Speed = NumberRange.new(s * 0.9, s * 1.3),
+		SpreadAngle = Vector2.new(0, 0),
+		EmissionDirection = Enum.NormalId.Top,
+		Shape = Enum.ParticleEmitterShape.Disc,
+		ShapeStyle = Enum.ParticleEmitterShapeStyle.Surface,
+		ShapePartial = 1,
+		Drag = 1,
+	}, rate)
+	-- A storm of sparks in its colours...
+	makeEmitter(handle, "MutationSparkles", {
 		Color = sparks,
-		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.3, s * 0.45), NumberSequenceKeypoint.new(1, 0) }),
-		Lifetime = NumberRange.new(0.25, 0.4),
-		Rate = if display then 2 else 5,
+		Size = pop(s * 0.3),
+		Lifetime = NumberRange.new(0.6, 1.2),
+		Rate = 30,
+		Speed = NumberRange.new(s * 0.6, s * 1.4),
+		Drag = 2.5,
+		RotSpeed = NumberRange.new(-200, 200),
+	}, rate)
+	-- ...and big star glints flashing on its surface.
+	makeEmitter(handle, "MutationGlint", {
+		Color = sparks,
+		Size = NumberSequence.new({ kp(0, 0), kp(0.3, s * (if mutation == "Diamond" then 1.1 else 0.7)), kp(1, 0) }),
+		Lifetime = NumberRange.new(0.25, 0.45),
+		Rate = if mutation == "Diamond" then 9 else 5,
 		Speed = NumberRange.new(0, 0),
 		Rotation = NumberRange.new(0, 90),
-	})
-	-- ...Moonlit also sheds drifting motes of moonlight.
-	if mutation == "Moonlit" then
-		emitter(handle, "Moonmotes", {
-			Texture = "rbxasset://textures/particles/smoke_main.dds",
-			Color = ColorSequence.new(sparkColor),
-			Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, s * 0.1), NumberSequenceKeypoint.new(1, s * 0.35) }),
-			Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 1) }),
-			Lifetime = NumberRange.new(1.5, 2.5),
+	}, rate)
+	-- Each mutation's own touch.
+	if mutation == "Gold" then
+		makeEmitter(handle, "GoldCoins", {
+			Color = colors(Color3.fromRGB(255, 225, 90), Color3.fromRGB(255, 170, 30)),
+			Size = NumberSequence.new(s * 0.16, s * 0.1),
+			Lifetime = NumberRange.new(1, 1.4),
+			Rate = 12,
+			Speed = NumberRange.new(s * 1.4, s * 2.2),
+			SpreadAngle = Vector2.new(35, 35),
+			EmissionDirection = Enum.NormalId.Top,
+			Acceleration = Vector3.new(0, -s * 3.5, 0),
+			RotSpeed = NumberRange.new(-360, 360),
+		}, rate)
+	elseif mutation == "Silver" then
+		makeEmitter(handle, "SilverDust", {
+			Texture = SMOKE,
+			Color = colors(Color3.fromRGB(240, 245, 255)),
+			Size = NumberSequence.new({ kp(0, s * 0.1), kp(1, s * 0.35) }),
+			Transparency = fade(0.55),
+			Lifetime = NumberRange.new(1.2, 1.8),
 			Rate = 6,
-			Speed = NumberRange.new(0.5, 1.5),
+			Speed = NumberRange.new(s * 0.2, s * 0.4),
+			LightEmission = 0.8,
+		}, rate)
+	elseif mutation == "Diamond" then
+		makeEmitter(handle, "Prism", {
+			Color = colors(Color3.fromRGB(255, 180, 230), Color3.fromRGB(180, 240, 255), Color3.fromRGB(255, 255, 200)),
+			Size = pop(s * 0.2),
+			Lifetime = NumberRange.new(1, 1.6),
+			Rate = 16,
+			Speed = NumberRange.new(s * 0.3, s * 0.7),
+			RotSpeed = NumberRange.new(-120, 120),
+		}, rate)
+	elseif mutation == "Moonlit" then
+		makeEmitter(handle, "Moonmotes", {
+			Texture = SMOKE,
+			Color = ColorSequence.new(sparkColor),
+			Size = NumberSequence.new({ kp(0, s * 0.12), kp(1, s * 0.45) }),
+			Transparency = fade(0.4),
+			Lifetime = NumberRange.new(1.5, 2.5),
+			Rate = 8,
+			Speed = NumberRange.new(s * 0.2, s * 0.5),
 			SpreadAngle = Vector2.new(20, 20),
-			Acceleration = Vector3.new(0, 1, 0),
-		})
+			EmissionDirection = Enum.NormalId.Top,
+			Acceleration = Vector3.new(0, s * 0.3, 0),
+			LightEmission = 0.9,
+		}, rate)
+	elseif mutation == "Rainbow" then
+		makeEmitter(handle, "RainbowTrail", {
+			Texture = SMOKE,
+			Color = RAINBOW,
+			Size = NumberSequence.new({ kp(0, s * 0.2), kp(1, s * 0.6) }),
+			Transparency = fade(0.35),
+			Lifetime = NumberRange.new(1.2, 1.8),
+			Rate = 10,
+			Speed = NumberRange.new(s * 0.4, s * 0.8),
+			EmissionDirection = Enum.NormalId.Top,
+			SpreadAngle = Vector2.new(30, 30),
+			RotSpeed = NumberRange.new(-60, 60),
+			LightEmission = 1,
+		}, rate)
 	end
 	-- A glow you see from afar, and an outline that makes it pop (world treasure only: the
 	-- engine renders a limited number of outlines at once).
 	local light = Instance.new("PointLight")
 	light.Name = "MutationLight"
 	light.Color = if info.Rainbow then Color3.new(1, 1, 1) else sparkColor
-	light.Range = s * (if display then 1.8 else 3.5)
-	light.Brightness = if display then 0.7 else 2.2
+	light.Range = s * (if display then 2 else 4.5)
+	light.Brightness = if display then 0.8 else 3
 	light.Shadows = false
 	light.Parent = handle
 	if not display then
@@ -440,6 +640,7 @@ function TreasureVisual.Build(def, cframe: CFrame?, maxScale: number?, mutation:
 		light.Shadows = false
 		light.Parent = handle
 	end
+	TreasureVisual.Signature(handle, def, display)
 	local aura = TreasureVisual.RarityAura(handle, def)
 	if aura and display then
 		aura.Rate *= 0.3 -- a gentle shimmer on a pedestal, not a snow globe

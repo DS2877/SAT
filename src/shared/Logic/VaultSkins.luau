@@ -19,6 +19,9 @@ function VaultSkinRules.NetWorth(data, sellValue: (string) -> number): number
 end
 
 function VaultSkinRules.IsUnlocked(skin, data, ownsPass: (string) -> boolean): boolean
+	if type(data.GiftedSkins) == "table" and data.GiftedSkins[skin.Id] == true then
+		return true -- a gift from an admin: yours, whatever it normally takes
+	end
 	local unlock = skin.Unlock
 	if unlock.Kind == "Free" then
 		return true

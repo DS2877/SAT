@@ -1414,4 +1414,980 @@ Models.first_doubloon = function(k)
 	end
 end
 
+-- THE SECOND HAUL: more treasure for every region (so you don't keep finding the same thing),
+-- plus the EVENT treasures that only ever appear when an admin drops them.
+
+local function lantern(k: Kit, frame: Color3, glow: Color3, glass: Color3)
+	k.box(1.0, 0.14, 1.0, k.at(0, -0.8, 0), frame, M.Metal)
+	k.box(0.85, 1.1, 0.85, k.at(0, -0.15, 0), glass, M.Glass, { T = 0.5 })
+	k.ball(0.55, 0.7, 0.55, k.at(0, -0.2, 0), glow, M.Neon)
+	for _, x in { -0.45, 0.45 } do
+		for _, z in { -0.45, 0.45 } do
+			k.box(0.08, 1.2, 0.08, k.at(x, -0.15, z), frame, M.Metal)
+		end
+	end
+	k.wedge(1.0, 0.4, 0.5, k.at(0, 0.6, -0.25), frame, M.Metal)
+	k.wedge(1.0, 0.4, 0.5, k.at(0, 0.6, 0.25, 0, 180, 0), frame, M.Metal)
+	k.torus(0.2, 0.07, 8, k.at(0, 1.0, 0), frame, M.Metal)
+end
+
+-- A crown: band + points + jewels. `y`/`size` place a smaller one on top of something.
+local function crown(k: Kit, band: Color3, mat: Enum.Material, points: number, jewel: Color3, y: number?, size: number?)
+	local y0, f = y or -0.45, size or 1
+	k.torus(0.8 * f, 0.26 * f, 16, k.at(0, y0, 0, 90, 0, 0), band, mat, { R = 0.25 })
+	for i = 1, points do
+		local a = i / points * 2 * math.pi
+		k.cone(0.8 * f, 0.26 * f, 3, onRing(k, a, 0.8 * f, y0 + 0.1 * f, 8), band, mat)
+		k.ball(0.2 * f, 0.2 * f, 0.2 * f, k.at(math.cos(a) * 0.88 * f, y0 + 0.95 * f, math.sin(a) * 0.88 * f), jewel, M.Glass)
+	end
+end
+
+local function egg(k: Kit, shell: Color3, mat: Enum.Material, spots: Color3)
+	k.ball(1.35, 1.8, 1.35, k.at(0, 0.05, 0), shell, mat)
+	for i = 1, 7 do
+		local a = i * 2.1
+		local y = -0.5 + (i % 4) * 0.35
+		local r = 0.64 * math.sqrt(1 - (y / 0.95) ^ 2)
+		k.ball(0.26, 0.22, 0.08, k.at(math.cos(a) * r, y, math.sin(a) * r, 0, -math.deg(a) + 90, 0), spots, M.Neon)
+	end
+	k.ball(1.6, 0.25, 1.6, k.at(0, -0.85, 0), C(120, 100, 80), M.Grass)
+end
+
+local function orbOnStand(k: Kit, stand: Color3, orb: Color3, mat: Enum.Material, extra)
+	k.vcyl(0.22, 0.95, k.at(0, -0.82, 0), stand, M.Metal)
+	for i = 1, 3 do
+		local a = i / 3 * 2 * math.pi
+		k.box(0.1, 0.55, 0.1, onRing(k, a, 0.42, -0.72, 35) * CFrame.new(0, 0.28 * k.s, 0), stand, M.Metal)
+	end
+	return k.ball(1.4, 1.4, 1.4, k.at(0, 0.15, 0), orb, mat, extra)
+end
+
+-- WILDS ---------------------------------------------------------------------------------------
+
+Models.acorn_cache = function(k)
+	for i, spec in { { 0, -0.35, 0, 1.0 }, { -0.6, -0.55, 0.3, 0.7 }, { 0.6, -0.6, -0.1, 0.65 }, { 0.15, -0.6, 0.6, 0.6 } } do
+		local s = spec[4]
+		local cf = k.at(spec[1], spec[2], spec[3], 0, i * 40, (i % 2) * 15 - 7)
+		k.ball(0.8 * s, 1.0 * s, 0.8 * s, cf, if i == 1 then GOLD else C(170, 110, 50), if i == 1 then M.Metal else M.Wood, { R = if i == 1 then 0.3 else 0 })
+		k.ball(0.9 * s, 0.45 * s, 0.9 * s, cf * CFrame.new(0, 0.42 * s * k.s, 0), C(110, 75, 40), M.Wood)
+		k.vcyl(0.25 * s, 0.1 * s, cf * CFrame.new(0, 0.7 * s * k.s, 0), C(90, 60, 30), M.Wood)
+	end
+	for i = 1, 3 do
+		k.ball(0.55, 0.06, 0.3, k.at(-0.4 + i * 0.3, -0.85, -0.55, 0, i * 50, 0), C(200, 120, 40), M.Grass)
+	end
+end
+
+Models.carved_whistle = function(k)
+	-- A wooden bird whistle: round body, a beak spout, carved wings.
+	k.ball(1.3, 1.0, 1.0, k.at(0, -0.2, 0), k.main, M.Wood)
+	k.ball(0.7, 0.65, 0.65, k.at(-0.55, 0.3, 0), k.main, M.Wood)
+	k.wedge(0.25, 0.25, 0.45, k.at(-0.95, 0.3, 0, 0, -90, 0), C(230, 170, 60), M.Wood)
+	eyes(k, 0.45, -0.25, 0.18, 0.18)
+	for _, z in { -0.5, 0.5 } do
+		k.ball(0.7, 0.3, 0.12, k.at(0.2, -0.05, z, 0, 0, -20), k.main:Lerp(DARK, 0.25), M.Wood)
+	end
+	k.vcyl(0.6, 0.3, k.at(0.75, 0.05, 0, 0, 0, -60), k.main:Lerp(DARK, 0.2), M.Wood)
+	k.box(0.25, 0.08, 0.08, k.at(0, -0.1, -0.52), DARK)
+end
+
+Models.lucky_horseshoe = function(k)
+	for i = 0, 8 do
+		local a = rad(-20 + i * 27.5)
+		k.box(0.42, 0.34, 0.3, k.at(math.cos(a) * 0.72, math.sin(a) * 0.72 + 0.05, 0, 0, 0, math.deg(a) + 90), k.main, M.Metal, { R = 0.35 })
+		if i % 2 == 1 then
+			k.ball(0.1, 0.1, 0.06, k.at(math.cos(a) * 0.72, math.sin(a) * 0.72 + 0.05, -0.16), GOLD, M.Metal)
+		end
+	end
+	k.ball(0.35, 0.35, 0.1, k.at(0, -0.35, -0.1), C(80, 200, 90), M.Glass) -- a four-leaf clover charm
+	for i = 0, 3 do
+		k.ball(0.22, 0.3, 0.06, k.at(0, -0.35, -0.12, 0, 0, i * 90) * CFrame.new(0, 0.15 * k.s, 0), C(90, 210, 90), M.Grass)
+	end
+	k.box(0.08, 0.35, 0.06, k.at(0, -0.62, -0.12), C(60, 140, 60))
+end
+
+Models.honey_jar = function(k)
+	k.vcyl(1.4, 1.35, k.at(0, -0.2, 0), k.main, M.Glass, { T = 0.25 })
+	k.vcyl(1.1, 1.15, k.at(0, -0.3, 0), C(255, 170, 30), M.Neon, { T = 0.3 })
+	k.vcyl(0.25, 1.45, k.at(0, 0.6, 0), C(200, 60, 50), M.Fabric)
+	k.vcyl(0.12, 1.2, k.at(0, 0.8, 0), C(230, 200, 150), M.Fabric)
+	-- Honey dripping over the rim, a dipper stuck in it, a fat bee.
+	for i = 1, 4 do
+		local a = i / 4 * 2 * math.pi
+		k.ball(0.22, 0.45, 0.22, k.at(math.cos(a) * 0.68, 0.35, math.sin(a) * 0.68), C(255, 180, 30), M.Glass, { T = 0.1 })
+	end
+	k.cyl(1.2, 0.1, k.at(0.3, 1.0, 0, 0, 0, 65), WOOD, M.Wood)
+	k.ball(0.3, 0.3, 0.3, k.at(0.55, 1.5, 0), C(230, 170, 40), M.Wood)
+	k.ball(0.4, 0.3, 0.3, k.at(-0.7, 1.1, -0.2), C(255, 210, 40))
+	k.box(0.08, 0.31, 0.31, k.at(-0.7, 1.1, -0.2), BLACK)
+	k.ball(0.3, 0.1, 0.2, k.at(-0.7, 1.28, -0.1, 0, 0, 20), WHITE, M.Glass, { T = 0.4 })
+end
+
+Models.owl_totem = function(k)
+	k.vcyl(1.5, 1.0, k.at(0, -0.3, 0), k.main, M.Wood)
+	k.ball(1.2, 0.9, 1.1, k.at(0, 0.7, 0), k.main:Lerp(C(200, 170, 120), 0.3), M.Wood)
+	for _, x in { -0.3, 0.3 } do
+		k.cyl(0.08, 0.5, k.at(x, 0.75, -0.5, 0, 90, 0), C(240, 220, 170), M.Wood)
+		k.cyl(0.1, 0.3, k.at(x, 0.75, -0.55, 0, 90, 0), C(255, 190, 40), M.Neon)
+		k.wedge(0.2, 0.4, 0.2, k.at(x * 1.3, 1.25, 0), k.main:Lerp(DARK, 0.3), M.Wood) -- ear tufts
+	end
+	k.wedge(0.2, 0.25, 0.2, k.at(0, 0.5, -0.58, 0, 0, 180), C(230, 170, 60), M.Wood)
+	for _, x in { -0.55, 0.55 } do
+		k.ball(0.25, 1.1, 0.6, k.at(x, -0.2, 0, 0, 0, x * -20), k.main:Lerp(DARK, 0.25), M.Wood)
+	end
+	for i = 0, 2 do
+		k.box(0.6, 0.06, 0.05, k.at(0, -0.1 - i * 0.3, -0.5), k.main:Lerp(DARK, 0.4), M.Wood)
+	end
+end
+
+Models.fairy_lantern = function(k)
+	lantern(k, C(140, 100, 60), C(255, 170, 240), C(255, 220, 250))
+	-- Wings on the tiny fairy inside, glowing through the glass.
+	for _, x in { -1, 1 } do
+		k.ball(0.35, 0.5, 0.05, k.at(x * 0.18, 0, -0.05, 0, 0, x * -30), C(200, 240, 255), M.Glass, { T = 0.3 })
+	end
+	for i = 1, 4 do
+		local a = i / 4 * 2 * math.pi
+		k.ball(0.12, 0.12, 0.12, k.at(math.cos(a) * 0.95, 0.4 + (i % 2) * 0.4, math.sin(a) * 0.95), C(255, 230, 120), M.Neon)
+	end
+	for i = 1, 3 do
+		k.ball(0.3, 0.2, 0.3, k.at(-0.3 + i * 0.25, 1.15, 0.1), C(255, 150, 200), M.Grass)
+	end
+end
+
+Models.treant_heart = function(k)
+	-- A knot of old wood holding a glowing green heart, roots and leaves sprouting.
+	for i = 1, 6 do
+		local a = i / 6 * 2 * math.pi
+		k.cyl(1.0, 0.3, k.at(math.cos(a) * 0.5, -0.65, math.sin(a) * 0.5, 0, -math.deg(a), -25), C(100, 70, 40), M.Wood)
+	end
+	k.ball(1.4, 1.6, 1.3, k.at(0, 0.05, 0.1), C(120, 85, 50), M.Wood)
+	-- The hollow in its trunk, and the glowing heart inside it.
+	k.ball(1.0, 1.05, 0.3, k.at(0, 0.1, -0.5), C(55, 38, 22), M.Wood)
+	local glow = k.main:Lerp(WHITE, 0.25)
+	k.ball(0.42, 0.42, 0.3, k.at(-0.14, 0.24, -0.62), glow, M.Neon)
+	k.ball(0.42, 0.42, 0.3, k.at(0.14, 0.24, -0.62), glow, M.Neon)
+	k.box(0.36, 0.36, 0.26, k.at(0, 0.06, -0.62, 0, 0, 45), glow, M.Neon)
+	for i = 1, 6 do
+		local a = i / 6 * 2 * math.pi
+		k.ball(0.45, 0.14, 0.3, k.at(math.cos(a) * 0.5, 0.95 + (i % 2) * 0.15, math.sin(a) * 0.5, 0, -math.deg(a), 25), C(90, 190, 70), M.Grass)
+	end
+end
+
+Models.golden_goose = function(k)
+	local gold = k.main
+	k.ball(1.6, 1.1, 1.1, k.at(0.1, -0.35, 0), gold, M.Metal, { R = 0.35 })
+	k.vcyl(0.9, 0.35, k.at(-0.6, 0.35, 0, 0, 0, 15), gold, M.Metal, { R = 0.35 })
+	k.ball(0.55, 0.5, 0.5, k.at(-0.75, 0.85, 0), gold, M.Metal, { R = 0.35 })
+	k.wedge(0.25, 0.2, 0.4, k.at(-1.1, 0.8, 0, 0, -90, 0), C(255, 140, 40), M.SmoothPlastic)
+	eyes(k, 0.95, -0.2, 0.12, 0.12)
+	for _, z in { -0.5, 0.5 } do
+		k.ball(1.0, 0.35, 0.15, k.at(0.3, -0.1, z, 0, 0, -15), gold:Lerp(WHITE, 0.2), M.Metal, { R = 0.35 })
+	end
+	k.wedge(0.5, 0.4, 0.3, k.at(0.95, -0.1, 0, 0, 90, 0), gold, M.Metal)
+	-- The golden egg, just laid.
+	k.ball(0.55, 0.72, 0.55, k.at(0.75, -0.6, -0.55), GOLD:Lerp(WHITE, 0.3), M.Neon)
+end
+
+-- COAST ---------------------------------------------------------------------------------------
+
+Models.sea_glass = function(k)
+	local colors = { C(120, 210, 200), C(90, 160, 220), C(160, 230, 170), C(220, 250, 250), C(70, 140, 120) }
+	for i = 1, 7 do
+		local a = i * 0.9
+		local r = 0.25 + (i % 3) * 0.25
+		k.box(0.45 + (i % 2) * 0.2, 0.3, 0.35, k.at(math.cos(a) * r, -0.7 + (i % 3) * 0.18, math.sin(a) * r, i * 20, i * 35, i * 15), colors[(i % #colors) + 1], M.Glass, { T = 0.25 })
+	end
+	k.ball(1.8, 0.2, 1.4, k.at(0, -0.9, 0), C(230, 210, 170), M.Sand)
+	k.ball(0.35, 0.45, 0.2, k.at(0.5, -0.5, 0.4, 0, 30, 0), C(255, 200, 190), M.SmoothPlastic) -- a shell
+end
+
+Models.mermaid_comb = function(k)
+	k.box(1.6, 0.5, 0.18, k.at(0, 0.3, 0), k.main, M.Marble)
+	for i = 0, 11 do
+		k.box(0.07, 0.8, 0.08, k.at(-0.72 + i * 0.13, -0.3, 0), k.main, M.Marble)
+	end
+	k.ball(0.5, 0.5, 0.25, k.at(0, 0.62, 0), C(255, 240, 250), M.Marble, { R = 0.2 })
+	k.ball(0.3, 0.3, 0.3, k.at(0, 0.62, -0.1), C(120, 220, 255), M.Glass)
+	for _, x in { -0.6, 0.6 } do
+		k.ball(0.3, 0.3, 0.2, k.at(x, 0.35, -0.1), C(255, 150, 180), M.Glass)
+	end
+	k.box(0.05, 1.2, 0.05, k.at(0.3, -0.2, -0.12, 0, 0, 20), C(80, 190, 150), M.Neon, { T = 0.4 }) -- a strand of hair
+end
+
+Models.coral_tiara = function(k)
+	k.torus(0.7, 0.14, 14, k.at(0, -0.6, 0, 90, 0, 0), C(255, 230, 220), M.Marble)
+	for i = 1, 7 do
+		local a = i / 7 * 2 * math.pi
+		local base = onRing(k, a, 0.7, -0.55, 10)
+		local h = 0.6 + (i % 3) * 0.25
+		k.box(0.16, h, 0.16, base * CFrame.new(0, h / 2 * k.s, 0), k.main, M.Marble)
+		k.box(0.12, h * 0.5, 0.12, base * CFrame.new(0.15 * k.s, h * 0.7 * k.s, 0) * CFrame.Angles(0, 0, rad(-35)), k.main:Lerp(WHITE, 0.2), M.Marble)
+		k.ball(0.14, 0.14, 0.14, base * CFrame.new(0, h * k.s, 0), C(255, 220, 240), M.Marble)
+	end
+	k.ball(0.35, 0.35, 0.35, k.at(0, -0.3, -0.72), C(245, 240, 235), M.Marble, { R = 0.4 })
+end
+
+Models.cursed_doubloons = function(k)
+	local gold = k.main
+	for i = 0, 5 do
+		k.coin(1.1 - i * 0.03, k.at(-0.25, -0.85 + i * 0.09, 0.1))
+	end
+	for i = 0, 3 do
+		k.coin(1.0, k.at(0.45, -0.85 + i * 0.09, -0.2))
+	end
+	-- The cursed one standing up, a green skull on it, smoke curling off.
+	k.cyl(0.14, 1.2, k.at(0, 0.05, -0.1, 0, 90, 0), gold:Lerp(C(120, 255, 140), 0.25), M.Metal, { R = 0.3 })
+	k.ball(0.45, 0.42, 0.08, k.at(0, 0.1, -0.2), C(120, 255, 150), M.Neon)
+	for _, x in { -0.1, 0.1 } do
+		k.ball(0.1, 0.1, 0.05, k.at(x, 0.15, -0.25), BLACK)
+	end
+	for i = 1, 3 do
+		k.ball(0.3 + i * 0.1, 0.25, 0.3 + i * 0.1, k.at(0.05 * i, 0.6 + i * 0.28, 0), C(120, 255, 150), M.Neon, { T = 0.45 + i * 0.12 })
+	end
+end
+
+Models.leviathan_scale = function(k)
+	-- One great scale, overlapping plates, a ridge down its spine, still wet.
+	k.ball(1.9, 2.2, 0.35, k.at(0, 0.1, 0, 0, 0, 0), k.main, M.Glass, { T = 0.1, R = 0.2 })
+	for i = 0, 3 do
+		k.ball(1.5 - i * 0.3, 0.5, 0.36, k.at(0, 0.7 - i * 0.45, -0.05), k.main:Lerp(C(20, 60, 80), 0.3), M.Glass, { R = 0.25 })
+	end
+	k.box(0.12, 2.0, 0.4, k.at(0, 0.1, 0), C(200, 250, 255), M.Neon, { T = 0.3 })
+	k.ball(2.0, 0.2, 1.2, k.at(0, -0.9, 0), C(60, 120, 150), M.Glass, { T = 0.4 })
+end
+
+Models.kraken_eye = function(k)
+	-- A huge golden eye in a ring of tentacles.
+	local eye = k.ball(1.6, 1.6, 1.3, k.at(0, 0.2, 0), C(255, 240, 210), M.SmoothPlastic)
+	local _ = eye
+	k.ball(1.0, 1.0, 0.4, k.at(0, 0.2, -0.5), k.main, M.Glass, { R = 0.2 })
+	k.box(0.18, 0.8, 0.1, k.at(0, 0.2, -0.72), BLACK, M.SmoothPlastic)
+	k.ball(0.2, 0.2, 0.1, k.at(-0.2, 0.45, -0.72), WHITE, M.Neon)
+	for i = 1, 6 do
+		local a = i / 6 * 2 * math.pi
+		for j = 0, 3 do
+			local r = 0.85 + j * 0.2
+			local d = 0.4 - j * 0.07
+			k.ball(d, d, d, k.at(math.cos(a + j * 0.25) * r, -0.6 + j * 0.25 + math.sin(a) * 0.3, math.sin(a + j * 0.25) * r * 0.8), C(150, 50, 120), M.SmoothPlastic)
+		end
+	end
+end
+
+-- MARSH ---------------------------------------------------------------------------------------
+
+Models.bog_bottle = function(k)
+	k.ball(1.2, 1.2, 1.2, k.at(0, -0.35, 0), k.main, M.Glass, { T = 0.35 })
+	k.vcyl(0.6, 0.4, k.at(0, 0.45, 0), k.main, M.Glass, { T = 0.35 })
+	k.vcyl(0.25, 0.45, k.at(0, 0.85, 0), C(150, 110, 70), M.Wood)
+	k.ball(0.9, 0.9, 0.9, k.at(0, -0.4, 0), C(120, 200, 60), M.Neon, { T = 0.4 })
+	for i = 1, 4 do
+		k.ball(0.18, 0.18, 0.18, k.at(-0.2 + i * 0.1, -0.2 + i * 0.12, -0.3), C(220, 255, 180), M.Neon, { T = 0.3 })
+	end
+	k.box(0.5, 0.35, 0.03, k.at(0, -0.35, -0.61), C(230, 210, 160), M.Fabric)
+	k.ball(0.2, 0.2, 0.03, k.at(0, -0.32, -0.63), C(200, 40, 40), M.SmoothPlastic)
+end
+
+Models.lily_lantern = function(k)
+	k.ball(1.8, 0.14, 1.8, k.at(0, -0.85, 0), C(70, 150, 70), M.Grass)
+	k.box(0.5, 0.16, 0.9, k.at(0.55, -0.85, 0, 0, 30, 0), C(40, 40, 40), M.SmoothPlastic, { T = 1 })
+	-- A lotus flower opening around a glowing bulb.
+	for i = 1, 8 do
+		local a = i / 8 * 2 * math.pi
+		k.ball(0.35, 0.8, 0.12, onRing(k, a, 0.35, -0.4, 35), C(255, 200, 230), M.SmoothPlastic)
+	end
+	k.ball(0.55, 0.55, 0.55, k.at(0, -0.35, 0), C(255, 250, 180), M.Neon)
+	k.cyl(0.05, 1.8, k.at(0, -0.8, 0, 0, 90, 0), C(60, 140, 60))
+end
+
+Models.firefly_crown = function(k)
+	crown(k, C(90, 150, 60), M.Grass, 6, C(230, 255, 120))
+	for i = 1, 9 do
+		local a = i / 9 * 2 * math.pi
+		k.ball(0.16, 0.16, 0.16, k.at(math.cos(a) * (0.5 + (i % 3) * 0.3), 0.7 + (i % 2) * 0.45, math.sin(a) * (0.5 + (i % 3) * 0.3)), C(240, 255, 140), M.Neon)
+	end
+end
+
+Models.hex_doll = function(k)
+	local cloth = k.main
+	k.ball(0.9, 1.1, 0.7, k.at(0, -0.35, 0), cloth, M.Fabric)
+	k.ball(0.8, 0.8, 0.7, k.at(0, 0.55, 0), cloth:Lerp(WHITE, 0.15), M.Fabric)
+	for _, x in { -0.18, 0.18 } do
+		k.box(0.14, 0.03, 0.05, k.at(x, 0.62, -0.35, 0, 0, 45), BLACK)
+		k.box(0.14, 0.03, 0.05, k.at(x, 0.62, -0.35, 0, 0, -45), BLACK)
+	end
+	k.box(0.4, 0.03, 0.05, k.at(0, 0.38, -0.35, 0, 0, 5), C(200, 40, 40)) -- stitched mouth
+	for _, x in { -0.6, 0.6 } do
+		k.ball(0.3, 0.7, 0.3, k.at(x, -0.25, 0, 0, 0, x * 40), cloth, M.Fabric)
+	end
+	-- Pins stuck in it, glowing purple.
+	for i = 1, 3 do
+		local cf = k.at(-0.2 + i * 0.15, -0.2 + (i % 2) * 0.3, -0.3, 30, 0, -20 + i * 15)
+		k.box(0.04, 0.6, 0.04, cf, C(200, 200, 210), M.Metal)
+		k.ball(0.14, 0.14, 0.14, cf * CFrame.new(0, 0.3 * k.s, 0), C(200, 90, 255), M.Neon)
+	end
+end
+
+Models.mushroom_king_cap = function(k)
+	k.vcyl(0.9, 0.7, k.at(0, -0.45, 0), C(245, 235, 215), M.SmoothPlastic)
+	k.ball(2.0, 1.0, 2.0, k.at(0, 0.25, 0), k.main, M.SmoothPlastic)
+	for i = 1, 8 do
+		local a = i * 2.4
+		local r = 0.25 + (i % 3) * 0.2
+		k.ball(0.28, 0.1, 0.28, k.at(math.cos(a) * r, 0.62 + (0.6 - r) * 0.3, math.sin(a) * r, 0, 0, 0), WHITE, M.SmoothPlastic)
+	end
+	-- A tiny crown on top, and a face on the stalk.
+	crown(k, GOLD, M.Metal, 5, C(255, 60, 60), 0.72, 0.4)
+	eyes(k, -0.35, -0.33, 0.14, 0.14)
+end
+
+Models.frog_prince_crown = function(k)
+	-- A fat frog with a crown too big for him, sitting on a lily pad.
+	k.ball(1.8, 0.14, 1.8, k.at(0, -0.9, 0), C(70, 150, 70), M.Grass)
+	k.ball(1.2, 0.8, 1.1, k.at(0, -0.45, 0), C(90, 170, 80), M.SmoothPlastic)
+	eyes(k, 0.02, -0.25, 0.32, 0.4)
+	k.ball(0.8, 0.08, 0.2, k.at(0, -0.35, -0.5), DARK)
+	k.ball(0.2, 0.12, 0.05, k.at(-0.35, -0.3, -0.53), C(240, 130, 150), M.SmoothPlastic)
+	k.ball(0.2, 0.12, 0.05, k.at(0.35, -0.3, -0.53), C(240, 130, 150), M.SmoothPlastic)
+	local band = k.at(0, 0.45, 0, 0, 0, 10)
+	k.torus(0.45, 0.12, 12, band * CFrame.Angles(rad(90), 0, 0), k.main, M.Metal, { R = 0.3 })
+	for i = 1, 5 do
+		local a = i / 5 * 2 * math.pi
+		k.wedge(0.16, 0.35, 0.1, band * CFrame.new(math.cos(a) * 0.45 * k.s, 0.2 * k.s, math.sin(a) * 0.45 * k.s) * CFrame.Angles(0, -a - math.pi / 2, 0), k.main, M.Metal)
+	end
+	k.ball(0.18, 0.18, 0.18, band * CFrame.new(0, 0.1 * k.s, -0.45 * k.s), C(220, 40, 60), M.Glass)
+end
+
+Models.witch_broom = function(k)
+	local cf = k.at(0, 0.05, 0, 0, 0, -35)
+	k.cyl(2.5, 0.14, cf, C(120, 80, 50), M.Wood)
+	for i = 0, 11 do
+		local a = i / 12 * 2 * math.pi
+		k.cyl(0.9, 0.08, cf * CFrame.new(1.3 * k.s, math.cos(a) * 0.14 * k.s, math.sin(a) * 0.14 * k.s) * CFrame.Angles(0, math.sin(a) * rad(12), math.cos(a) * rad(12)), C(200, 170, 90), M.Grass)
+	end
+	k.cyl(0.2, 0.36, cf * CFrame.new(0.95 * k.s, 0, 0), C(140, 60, 180), M.Fabric)
+	-- Purple sparks trailing off the bristles, a star on the handle.
+	for i = 1, 4 do
+		k.ball(0.15, 0.15, 0.15, cf * CFrame.new((1.9 + i * 0.18) * k.s, (i % 2 - 0.5) * 0.3 * k.s, 0), C(200, 110, 255), M.Neon, { T = i * 0.15 })
+	end
+	starShape(k, cf * CFrame.new(-1.3 * k.s, 0, 0), 0.22, 0.06, C(255, 230, 120), M.Neon)
+end
+
+Models.unicorn_horn = function(k)
+	-- A spiral horn rising from a cloud, a rainbow wrapping it.
+	k.ball(1.8, 0.6, 1.4, k.at(0, -0.75, 0), C(255, 245, 250), M.SmoothPlastic)
+	k.ball(1.0, 0.5, 0.9, k.at(-0.5, -0.55, 0.2), C(255, 250, 255), M.SmoothPlastic)
+	k.cone(2.0, 0.75, 7, k.at(0, -0.5, 0), k.main, M.Marble, { R = 0.2 })
+	local rainbow = { C(255, 90, 90), C(255, 190, 60), C(255, 255, 90), C(90, 230, 110), C(90, 170, 255), C(190, 110, 255) }
+	for i = 0, 11 do
+		local t = i / 11
+		local a = t * 4 * math.pi
+		local r = 0.36 * (1 - t * 0.8)
+		k.ball(0.14, 0.14, 0.14, k.at(math.cos(a) * r, -0.35 + t * 1.8, math.sin(a) * r), rainbow[(i % #rainbow) + 1], M.Neon)
+	end
+	starShape(k, k.at(0, 1.4, 0), 0.25, 0.06, WHITE, M.Neon)
+end
+
+-- RUINS ---------------------------------------------------------------------------------------
+
+Models.sand_hourglass = function(k)
+	for _, y in { -0.85, 0.85 } do
+		k.vcyl(0.14, 1.3, k.at(0, y, 0), WOOD, M.Wood)
+	end
+	for i = 1, 3 do
+		local a = i / 3 * 2 * math.pi
+		k.vcyl(1.7, 0.1, k.at(math.cos(a) * 0.55, 0, math.sin(a) * 0.55), WOOD, M.Wood)
+	end
+	k.ball(0.9, 0.9, 0.9, k.at(0, 0.4, 0), C(220, 240, 255), M.Glass, { T = 0.6 })
+	k.ball(0.9, 0.9, 0.9, k.at(0, -0.4, 0), C(220, 240, 255), M.Glass, { T = 0.6 })
+	k.ball(0.6, 0.35, 0.6, k.at(0, -0.6, 0), k.main, M.Sand)
+	k.ball(0.45, 0.3, 0.45, k.at(0, 0.35, 0), k.main, M.Sand)
+	k.vcyl(0.35, 0.06, k.at(0, 0, 0), k.main, M.Neon)
+end
+
+Models.cobra_idol = function(k)
+	-- A coiled cobra rearing up, hood spread, jewel eyes.
+	for i = 0, 2 do
+		k.torus(0.55 - i * 0.12, 0.2, 12, k.at(0, -0.75 + i * 0.2, 0, 90, 0, 0), k.main, M.Slate)
+	end
+	k.vcyl(1.0, 0.32, k.at(0, 0.1, 0.1, -10, 0, 0), k.main, M.Slate)
+	k.ball(1.1, 1.0, 0.25, k.at(0, 0.75, 0.05), k.main, M.Slate)
+	k.ball(0.8, 0.7, 0.26, k.at(0, 0.75, 0.02), C(230, 200, 90), M.Slate)
+	k.ball(0.45, 0.35, 0.55, k.at(0, 0.8, -0.25), k.main, M.Slate)
+	for _, x in { -0.13, 0.13 } do
+		k.ball(0.12, 0.12, 0.1, k.at(x, 0.88, -0.48), C(255, 60, 60), M.Neon)
+	end
+	k.box(0.04, 0.2, 0.04, k.at(0, 0.65, -0.55, -30, 0, 0), C(220, 40, 60))
+end
+
+Models.sun_mirror = function(k)
+	k.cyl(0.14, 1.6, k.at(0, 0.3, 0, 0, 90, 0), C(230, 240, 255), M.Glass, { R = 0.6 })
+	k.torus(0.82, 0.12, 18, k.at(0, 0.3, 0), k.main, M.Metal, { R = 0.35 })
+	for i = 1, 12 do
+		local a = i / 12 * 2 * math.pi
+		k.wedge(0.1, 0.35, 0.18, k.at(math.cos(a) * 1.05, 0.3 + math.sin(a) * 1.05, 0, 0, 90, math.deg(a) - 90), k.main, M.Metal)
+	end
+	k.vcyl(0.6, 0.2, k.at(0, -0.7, 0), k.main, M.Metal)
+	k.vcyl(0.12, 0.8, k.at(0, -0.95, 0), k.main, M.Metal)
+	k.ball(0.45, 0.45, 0.1, k.at(0.25, 0.55, -0.1), WHITE, M.Neon, { T = 0.4 })
+end
+
+Models.pharaoh_mask = function(k)
+	local gold = k.main
+	local lapis = C(30, 60, 160)
+	k.box(1.6, 2.0, 0.3, k.at(0, 0.05, 0.15), lapis, M.Metal)
+	for i = 0, 5 do
+		k.box(1.62, 0.12, 0.32, k.at(0, 0.8 - i * 0.3, 0.15), gold, M.Metal, { R = 0.3 })
+	end
+	k.ball(1.05, 1.3, 0.8, k.at(0, 0.25, -0.1), gold, M.Metal, { R = 0.35 })
+	for _, x in { -0.22, 0.22 } do
+		k.ball(0.26, 0.14, 0.1, k.at(x, 0.35, -0.48), WHITE, M.SmoothPlastic)
+		k.ball(0.12, 0.12, 0.1, k.at(x, 0.35, -0.53), BLACK, M.SmoothPlastic)
+		k.box(0.35, 0.05, 0.05, k.at(x * 1.2, 0.35, -0.5, 0, 0, x * 40), BLACK)
+	end
+	k.box(0.3, 0.12, 0.08, k.at(0, -0.05, -0.47), C(200, 120, 60))
+	k.box(0.14, 0.6, 0.16, k.at(0, -0.55, -0.35, -10, 0, 0), lapis, M.Metal) -- the beard
+	k.box(0.3, 0.35, 0.14, k.at(0, 0.95, -0.4), gold, M.Metal) -- the cobra crest
+end
+
+Models.judgement_scales = function(k)
+	local gold = k.main
+	k.vcyl(0.14, 0.9, k.at(0, -0.85, 0), gold, M.Metal)
+	k.vcyl(1.7, 0.12, k.at(0, 0, 0), gold, M.Metal)
+	k.box(1.9, 0.1, 0.1, k.at(0, 0.8, 0, 0, 0, 8), gold, M.Metal)
+	k.ball(0.25, 0.25, 0.25, k.at(0, 0.9, 0), C(60, 200, 220), M.Glass)
+	for side, spec in { { -0.9, 0.95 }, { 0.9, 0.62 } } do
+		local x, y = spec[1], spec[2]
+		k.box(0.03, 0.5, 0.03, k.at(x, y - 0.25, 0), gold)
+		k.cyl(0.08, 0.7, k.at(x, y - 0.55, 0, 0, 0, 90), gold, M.Metal)
+		if side == 1 then
+			heart(k, y - 0.35, 0.35, C(220, 40, 60), M.Glass) -- the heart...
+		else
+			k.ball(0.15, 0.55, 0.1, k.at(x, y - 0.25, 0, 0, 0, 25), WHITE, M.Neon) -- ...against a feather
+		end
+	end
+end
+
+Models.sphinx_head = function(k)
+	local stone = k.main
+	k.box(1.9, 0.4, 1.4, k.at(0, -0.8, 0), stone:Lerp(DARK, 0.2), M.Sandstone)
+	-- Headdress falling to the shoulders, stripes, a calm (cracked) face.
+	k.box(1.7, 1.2, 1.0, k.at(0, -0.1, 0.1), stone, M.Sandstone)
+	k.wedge(1.7, 0.5, 1.0, k.at(0, 0.75, 0.1, 0, 180, 0), stone, M.Sandstone)
+	for i = 0, 3 do
+		k.box(1.72, 0.08, 1.02, k.at(0, -0.5 + i * 0.3, 0.1), C(60, 100, 170), M.Sandstone)
+	end
+	k.box(0.9, 1.0, 0.3, k.at(0, 0.05, -0.45), stone:Lerp(WHITE, 0.1), M.Sandstone)
+	for _, x in { -0.2, 0.2 } do
+		k.box(0.2, 0.08, 0.05, k.at(x, 0.25, -0.62), DARK)
+	end
+	k.box(0.15, 0.3, 0.14, k.at(0, 0.05, -0.64), stone, M.Sandstone)
+	k.box(0.35, 0.05, 0.05, k.at(0, -0.2, -0.62), DARK)
+	k.box(0.04, 0.7, 0.05, k.at(0.3, 0, -0.62, 0, 0, 20), DARK) -- a crack
+end
+
+-- FROSTPEAK -----------------------------------------------------------------------------------
+
+Models.snow_globe = function(k)
+	k.vcyl(0.35, 1.3, k.at(0, -0.75, 0), C(140, 90, 50), M.Wood)
+	k.ball(1.6, 1.6, 1.6, k.at(0, 0.25, 0), C(220, 240, 255), M.Glass, { T = 0.6 })
+	k.ball(1.2, 0.3, 1.2, k.at(0, -0.4, 0), WHITE, M.Snow)
+	-- A tiny Frostpeak inside with a cabin.
+	k.wedge(0.8, 0.8, 0.5, k.at(-0.2, 0.0, 0.1), C(200, 220, 240), M.Snow)
+	k.wedge(0.8, 0.8, 0.5, k.at(-0.2, 0.0, 0.35, 0, 180, 0), C(200, 220, 240), M.Snow)
+	k.box(0.3, 0.25, 0.3, k.at(0.35, -0.15, -0.2), C(140, 90, 60), M.Wood)
+	k.box(0.08, 0.08, 0.02, k.at(0.35, -0.15, -0.36), C(255, 220, 120), M.Neon)
+	for i = 1, 6 do
+		k.ball(0.08, 0.08, 0.08, k.at(math.cos(i) * 0.5, 0.2 + (i % 3) * 0.2, math.sin(i) * 0.5), WHITE, M.Neon)
+	end
+end
+
+Models.silver_skates = function(k)
+	for _, x in { -0.4, 0.4 } do
+		k.box(0.5, 0.9, 1.1, k.at(x, 0, 0.05), C(245, 245, 250), M.Fabric)
+		k.box(0.5, 0.35, 0.5, k.at(x, -0.2, -0.55), C(245, 245, 250), M.Fabric)
+		k.box(0.06, 0.1, 1.6, k.at(x, -0.7, -0.1), k.main, M.Metal, { R = 0.5 })
+		k.box(0.06, 0.25, 0.08, k.at(x, -0.55, 0.45), k.main, M.Metal)
+		k.box(0.06, 0.25, 0.08, k.at(x, -0.55, -0.5), k.main, M.Metal)
+		for i = 0, 2 do
+			k.box(0.52, 0.03, 0.05, k.at(x, 0.25 - i * 0.2, -0.47), C(200, 60, 60))
+		end
+	end
+	k.cyl(0.9, 0.05, k.at(0, 0.6, 0.1), C(200, 60, 60))
+end
+
+Models.penguin_statue = function(k)
+	k.ball(1.2, 1.7, 1.1, k.at(0, -0.1, 0), k.main, M.Marble)
+	k.ball(0.85, 1.3, 0.3, k.at(0, -0.2, -0.45), WHITE, M.Marble)
+	k.ball(0.8, 0.75, 0.75, k.at(0, 0.8, 0), k.main, M.Marble)
+	eyes(k, 0.9, -0.3, 0.16, 0.18)
+	k.wedge(0.2, 0.15, 0.3, k.at(0, 0.72, -0.45, 0, 180, 0), C(255, 160, 40), M.SmoothPlastic)
+	for _, x in { -0.62, 0.62 } do
+		k.ball(0.18, 0.9, 0.4, k.at(x, -0.1, 0, 0, 0, x * -25), k.main, M.Marble)
+	end
+	for _, x in { -0.25, 0.25 } do
+		k.ball(0.35, 0.12, 0.5, k.at(x, -0.95, -0.2), C(255, 160, 40), M.SmoothPlastic)
+	end
+	k.box(0.7, 0.15, 0.1, k.at(0, 0.5, -0.35, 0, 0, 5), C(220, 40, 50), M.Fabric) -- a scarf
+end
+
+Models.frost_lantern = function(k)
+	lantern(k, C(180, 200, 220), C(120, 210, 255), C(220, 245, 255))
+	for i = 1, 5 do
+		local x = -0.4 + i * 0.16
+		k.box(0.08, 0.2 + (i % 2) * 0.15, 0.08, k.at(x, -0.95 - (i % 2) * 0.07, -0.5), C(220, 245, 255), M.Glass, { T = 0.2 })
+	end
+	k.ball(1.1, 0.2, 1.1, k.at(0, 0.8, 0), WHITE, M.Snow)
+end
+
+Models.icicle_scepter = function(k)
+	k.vcyl(2.0, 0.16, k.at(0, -0.1, 0), C(200, 220, 240), M.Metal)
+	k.ball(0.4, 0.3, 0.4, k.at(0, -1.0, 0), C(200, 220, 240), M.Metal)
+	-- A burst of icicles for a head.
+	for i = 1, 6 do
+		local a = i / 6 * 2 * math.pi
+		shard(k, k.at(math.cos(a) * 0.12, 0.85, math.sin(a) * 0.12, math.sin(a) * 30, 0, -math.cos(a) * 30), 0.18, 0.45, k.main, M.Glass, { T = 0.1 })
+	end
+	shard(k, k.at(0, 0.85, 0), 0.24, 0.6, WHITE, M.Glass, { T = 0.1 })
+	k.ball(0.35, 0.35, 0.35, k.at(0, 0.9, 0), C(150, 220, 255), M.Neon)
+end
+
+Models.snow_owl_egg = function(k)
+	egg(k, k.main, M.Marble, C(170, 220, 255))
+	-- A crack with a little owl beak poking out.
+	k.box(0.5, 0.05, 0.05, k.at(0, 0.5, -0.62, 0, 0, 15), DARK)
+	k.wedge(0.16, 0.14, 0.2, k.at(0, 0.62, -0.68, 0, 180, 0), C(255, 170, 40), M.SmoothPlastic)
+	for i = 1, 3 do
+		k.ball(0.2, 0.5, 0.05, k.at(-0.4 + i * 0.2, 1.05, -0.2, 0, 0, (i - 2) * 20), WHITE, M.SmoothPlastic)
+	end
+end
+
+Models.blizzard_orb = function(k)
+	orbOnStand(k, C(180, 200, 220), C(200, 230, 255), M.Glass, { T = 0.55 })
+	for i = 1, 10 do
+		local a = i * 1.7
+		k.ball(0.08, 0.08, 0.08, k.at(math.cos(a) * 0.45, 0.15 + math.sin(i) * 0.4, math.sin(a) * 0.45), WHITE, M.Neon)
+	end
+	k.torus(0.4, 0.06, 12, k.at(0, 0.15, 0, 70, 0, 0), C(220, 240, 255), M.Neon, { T = 0.35 })
+	k.torus(0.28, 0.05, 10, k.at(0, 0.35, 0, 70, 50, 0), WHITE, M.Neon, { T = 0.3 })
+end
+
+-- THE FALLS -----------------------------------------------------------------------------------
+
+Models.parrot_totem = function(k)
+	k.vcyl(1.0, 0.8, k.at(0, -0.5, 0), WOOD, M.Wood)
+	k.ball(0.9, 1.1, 0.9, k.at(0, 0.3, 0), k.main, M.Wood)
+	k.ball(0.7, 0.65, 0.7, k.at(0, 0.95, -0.05), k.main, M.Wood)
+	k.wedge(0.25, 0.4, 0.35, k.at(0, 0.85, -0.45, 0, 180, 180), C(255, 210, 60), M.Wood)
+	eyes(k, 1.05, -0.3, 0.2, 0.16)
+	for _, x in { -1, 1 } do
+		for j = 0, 2 do
+			k.ball(0.25, 0.8 - j * 0.15, 0.15, k.at(x * (0.48 + j * 0.08), 0.25 - j * 0.1, 0.1, 0, 0, x * (-15 - j * 10)), ({ C(60, 160, 240), C(250, 220, 60), C(80, 200, 90) })[j + 1], M.Wood)
+		end
+	end
+	for i = 0, 2 do
+		k.box(0.12, 0.8, 0.1, k.at(-0.12 + i * 0.12, -0.2, 0.45, 20, 0, (i - 1) * 12), ({ C(230, 60, 50), C(60, 160, 240), C(250, 220, 60) })[i + 1], M.Wood)
+	end
+end
+
+Models.waterfall_pearl = function(k)
+	-- A shell cradling a big pearl, water pouring off it.
+	for i = 0, 6 do
+		local a = rad(-70 + i * 23)
+		k.ball(0.3, 1.2, 0.1, k.at(math.sin(a) * 0.55, -0.2 + math.cos(a) * 0.2, 0.35, -25, 0, math.deg(a)), C(255, 225, 220), M.Marble)
+	end
+	k.ball(1.6, 0.4, 1.2, k.at(0, -0.65, 0), C(255, 220, 215), M.Marble)
+	k.ball(0.95, 0.95, 0.95, k.at(0, -0.1, -0.1), k.main, M.Glass, { R = 0.4 })
+	k.ball(0.4, 0.4, 0.4, k.at(-0.18, 0.05, -0.35), WHITE, M.Neon, { T = 0.4 })
+	for i = 1, 3 do
+		k.box(0.25, 0.6, 0.06, k.at(-0.6 + i * 0.3, -1.0, -0.4), C(150, 210, 255), M.Glass, { T = 0.45 })
+	end
+end
+
+Models.thunder_drum = function(k)
+	k.vcyl(1.3, 1.5, k.at(0, -0.3, 0), k.main, M.Wood)
+	k.vcyl(0.1, 1.55, k.at(0, 0.38, 0), C(240, 225, 190), M.Fabric)
+	for i = 1, 8 do
+		local a = i / 8 * 2 * math.pi
+		k.box(0.05, 1.3, 0.05, k.at(math.cos(a) * 0.77, -0.3, math.sin(a) * 0.77, 0, 0, if i % 2 == 0 then 18 else -18), C(200, 170, 110), M.Fabric)
+	end
+	k.torus(0.76, 0.08, 16, k.at(0, -0.9, 0, 90, 0, 0), C(200, 60, 40), M.Fabric)
+	-- A lightning bolt painted on, sticks crossed on top.
+	for i, spec in { { 0.1, 0.05, 30 }, { -0.05, -0.25, -30 }, { 0.1, -0.55, 30 } } do
+		local _ = i
+		k.box(0.12, 0.4, 0.05, k.at(spec[1], spec[2], -0.76, 0, 0, spec[3]), C(255, 240, 100), M.Neon)
+	end
+	for _, rz in { 35, -35 } do
+		k.cyl(1.3, 0.1, k.at(0, 0.6, 0, 0, 30, rz), WOOD, M.Wood)
+	end
+end
+
+Models.rainbow_prism = function(k)
+	k.box(1.2, 1.2, 1.2, k.at(0, 0.1, 0, 45, 0, 35.26), WHITE, M.Glass, { T = 0.4, R = 0.3 })
+	local rainbow = { C(255, 80, 80), C(255, 170, 60), C(255, 240, 80), C(80, 230, 110), C(80, 170, 255), C(170, 100, 255) }
+	for i, col in rainbow do
+		k.box(1.2, 0.12, 0.06, k.at(0.9, -0.25 + i * 0.14, 0, 0, 0, -15 + i * 5), col, M.Neon, { T = 0.2 })
+	end
+	k.box(1.0, 0.1, 0.06, k.at(-0.9, 0.2, 0, 0, 0, 10), WHITE, M.Neon, { T = 0.3 })
+	k.vcyl(0.2, 1.1, k.at(0, -0.85, 0), C(200, 200, 210), M.Metal)
+end
+
+Models.tide_idol = function(k)
+	local stone = k.main
+	k.box(1.4, 1.9, 0.9, k.at(0, 0, 0), stone, M.Slate)
+	k.ball(1.2, 0.8, 1.0, k.at(0, 0.95, 0), stone, M.Slate)
+	for _, x in { -0.3, 0.3 } do
+		k.box(0.3, 0.14, 0.1, k.at(x, 0.55, -0.46), C(100, 220, 255), M.Neon)
+	end
+	k.box(0.6, 0.12, 0.1, k.at(0, 0.1, -0.46), C(20, 40, 60))
+	-- Waves carved around it, water streaming down.
+	for i = 0, 2 do
+		k.torus(0.8, 0.12, 14, k.at(0, -0.6 + i * 0.4, 0, 90, 0, 0), C(60, 170, 230), M.Glass, { T = 0.25 })
+	end
+	for _, x in { -0.5, 0.5 } do
+		k.box(0.2, 1.4, 0.05, k.at(x, 0, -0.48), C(150, 220, 255), M.Glass, { T = 0.4 })
+	end
+end
+
+Models.thunderbird_egg = function(k)
+	egg(k, k.main, M.Slate, C(160, 220, 255))
+	for i = 1, 3 do
+		local a = i / 3 * 2 * math.pi
+		for j = 0, 2 do
+			k.box(0.08, 0.35, 0.08, k.at(math.cos(a) * (0.5 + j * 0.2), 0.3 + j * 0.35, math.sin(a) * (0.5 + j * 0.2), 0, -math.deg(a), if j % 2 == 0 then 30 else -30), C(200, 240, 255), M.Neon)
+		end
+	end
+	for _, x in { -0.4, 0.4 } do
+		k.ball(0.6, 1.0, 0.1, k.at(x * 1.8, 0.5, 0.2, 0, 0, x * -60), C(70, 90, 160), M.SmoothPlastic)
+	end
+end
+
+-- EMBERFALL -----------------------------------------------------------------------------------
+
+Models.magma_marble = function(k)
+	k.ball(1.4, 1.4, 1.4, k.at(0, -0.15, 0), C(60, 30, 25), M.Basalt)
+	for i = 1, 8 do
+		local a = i * 2.2
+		k.box(0.6, 0.1, 0.05, k.at(math.cos(a) * 0.55, -0.15 + math.sin(i) * 0.4, math.sin(a) * 0.55, 0, -math.deg(a) + 90, i * 30), LAVA, M.Neon)
+	end
+	k.ball(0.8, 0.8, 0.8, k.at(0, -0.15, 0), k.main, M.Neon, { T = 0.3 })
+	k.ball(1.5, 0.2, 1.5, k.at(0, -0.9, 0), C(50, 40, 40), M.Basalt)
+end
+
+Models.fire_opal = function(k)
+	k.ball(1.3, 1.0, 1.0, k.at(0, -0.1, 0), k.main, M.Glass, { T = 0.1, R = 0.3 })
+	for i = 1, 5 do
+		k.ball(0.4, 0.25, 0.1, k.at(-0.3 + i * 0.12, -0.1 + (i % 2) * 0.2, -0.45), ({ C(255, 60, 60), C(255, 200, 60), C(80, 230, 150), C(80, 170, 255) })[(i % 4) + 1], M.Neon, { T = 0.35 })
+	end
+	k.torus(0.62, 0.1, 16, k.at(0, -0.1, 0), GOLD, M.Metal, { R = 0.3 })
+	for i = 1, 4 do
+		local a = i / 4 * 2 * math.pi
+		k.box(0.1, 0.35, 0.1, k.at(math.cos(a) * 0.68, -0.1 + math.sin(a) * 0.52, 0, 0, 0, math.deg(a)), GOLD, M.Metal)
+	end
+end
+
+Models.dragon_scale_shield = function(k)
+	k.cyl(0.25, 2.1, k.at(0, 0.1, 0, 0, 90, 0), C(70, 30, 25), M.Metal)
+	for ring = 0, 2 do
+		local r = 0.8 - ring * 0.3
+		for i = 1, 6 + ring * -1 do
+			local a = i / (6 - ring) * 2 * math.pi
+			k.ball(0.45, 0.35, 0.15, k.at(math.cos(a) * r, 0.1 + math.sin(a) * r, -0.14 - ring * 0.02, 0, 0, math.deg(a)), k.main:Lerp(C(200, 60, 40), ring * 0.2), M.Metal, { R = 0.2 })
+		end
+	end
+	k.ball(0.45, 0.45, 0.2, k.at(0, 0.1, -0.2), GOLD, M.Metal, { R = 0.3 })
+	k.ball(0.2, 0.2, 0.1, k.at(0, 0.1, -0.3), LAVA, M.Neon)
+	k.torus(1.02, 0.1, 18, k.at(0, 0.1, 0), GOLD, M.Metal)
+end
+
+Models.inferno_chalice = function(k)
+	goblet(k, k.main, M.Metal, 1.4, 0.9)
+	k.ball(1.1, 0.4, 1.1, k.at(0, 1.0, 0), LAVA, M.Neon)
+	for i = 1, 5 do
+		local a = i / 5 * 2 * math.pi
+		k.cone(0.7, 0.3, 3, k.at(math.cos(a) * 0.3, 1.0, math.sin(a) * 0.3), C(255, 170, 40), M.Neon, { T = 0.2 })
+	end
+	k.cone(1.0, 0.45, 4, k.at(0, 1.0, 0), C(255, 230, 120), M.Neon, { T = 0.15 })
+	for _, x in { -1, 1 } do
+		horn(k, x * 0.7, 0.3, 0, x, 0.6, 0.2, C(60, 30, 25), M.Metal)
+	end
+end
+
+Models.phoenix_lyre = function(k)
+	local gold = k.main
+	-- Two arms curving up like wings, strings of fire between.
+	for _, side in { -1, 1 } do
+		for i = 0, 5 do
+			local t = i / 5
+			k.ball(0.25, 0.45, 0.2, k.at(side * (0.3 + math.sin(t * math.pi * 0.8) * 0.5), -0.6 + t * 1.8, 0, 0, 0, side * (-20 + t * 40)), gold, M.Metal, { R = 0.3 })
+		end
+		k.cone(0.55, 0.3, 3, k.at(side * 0.72, 1.2, 0, 0, 0, side * -15), C(255, 150, 50), M.Neon, { T = 0.1 })
+	end
+	k.box(1.1, 0.15, 0.2, k.at(0, 1.1, 0), gold, M.Metal)
+	k.box(0.9, 0.3, 0.3, k.at(0, -0.75, 0), gold, M.Metal)
+	for i = 0, 4 do
+		k.box(0.03, 1.8, 0.03, k.at(-0.28 + i * 0.14, 0.18, 0), C(255, 150, 50), M.Neon)
+	end
+end
+
+Models.ifrit_lamp = function(k)
+	local brass = k.main
+	k.ball(1.6, 0.7, 0.9, k.at(0, -0.55, 0), brass, M.Metal, { R = 0.35 })
+	k.cyl(0.9, 0.25, k.at(-0.95, -0.4, 0, 0, 0, 25), brass, M.Metal, { R = 0.35 })
+	k.torus(0.3, 0.08, 8, k.at(0.9, -0.5, 0, 0, 90, 0), brass, M.Metal)
+	k.vcyl(0.25, 0.6, k.at(0, -0.15, 0), brass, M.Metal)
+	k.ball(0.3, 0.3, 0.3, k.at(0, 0.02, 0), GOLD, M.Metal)
+	-- The genie curling out of the spout in purple smoke.
+	for i = 1, 6 do
+		local t = i / 6
+		k.ball(0.35 + t * 0.4, 0.35 + t * 0.3, 0.35 + t * 0.4, k.at(-1.3 + t * 1.0, -0.2 + t * 1.3, math.sin(t * 5) * 0.2), C(150, 80, 220):Lerp(C(80, 180, 255), t), M.Neon, { T = 0.3 + (1 - t) * 0.2 })
+	end
+	eyes(k, 1.15, -0.45, 0.14, 0.15, C(255, 220, 60))
+end
+
+-- RIMEHEART -----------------------------------------------------------------------------------
+
+Models.frost_feather = function(k)
+	feather(k, C(200, 240, 255), WHITE, C(170, 210, 240), M.Glass)
+	for i = 1, 4 do
+		k.box(0.08, 0.08, 0.08, k.at(0.4 - i * 0.2, 0.9 - i * 0.3, -0.1, 45, 45, 0), WHITE, M.Neon)
+	end
+end
+
+Models.narwhal_horn = function(k)
+	k.cone(2.4, 0.6, 8, k.at(0.1, -0.95, 0, 0, 0, -12), k.main, M.Marble, { R = 0.15 })
+	for i = 0, 7 do
+		local t = i / 7
+		k.box(0.46 * (1 - t * 0.8), 0.04, 0.46 * (1 - t * 0.8), k.at(0.1 + t * 0.5, -0.8 + t * 2.3, 0, 0, i * 30, -12), C(200, 210, 220), M.Marble)
+	end
+	k.ball(1.4, 0.3, 1.1, k.at(0, -0.9, 0), C(220, 240, 255), M.Ice)
+end
+
+Models.ice_dragon_egg = function(k)
+	egg(k, k.main, M.Glass, C(220, 250, 255))
+	for i = 1, 5 do
+		local a = i / 5 * 2 * math.pi
+		shard(k, k.at(math.cos(a) * 0.75, -0.85, math.sin(a) * 0.75, math.sin(a) * 25, 0, -math.cos(a) * 25), 0.2, 0.5, ICE, M.Glass, { T = 0.1 })
+	end
+	k.ball(0.8, 1.1, 0.8, k.at(0, 0.05, 0), C(200, 240, 255), M.Neon, { T = 0.5 })
+end
+
+Models.glacier_bell = function(k)
+	for i = 0, 8 do
+		local t = i / 8
+		local d = 1.8 - math.sqrt(t) * 0.95
+		k.vcyl(0.2, d, k.at(0, -0.7 + t * 1.5, 0), k.main, M.Glass, { T = 0.2 })
+	end
+	k.ball(0.9, 0.5, 0.9, k.at(0, 0.85, 0), k.main, M.Glass, { T = 0.2 })
+	k.torus(0.25, 0.1, 8, k.at(0, 1.25, 0), C(220, 240, 255), M.Ice)
+	k.ball(0.45, 0.45, 0.45, k.at(0, -0.8, 0), C(150, 230, 255), M.Neon)
+	for i = 1, 6 do
+		local a = i / 6 * 2 * math.pi
+		k.box(0.1, 0.35, 0.1, k.at(math.cos(a) * 0.8, -0.95, math.sin(a) * 0.8), ICE, M.Glass, { T = 0.1 })
+	end
+end
+
+Models.frozen_treasure_chest = function(k)
+	chest(k, C(130, 90, 60), C(160, 200, 230))
+	coinsPile(k, 0.35, 6, 0.5)
+	-- The whole thing encased in a block of ice.
+	k.box(2.3, 1.9, 1.6, k.at(0, -0.05, 0), k.main, M.Ice, { T = 0.55 })
+	for i = 1, 5 do
+		k.box(0.12, 0.3, 0.12, k.at(-0.9 + i * 0.35, -1.0, -0.8), ICE, M.Glass, { T = 0.2 })
+	end
+end
+
+Models.frost_titan_heart = function(k)
+	heart(k, 0.2, 1.8, k.main, M.Glass, { T = 0.2 })
+	heart(k, 0.2, 1.1, C(200, 245, 255), M.Neon, { T = 0.3 })
+	for i = 1, 6 do
+		local a = i / 6 * 2 * math.pi
+		shard(k, k.at(math.cos(a) * 0.55, -0.9, math.sin(a) * 0.55, math.sin(a) * 35, 0, -math.cos(a) * 35), 0.22, 0.45, ICE, M.Glass, { T = 0.1 })
+	end
+	k.torus(1.1, 0.05, 20, k.at(0, 0.3, 0, 75, 0, 0), C(160, 230, 255), M.Neon, { T = 0.3 })
+end
+
+Models.aurora_lantern = function(k)
+	lantern(k, C(40, 60, 90), C(120, 255, 200), C(200, 255, 240))
+	for i = 1, 5 do
+		k.box(1.4, 0.1, 0.05, k.at(0, 1.1 + i * 0.12, 0, 0, i * 36, math.sin(i) * 12), AURORA[i], M.Neon, { T = 0.35 })
+	end
+end
+
+-- STARFALL ISLES ------------------------------------------------------------------------------
+
+Models.meteorite = function(k)
+	k.ball(1.5, 1.2, 1.3, k.at(0, -0.3, 0), k.main, M.Basalt)
+	for i = 1, 6 do
+		local a = i * 1.9
+		k.ball(0.35, 0.3, 0.1, k.at(math.cos(a) * 0.6, -0.3 + math.sin(i) * 0.4, math.sin(a) * 0.55, 0, -math.deg(a) + 90, 0), C(30, 25, 35), M.Basalt)
+	end
+	for i = 1, 5 do
+		k.box(0.5, 0.06, 0.05, k.at(-0.3 + i * 0.12, -0.3 + (i % 3) * 0.25, -0.62, 0, 0, i * 40), C(255, 150, 60), M.Neon)
+	end
+	for i = 1, 3 do
+		k.box(0.14, 0.14, 0.14, k.at(0.4 - i * 0.2, 0.45 + i * 0.15, -0.1, 45, 45, 0), C(200, 230, 255), M.Glass)
+	end
+end
+
+Models.star_chart = function(k)
+	k.box(1.9, 1.5, 0.08, k.at(0, 0.1, 0), k.main, M.Fabric)
+	for _, y in { -0.72, 0.92 } do
+		k.cyl(2.1, 0.22, k.at(0, y, 0), C(170, 120, 70), M.Wood)
+	end
+	local stars = { { -0.6, 0.5 }, { -0.25, 0.25 }, { 0.1, 0.45 }, { 0.45, 0.1 }, { 0.2, -0.3 }, { -0.4, -0.25 } }
+	for i, p in stars do
+		k.ball(0.12, 0.12, 0.05, k.at(p[1], p[2], -0.06), C(255, 240, 180), M.Neon)
+		local nxt = stars[i + 1]
+		if nxt then
+			local dx, dy = nxt[1] - p[1], nxt[2] - p[2]
+			k.box(math.sqrt(dx * dx + dy * dy), 0.03, 0.02, k.at((p[1] + nxt[1]) / 2, (p[2] + nxt[2]) / 2, -0.05, 0, 0, math.deg(math.atan2(dy, dx))), C(150, 180, 255), M.Neon, { T = 0.3 })
+		end
+	end
+	k.ball(0.3, 0.3, 0.05, k.at(0.65, 0.55, -0.06), C(255, 250, 220), M.Neon)
+end
+
+Models.moon_rabbit = function(k)
+	local white = k.main
+	k.ball(1.2, 1.1, 1.0, k.at(0, -0.45, 0), white, M.Marble)
+	k.ball(0.8, 0.75, 0.75, k.at(0, 0.35, -0.1), white, M.Marble)
+	for _, x in { -0.18, 0.18 } do
+		k.ball(0.22, 0.95, 0.12, k.at(x, 1.05, 0, 0, 0, x * -40), white, M.Marble)
+		k.ball(0.12, 0.7, 0.05, k.at(x, 1.05, -0.05, 0, 0, x * -40), C(255, 190, 210), M.SmoothPlastic)
+	end
+	eyes(k, 0.42, -0.42, 0.16, 0.14, C(200, 40, 80))
+	-- The mortar and pestle it's pounding, and a crescent moon behind.
+	k.vcyl(0.35, 0.55, k.at(0, -0.75, -0.6), C(170, 130, 90), M.Wood)
+	k.cyl(0.7, 0.1, k.at(0.1, -0.3, -0.6, 0, 0, 70), C(170, 130, 90), M.Wood)
+	k.ball(1.4, 1.4, 0.1, k.at(0.2, 0.3, 0.55), C(255, 240, 170), M.Neon)
+	k.ball(1.2, 1.2, 0.12, k.at(0.5, 0.45, 0.52), C(30, 30, 60), M.SmoothPlastic)
+end
+
+Models.tiny_planet = function(k)
+	k.ball(1.4, 1.4, 1.4, k.at(0, 0.1, 0), k.main, M.SmoothPlastic)
+	for i = 1, 5 do
+		local a = i * 1.3
+		k.ball(0.5, 0.2, 0.5, k.at(math.cos(a) * 0.5, 0.1 + math.sin(i * 2) * 0.45, math.sin(a) * 0.5, 0, -math.deg(a), 70), C(90, 200, 90), M.Grass)
+	end
+	k.ball(0.35, 0.5, 0.35, k.at(0, 0.85, 0), C(80, 170, 70), M.Grass) -- a tree on top
+	k.vcyl(0.3, 0.08, k.at(0, 0.7, 0), WOOD, M.Wood)
+	k.torus(1.05, 0.07, 20, k.at(0, 0.1, 0, 70, 0, 15), C(255, 220, 150), M.Neon, { T = 0.25 })
+	k.ball(0.25, 0.25, 0.25, k.at(1.05, 0.3, 0), C(220, 220, 230), M.Slate) -- a moon
+	k.vcyl(0.2, 0.7, k.at(0, -0.85, 0), C(60, 50, 80), M.Metal)
+end
+
+Models.constellation_tiara = function(k)
+	crown(k, k.main, M.Metal, 7, C(255, 250, 220))
+	for i = 1, 3 do
+		starShape(k, k.at(-0.5 + (i - 1) * 0.5, 0.75 + (if i == 2 then 0.3 else 0), -0.75), 0.18 + (if i == 2 then 0.08 else 0), 0.05, C(255, 250, 220), M.Neon)
+	end
+end
+
+Models.void_lantern = function(k)
+	lantern(k, C(30, 20, 40), C(20, 10, 30), C(120, 60, 200))
+	k.torus(0.3, 0.08, 10, k.at(0, -0.2, 0, 0, 30, 0), C(170, 90, 255), M.Neon)
+	for i = 1, 6 do
+		local a = i / 6 * 2 * math.pi
+		k.ball(0.1, 0.1, 0.1, k.at(math.cos(a) * 0.6, 0.9 + (i % 2) * 0.2, math.sin(a) * 0.6), C(190, 120, 255), M.Neon)
+	end
+end
+
+Models.supernova_core = function(k)
+	orbOnStand(k, C(60, 50, 80), C(255, 230, 170), M.Neon, { T = 0.1 })
+	for i = 0, 7 do
+		spike2d(k, k.at(0, 0.15, -0.1, 0, 0, i * 45) * CFrame.new(0, 0.6 * k.s, 0), 0.3, 0.7, 0.06, C(255, 250, 220), M.Neon, { T = 0.2 })
+	end
+	k.torus(1.1, 0.07, 20, k.at(0, 0.15, 0, 70, 0, 0), C(255, 150, 80), M.Neon, { T = 0.3 })
+end
+
+Models.galaxy_egg = function(k)
+	k.ball(1.35, 1.8, 1.35, k.at(0, 0.05, 0), C(40, 25, 80), M.Glass, { T = 0.15 })
+	for i = 1, 3 do
+		k.torus(0.45 + i * 0.05, 0.05, 14, k.at(0, 0.05, 0, 75, i * 55, 0), ({ C(190, 90, 255), C(255, 110, 210), C(90, 220, 255) })[i], M.Neon, { T = 0.3 })
+	end
+	for i = 1, 9 do
+		local a = i * 1.1
+		k.ball(0.08, 0.08, 0.08, k.at(math.cos(a) * 0.35, -0.4 + i * 0.1, math.sin(a) * 0.35), WHITE, M.Neon)
+	end
+	k.ball(1.6, 0.25, 1.6, k.at(0, -0.85, 0), C(60, 50, 80), M.Slate)
+end
+
+Models.pocket_black_hole = function(k)
+	-- A black sphere with a blazing accretion disc and light bending round it.
+	k.ball(1.1, 1.1, 1.1, k.at(0, 0.2, 0), BLACK, M.SmoothPlastic)
+	k.torus(0.9, 0.18, 22, k.at(0, 0.2, 0, 80, 0, 10), C(255, 170, 60), M.Neon)
+	k.torus(1.15, 0.1, 24, k.at(0, 0.2, 0, 80, 0, 10), C(255, 90, 40), M.Neon, { T = 0.3 })
+	k.torus(0.62, 0.06, 18, k.at(0, 0.2, 0, 0, 0, 0), C(255, 230, 180), M.Neon, { T = 0.35 })
+	k.vcyl(0.2, 0.8, k.at(0, -0.85, 0), C(40, 40, 50), M.Metal)
+	k.box(0.1, 0.8, 0.1, k.at(0, -0.45, 0), C(40, 40, 50), M.Metal)
+end
+
+-- EVENT (admin drops only) ---------------------------------------------------------------------
+
+Models.heist_bag = function(k)
+	local gold = k.main
+	k.ball(1.7, 1.5, 1.5, k.at(0, -0.3, 0), C(60, 60, 70), M.Fabric)
+	k.ball(1.1, 0.5, 1.0, k.at(0, 0.45, 0), C(70, 70, 80), M.Fabric)
+	k.torus(0.4, 0.1, 10, k.at(0, 0.6, 0, 90, 0, 0), gold, M.Metal)
+	-- The dollar sign, gold spilling out, a mask tied on.
+	k.box(0.14, 0.9, 0.05, k.at(0, -0.3, -0.76), gold, M.Neon)
+	for i = 0, 2 do
+		k.box(0.5, 0.12, 0.05, k.at(0, -0.65 + i * 0.35, -0.77, 0, 0, if i == 1 then -25 else 25), gold, M.Neon)
+	end
+	k.ball(0.9, 0.5, 0.9, k.at(0, 0.8, 0), gold, M.Metal, { R = 0.35 })
+	coinsPile(k, 1.0, 6, 0.3)
+	k.box(1.2, 0.3, 0.1, k.at(0, 0.15, -0.7), BLACK, M.Fabric)
+	for _, x in { -0.25, 0.25 } do
+		k.ball(0.2, 0.14, 0.05, k.at(x, 0.15, -0.76), WHITE, M.SmoothPlastic)
+	end
+end
+
+Models.cosmic_cat = function(k)
+	local fur = k.main
+	k.ball(1.2, 1.1, 1.0, k.at(0, -0.4, 0), fur, M.SmoothPlastic)
+	k.ball(1.0, 0.9, 0.9, k.at(0, 0.45, -0.1), fur, M.SmoothPlastic)
+	for _, x in { -0.3, 0.3 } do
+		k.wedge(0.3, 0.45, 0.2, k.at(x, 0.95, -0.1), fur, M.SmoothPlastic)
+	end
+	eyes(k, 0.5, -0.5, 0.2, 0.26, C(120, 255, 200))
+	for i = 1, 8 do
+		local a = i * 1.7
+		k.ball(0.08, 0.08, 0.05, k.at(math.cos(a) * 0.45, -0.4 + math.sin(i) * 0.4, -0.5), WHITE, M.Neon)
+	end
+	-- A tail curling into a ring of stars, a tiny space helmet.
+	for i = 0, 6 do
+		local t = i / 6
+		k.ball(0.22, 0.22, 0.22, k.at(0.5 + math.sin(t * 3) * 0.4, -0.6 + t * 1.2, 0.5), fur, M.SmoothPlastic)
+	end
+	starShape(k, k.at(0.7, 0.7, 0.5), 0.2, 0.05, C(255, 240, 180), M.Neon)
+	k.ball(1.25, 1.15, 1.15, k.at(0, 0.45, -0.1), C(200, 230, 255), M.Glass, { T = 0.7 })
+end
+
+Models.crown_of_heists = function(k)
+	crown(k, k.main, M.Metal, 8, C(255, 60, 90))
+	-- Every jewel a different colour, a black mask band, a floating dollar sign.
+	local jewels = { C(255, 60, 90), C(60, 200, 255), C(80, 230, 110), C(255, 220, 60), C(190, 110, 255) }
+	for i = 1, 10 do
+		local a = i / 10 * 2 * math.pi
+		k.ball(0.18, 0.22, 0.1, k.at(math.cos(a) * 0.86, -0.45, math.sin(a) * 0.86, 0, 90 - math.deg(a), 0), jewels[(i % #jewels) + 1], M.Glass)
+	end
+	k.box(0.12, 0.7, 0.05, k.at(0, 1.05, 0), GOLD, M.Neon)
+	k.box(0.4, 0.1, 0.05, k.at(0, 1.2, 0, 0, 0, 25), GOLD, M.Neon)
+	k.box(0.4, 0.1, 0.05, k.at(0, 0.9, 0, 0, 0, 25), GOLD, M.Neon)
+end
+
+Models.dev_duck = function(k)
+	local gold = k.main
+	k.ball(1.6, 1.1, 1.3, k.at(0, -0.45, 0.1), gold, M.Metal, { R = 0.4 })
+	k.ball(1.0, 0.95, 0.95, k.at(0, 0.45, -0.25), gold, M.Metal, { R = 0.4 })
+	k.ball(0.6, 0.25, 0.5, k.at(0, 0.3, -0.8), C(255, 140, 30), M.SmoothPlastic)
+	eyes(k, 0.6, -0.65, 0.22, 0.24)
+	k.wedge(0.8, 0.5, 0.4, k.at(0, -0.1, 0.85, 0, 0, 0), gold, M.Metal, { R = 0.4 })
+	for _, x in { -0.65, 0.65 } do
+		k.ball(0.25, 0.6, 0.8, k.at(x, -0.35, 0.1, 0, 0, x * -15), gold:Lerp(WHITE, 0.2), M.Metal, { R = 0.4 })
+	end
+	-- A tiny crown and a pair of sunglasses. Worth six million.
+	crown(k, WHITE, M.Neon, 5, C(255, 60, 90), 0.98, 0.38)
+	k.box(0.9, 0.2, 0.05, k.at(0, 0.62, -0.72), BLACK, M.Glass)
+end
+
 return TreasureModels

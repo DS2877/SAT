@@ -785,6 +785,33 @@ function VaultService.SkinPurchased(player: Player, skinId: string)
 	end
 end
 
+-- An admin gave this player a skin (Services/AdminService): it's theirs for good, and it goes
+-- straight on their vault. Returns false if there's no such skin or they aren't loaded.
+function VaultService.GrantSkin(player: Player, skinId: string, from: string?): boolean
+	local skin = VaultSkins.ById[skinId]
+	if not skin or not PlayerData.Get(player) then
+		return false
+	end
+	previewing[player] = nil
+	player:SetAttribute("SkinPreviewUntil", 0)
+	PlayerData.Update(player, function(d)
+		d.GiftedSkins[skin.Id] = true
+		d.VaultSkin = skin.Id
+	end)
+	applySkin(player)
+	Net.Fire("Notify", player, {
+		Kind = "Banner",
+		Title = ("🎁 A GIFT: %s %s VAULT!"):format(skin.Icon, skin.Name:upper()),
+		Text = ("%s gave you this vault skin - it's on your vault now"):format(from or "An admin"),
+		Tone = "Reward",
+		Duration = 7,
+	})
+	Net.Fire("Feedback", player, { Type = "SkinUnlocked", Skin = skin.Id })
+	Net.FireAll("Notify", { Kind = "Social", Text = ("🎁 %s GOT THE %s %s VAULT AS A GIFT!"):format(player.DisplayName:upper(), skin.Icon, skin.Name:upper()) })
+	Analytics.Event(player, "SkinGifted", { Skin = skin.Id })
+	return true
+end
+
 -- Pass ownership arrived (join) or changed: the vault may be allowed a different skin now.
 function VaultService.RefreshSkin(player: Player)
 	applySkin(player)

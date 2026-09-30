@@ -3,6 +3,8 @@
 --   📢 send a message as a banner on every screen (optionally pinned on the Info Board)
 --   ⚡ run a global boost (luck / cash / mutations / strength) for N minutes, or end them
 --   🎉 start an event (Treasure Rain, Cursed Hour, Gold Rush, the Deep South storms)
+--   🎁 gift a vault skin to anyone by name (online anywhere now, or waiting for their next join)
+--   ✨ drop any treasure (the EVENT ones too) with any mutation - at your feet or by everyone
 --   💬 read player feedback (the last week, newest first; no names are ever stored)
 -- Built for a phone first: big buttons, one scrolling column.
 
@@ -10,6 +12,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
+local Treasures = require(Shared.Config.Treasures)
+local Rarities = require(Shared.Config.Rarities)
+local Mutations = require(Shared.Config.Mutations)
+local VaultSkins = require(Shared.Config.VaultSkins)
+local Players = game:GetService("Players")
 local Net = require(Shared.Net)
 
 local UI = script.Parent.Parent.UI
@@ -179,6 +186,171 @@ function Admin.Build(root: Frame, _menus)
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = scroll,
 	})
+
+	-- A horizontally scrolling row of chips; returns (frame, add(text, color, onClick) -> button).
+	local function chipRow(height: number)
+		local frame = Kit.new("ScrollingFrame", {
+			LayoutOrder = nextOrder(),
+			Size = UDim2.new(1, 0, 0, height),
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			ScrollBarThickness = 4,
+			ScrollingDirection = Enum.ScrollingDirection.X,
+			AutomaticCanvasSize = Enum.AutomaticSize.X,
+			CanvasSize = UDim2.new(),
+			Parent = scroll,
+		}, { Kit.list(Enum.FillDirection.Horizontal, 6, Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Center) })
+		local function add(text: string, color: Color3, onClick: () -> ()): TextButton
+			local b = Kit.button({ Size = UDim2.new(0, 0, 1, -6), AutomaticSize = Enum.AutomaticSize.X, Text = "  " .. text .. "  ", TextSize = Theme.TextSize.Small, Font = Theme.Font.Display, BackgroundColor3 = color, TextColor3 = Color3.new(1, 1, 1), Parent = frame }, onClick)
+			return b
+		end
+		return frame, add
+	end
+	local function paint(buttons: { [any]: TextButton }, selected: any, on: Color3?)
+		for key, b in buttons do
+			b.BackgroundColor3 = if key == selected then (on or ON) else OFF
+		end
+	end
+
+	-- GIFT A VAULT SKIN
+	heading("🎁 GIFT A VAULT SKIN")
+	local giftBox = Kit.new("TextBox", {
+		LayoutOrder = nextOrder(),
+		Size = UDim2.new(1, 0, 0, 44),
+		BackgroundColor3 = Theme.Color.PanelLight,
+		BorderSizePixel = 0,
+		ClearTextOnFocus = false,
+		Font = Theme.Font.Bold,
+		TextSize = 18,
+		TextColor3 = Theme.Color.Text,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		PlaceholderText = "Username (any player - or tap someone in this server below)",
+		PlaceholderColor3 = Theme.Color.TextDim,
+		Text = "",
+		Parent = scroll,
+	}, { Kit.corner(Theme.Radius.Medium), Kit.padding(0, 10) })
+	local playerRowFrame, addPlayer = chipRow(40)
+	local function refreshPlayers()
+		for _, child in playerRowFrame:GetChildren() do
+			if child:IsA("GuiButton") then
+				child:Destroy()
+			end
+		end
+		for _, p in Players:GetPlayers() do
+			addPlayer("👤 " .. p.DisplayName, OFF, function()
+				giftBox.Text = p.Name
+			end)
+		end
+	end
+	refreshPlayers()
+	Players.PlayerAdded:Connect(refreshPlayers)
+	Players.PlayerRemoving:Connect(function()
+		task.defer(refreshPlayers)
+	end)
+	local giftSkin: string? = nil
+	local skinButtons: { [string]: TextButton } = {}
+	local _, addSkin = chipRow(44)
+	for _, skin in VaultSkins.List do
+		if skin.Id ~= VaultSkins.Default then
+			skinButtons[skin.Id] = addSkin(("%s %s"):format(skin.Icon, skin.Name), OFF, function()
+				giftSkin = skin.Id
+				paint(skinButtons, giftSkin, Color3.fromRGB(120, 200, 255))
+			end)
+		end
+	end
+	local giftRow = row(46)
+	button(giftRow, "🎁 GIVE SKIN", 200, Color3.fromRGB(60, 160, 110), function()
+		if not giftSkin or giftBox.Text:match("^%s*$") then
+			Sounds.Play("Error")
+			return
+		end
+		send({ Kind = "GiftSkin", Target = giftBox.Text, Skin = giftSkin })
+	end)
+	Kit.label({ Text = "Theirs for good - it goes straight on their vault. Offline? They get it on their next join.", Size = UDim2.new(1, -210, 1, 0), LayoutOrder = 2, TextWrapped = true, Font = Theme.Font.Bold, TextSize = Theme.TextSize.Tiny, TextColor3 = Theme.Color.TextDim, TextXAlignment = Enum.TextXAlignment.Left, Parent = giftRow })
+
+	-- DROP A TREASURE
+	heading("✨ DROP A TREASURE")
+	local dropRarity = "Event"
+	local dropTreasure: string? = nil
+	local dropMutation = ""
+	local dropCount = GameConfig.Admin.DropCounts[1]
+	local rarityButtons: { [string]: TextButton } = {}
+	local treasureRowFrame, addTreasure = nil, nil
+	local selectedLabel
+	local function listTreasures()
+		for _, child in treasureRowFrame:GetChildren() do
+			if child:IsA("GuiButton") then
+				child:Destroy()
+			end
+		end
+		local buttons: { [string]: TextButton } = {}
+		for _, def in Treasures.List do
+			local fits = if dropRarity == "Event" then def.AdminOnly == true else (def.Rarity == dropRarity and not def.AdminOnly)
+			if fits then
+				local info = Rarities.Info[def.Rarity]
+				buttons[def.Id] = addTreasure(def.Name, OFF, function()
+					dropTreasure = def.Id
+					selectedLabel.Text = ("Selected: %s %s (%s)"):format(info and info.Glyph or "", def.Name, def.Rarity)
+					selectedLabel.TextColor3 = info and info.Color or Theme.Color.Text
+					for id, b in buttons do
+						b.BackgroundColor3 = if id == dropTreasure then (info and info.Color or ON) else OFF
+					end
+				end)
+			end
+		end
+	end
+	local _, addRarity = chipRow(40)
+	local rarityOrder = { "Event" }
+	for _, name in Rarities.Order do
+		table.insert(rarityOrder, name)
+	end
+	for _, name in rarityOrder do
+		local info = Rarities.Info[name]
+		rarityButtons[name] = addRarity(if name == "Event" then "⭐ EVENT ONLY" else name:upper(), OFF, function()
+			dropRarity = name
+			paint(rarityButtons, dropRarity, if info then info.Color else Color3.fromRGB(230, 120, 40))
+			listTreasures()
+		end)
+	end
+	treasureRowFrame, addTreasure = chipRow(44)
+	selectedLabel = Kit.label({ LayoutOrder = nextOrder(), Text = "Pick a treasure above", Size = UDim2.new(1, 0, 0, 20), Font = Theme.Font.Black, TextSize = Theme.TextSize.Small, TextColor3 = Theme.Color.TextDim, TextXAlignment = Enum.TextXAlignment.Left, Parent = scroll })
+	local mutationButtons: { [string]: TextButton } = {}
+	local _, addMutation = chipRow(40)
+	mutationButtons[""] = addMutation("NO MUTATION", ON, function()
+		dropMutation = ""
+		paint(mutationButtons, dropMutation)
+	end)
+	for _, name in Mutations.Order do
+		local info = Mutations.Info[name]
+		mutationButtons[name] = addMutation(name:upper(), OFF, function()
+			dropMutation = name
+			paint(mutationButtons, dropMutation, Mutations.Color(info.Sparkle):Lerp(Color3.new(0, 0, 0), 0.35))
+		end)
+	end
+	local countButtons: { [number]: TextButton } = {}
+	local countRow = row(40)
+	for _, n in GameConfig.Admin.DropCounts do
+		countButtons[n] = button(countRow, ("x%d"):format(n), 70, if n == dropCount then ON else OFF, function()
+			dropCount = n
+			paint(countButtons, dropCount)
+		end)
+	end
+	local dropRow = row(50)
+	local function drop(where: string)
+		if not dropTreasure then
+			Sounds.Play("Error")
+			return
+		end
+		send({ Kind = "Drop", Treasure = dropTreasure, Mutation = dropMutation, Count = dropCount, Where = where, Global = global })
+	end
+	button(dropRow, "✨ AT MY FEET", 180, Color3.fromRGB(230, 150, 40), function()
+		drop("Me")
+	end)
+	button(dropRow, "🌧 NEXT TO EVERYONE", 230, Color3.fromRGB(200, 80, 200), function()
+		drop("Everyone")
+	end)
+	paint(rarityButtons, dropRarity, Color3.fromRGB(230, 120, 40))
+	listTreasures()
 
 	-- PLAYER FEEDBACK
 	heading("💬 PLAYER FEEDBACK")

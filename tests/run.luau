@@ -198,7 +198,7 @@ test("every spawn area referenced by treasures can spawn something", function()
 		areas[def.SpawnArea] = true
 	end
 	for area in areas do
-		local known = { Wilds = true, Ruins = true, Coast = true, Falls = true, Frost = true, Marsh = true, Ember = true, Rime = true, Star = true }
+		local known = { Wilds = true, Ruins = true, Coast = true, Falls = true, Frost = true, Marsh = true, Ember = true, Rime = true, Star = true, Event = true }
 		check(known[area] == true, "known area " .. area)
 	end
 end)
@@ -1816,6 +1816,78 @@ test("vault skins: a full, fair, well-formed catalogue", function()
 	check(string.find(monetization, "Monetization.SkinPasses", 1, true) ~= nil and string.find(monetization, "VaultService.SkinPurchased", 1, true) ~= nil, "skin passes are checked and granted")
 	check(string.find(fs.readFile("src/client/Menus/MenuController.luau"), "script.Parent.VaultSkins", 1, true) ~= nil, "the SKINS menu is registered")
 	check(string.find(fs.readFile("src/client/Controllers/Effects.luau"), "OrbitCenter", 1, true) ~= nil, "orbiting showpieces animate")
+end)
+
+test("treasure variety: every region has plenty to find, all with their own particles", function()
+	local fs = require("@lune/fs")
+	local cfg = GameConfig.Treasure
+	check(#Treasures.List >= 130, "a big haul of different treasures")
+	for area, region in GameConfig.Regions do
+		local row = cfg.RarityByDanger[region.Danger]
+		for rarity, weight in row do
+			local n = 0
+			for _, def in Treasures.List do
+				if def.SpawnArea == area and def.Rarity == rarity and not def.AdminOnly then
+					n += 1
+				end
+			end
+			if weight >= 25 then
+				check(n >= 3, ("%s has %d different %s treasures (they're %s%% of its loot)"):format(area, n, rarity, tostring(weight)))
+			elseif weight >= 10 then
+				check(n >= 2, ("%s has %d different %s treasures"):format(area, n, rarity))
+			end
+		end
+	end
+	-- Every treasure has signature particles the visual builder knows.
+	local visual = fs.readFile("src/shared/TreasureVisual.luau")
+	for _, def in Treasures.List do
+		check(type(def.Fx) == "string" and string.find(visual, "\t" .. def.Fx .. " = function(s, ", 1, true) ~= nil, ("%s has signature particles (%s)"):format(def.Id, tostring(def.Fx)))
+	end
+	check(string.find(visual, "TreasureVisual.Signature(handle, def, display)", 1, true) ~= nil, "every treasure gets its particles")
+	-- Mutations are impossible to miss.
+	for _, name in { "MutationRing", "MutationSparkles", "MutationGlint", "GoldCoins", "Prism", "Moonmotes", "RainbowTrail", "SilverDust" } do
+		check(string.find(visual, '"' .. name .. '"', 1, true) ~= nil, "mutation effect " .. name)
+	end
+end)
+
+test("event treasures only come from admins", function()
+	local events = 0
+	for _, def in Treasures.List do
+		if def.AdminOnly then
+			events += 1
+			check(def.SpawnArea == "Event", def.Id .. " lives in the Event set")
+		end
+	end
+	check(events >= 3, "a few event treasures to drop")
+	local weights, anywhere = TreasureRoll.WeightsFor(GameConfig.Treasure, 7)
+	for _, area in { "Wilds", "Star", "Event" } do
+		local candidates = TreasureRoll.Candidates(Treasures.List, { Area = area }, RARITY_ORDER, weights, {}, {}, anywhere)
+		for _, c in candidates do
+			check(not c.Def.AdminOnly, ("%s never rolls naturally (%s)"):format(c.Def.Id, area))
+		end
+	end
+	local fs = require("@lune/fs")
+	check(string.find(fs.readFile("src/server/Services/EventService.luau"), "not def.AdminOnly", 1, true) ~= nil, "no event treasure in Treasure Rain")
+	check(string.find(fs.readFile("src/client/Controllers/HUD.luau"), "not def.AdminOnly", 1, true) ~= nil, "the next-treasure goal never points at one")
+end)
+
+test("admins gift vault skins and drop treasure", function()
+	local fs = require("@lune/fs")
+	local VaultSkins = require("../src/shared/Config/VaultSkins")
+	local SkinRules = require("../src/shared/Logic/VaultSkins")
+	local never = function()
+		return false
+	end
+	local diamond = VaultSkins.Get("diamond")
+	check(not SkinRules.IsUnlocked(diamond, { Stats = { PeakNetWorth = 0 }, Ascension = 0, GiftedSkins = {} }, never), "no pass, no diamond")
+	check(SkinRules.IsUnlocked(diamond, { Stats = { PeakNetWorth = 0 }, Ascension = 0, GiftedSkins = { diamond = true } }, never), "...unless it was a gift")
+	check(type(DataSchema.Default().GiftedSkins) == "table" and type(DataSchema.Migrate({}).GiftedSkins) == "table", "saves hold gifts")
+	local admin = fs.readFile("src/server/Services/AdminService.luau")
+	check(string.find(admin, 'kind == "GiftSkin"', 1, true) ~= nil and string.find(admin, "deliverPending", 1, true) ~= nil, "gifts reach online and offline players")
+	check(string.find(admin, 'kind == "Drop"', 1, true) ~= nil and string.find(admin, "math.clamp(math.floor(tonumber(action.Count) or 1), 1, 10)", 1, true) ~= nil, "drops are capped")
+	check(string.find(fs.readFile("src/server/Services/TreasureService.luau"), 'mutation: string? -- nil = roll one as usual', 1, true) ~= nil, "drops can force a mutation")
+	local vault = fs.readFile("src/server/Services/VaultService.luau")
+	check(string.find(vault, "d.GiftedSkins[skin.Id] = true", 1, true) ~= nil, "a gift is saved")
 end)
 
 test("admin panel: boosts, broadcasts and events, admins only", function()

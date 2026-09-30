@@ -40,7 +40,8 @@ function TreasureRoll.Candidates(defs, point, order, weights, caps, activeByRari
 		local cap = caps[def.Rarity]
 		local underCap = cap == nil or (activeByRarity[def.Rarity] or 0) < cap
 		local inArea = def.SpawnArea == point.Area or (anywhere ~= nil and anywhere[def.Rarity] == true)
-		if inArea and rank >= minRank and rank <= maxRank and underCap then
+		-- Event treasures (AdminOnly) never spawn on their own: an admin drops them.
+		if inArea and not def.AdminOnly and rank >= minRank and rank <= maxRank and underCap then
 			table.insert(eligible, def)
 			perRarity[def.Rarity] = (perRarity[def.Rarity] or 0) + 1
 		end
